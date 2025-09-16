@@ -1,0 +1,16 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Launch BI Data Mapping Tool",
+			"type": "shell",
+			"command": "start",
+			"args": [
+				"index.html"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}

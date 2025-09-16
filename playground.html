@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InfiniBI Studio</title>
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="playground-container">
+        <!-- Header -->
+        <header class="playground-header">
+            <div class="header-content">
+                <div class="app-logo">
+                    <i class="fas fa-project-diagram"></i>
+                    <h1>InfiniBI Studio</h1>
+                </div>
+                <nav class="header-nav">
+                    <a href="playground.html" class="nav-link active">
+                        <i class="fas fa-project-diagram"></i> Architecture
+                    </a>
+                    <a href="databases.html" class="nav-link">
+                        <i class="fas fa-database"></i> Databases
+                    </a>
+                </nav>
+                <div class="header-actions">
+                    <button class="btn btn-icon theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">
+                        <i class="fas fa-moon" id="theme-icon"></i>
+                    </button>
+                    <button class="btn btn-secondary" onclick="importCanvas()" title="Import architecture from file">
+                        <i class="fas fa-file-import"></i> Import
+                    </button>
+                    <button class="btn btn-secondary" onclick="loadCanvas()" title="Load saved canvas">
+                        <i class="fas fa-folder-open"></i> Load
+                    </button>
+                    <button class="btn btn-secondary" onclick="saveCanvas()" title="Save canvas">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearCanvas()">
+                        <i class="fas fa-trash"></i> Clear Canvas
+                    </button>
+                    <button class="btn btn-primary" onclick="exportCanvas()">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                    <button class="btn btn-secondary" id="pdf-export-btn" title="Export PDF summary (Shift = quick snapshot)">
+                        <i class="fas fa-file-pdf"></i> PDF
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Fabric Workspace -->
+        <div class="fabric-workspace">
+            <!-- Fabric Header -->
+            <div class="fabric-workspace-header">
+                <div class="workspace-title">
+                    <i class="fas fa-project-diagram"></i>
+                    <h2></h2>
+                    <!-- workspace-actions removed per request -->
+                </div>
+            </div>
+
+            <!-- Fabric Toolbar -->
+            <div class="fabric-toolbar">
+                <div class="toolbar-left">
+                    <button class="connection-toggle" id="edit-toggle-btn">
+                        <i class="fas fa-pen"></i>
+                        <span>Edit Mode</span>
+                    </button>
+                    <button class="toolbar-btn" onclick="playground.undo()" title="Undo (Ctrl+Z)">
+                        <i class="fas fa-undo"></i>
+                        <span>Undo</span>
+                    </button>
+                    <button class="toolbar-btn" onclick="playground.redo()" title="Redo (Ctrl+Y)">
+                        <i class="fas fa-redo"></i>
+                        <span>Redo</span>
+                    </button>
+                </div>
+                <div class="toolbar-right"><!-- empty on purpose --></div>
+            </div>
+
+            <!-- Palette of items above the canvas -->
+            <div class="item-palette" id="item-palette">
+                <!-- Data Sources - Database Selector Button (moved to first position) -->
+                <div class="palette-item database-selector-btn" data-type="database-selector" title="Add Databases">
+                    <i class="fas fa-database"></i><span>Databases</span>
+                </div>
+
+                <div class="palette-item" draggable="true" data-type="notebook" title="Notebook"><i class="fas fa-book"></i><span>Notebook</span></div>
+                <div class="palette-item" draggable="true" data-type="pipeline" title="Data Pipeline"><i class="fas fa-arrows-rotate"></i><span>Data Pipeline</span></div>
+                <div class="palette-item" draggable="true" data-type="dataset" title="Dataset"><i class="fas fa-table"></i><span>Dataset</span></div>
+                <div class="palette-item" draggable="true" data-type="dataflow" title="Dataflow"><i class="fas fa-diagram-project"></i><span>Dataflow</span></div>
+                <div class="palette-item" draggable="true" data-type="report" title="Report"><i class="fas fa-chart-line"></i><span>Report</span></div>
+                <div class="palette-item" draggable="true" data-type="dashboard" title="Dashboard"><i class="fas fa-gauge-high"></i><span>Dashboard</span></div>
+                <div class="palette-item" draggable="true" data-type="semantic-model" title="Semantic Model"><i class="fas fa-cubes"></i><span>Semantic Model</span></div>
+                <div class="palette-item" draggable="true" data-type="warehouse" title="Warehouse"><i class="fas fa-warehouse"></i><span>Warehouse</span></div>
+                <div class="palette-item" draggable="true" data-type="lakehouse" title="Lakehouse"><i class="fas fa-water"></i><span>Lakehouse</span></div>
+
+                <!-- Medallion cards as draggable items -->
+                <div class="palette-item" draggable="true" data-type="bronze" title="Bronze"><i class="fas fa-award"></i><span>Bronze</span></div>
+                <div class="palette-item" draggable="true" data-type="silver" title="Silver"><i class="fas fa-award"></i><span>Silver</span></div>
+                <div class="palette-item" draggable="true" data-type="gold" title="Gold"><i class="fas fa-award"></i><span>Gold</span></div>
+
+                <!-- Consumption items moved from right panel into palette -->
+                <div class="palette-item" draggable="true"
+                     data-consumption-type="powerbi" data-name="Power BI" data-category="Analytics"
+                     data-icon="fas fa-chart-bar" data-icon-color="#F2C811" title="Power BI">
+                    <i class="fas fa-chart-bar" style="color: #F2C811;"></i><span>Power BI</span>
+                </div>
+                <div class="palette-item" draggable="true"
+                     data-consumption-type="excel" data-name="Excel" data-category="Productivity"
+                     data-icon="fas fa-file-excel" data-icon-color="#217346" title="Excel">
+                    <i class="fas fa-file-excel" style="color: #217346;"></i><span>Excel</span>
+                </div>
+                <div class="palette-item" draggable="true"
+                     data-consumption-type="sql-endpoint" data-name="SQL Endpoint" data-category="Data Access"
+                     data-icon="fas fa-database" data-icon-color="#0078D4" title="SQL Endpoint">
+                    <i class="fas fa-database" style="color: #0078D4;"></i><span>SQL Endpoint</span>
+                </div>
+            </div>
+
+            <!-- Main Workspace - Full Width Canvas -->
+            <div class="fabric-main-workspace">
+                <!-- Canvas Area - Full Width -->
+                <div class="fabric-canvas" id="fabric-canvas">
+                    <!-- Background layout (non-interactive) - Single large area -->
+                    <div class="canvas-background" aria-hidden="true">
+                        <div class="bg-panel bg-prepare">
+                            <div class="bg-title">Architecture Canvas</div>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic items will be added here via JavaScript -->
+                </div>
+                <!-- Metadata Detail Panel (hidden by default) -->
+                <div id="metadata-panel" class="metadata-panel hidden" aria-hidden="true">
+                    <div class="metadata-panel-header">
+                        <div class="mph-title">
+                            <i class="fas fa-circle-info"></i>
+                            <span id="mp-node-title">No Selection</span>
+                        </div>
+                        <div class="mph-actions">
+                            <button class="btn btn-icon" id="mp-close-btn" title="Close (Esc)"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+                    <div class="metadata-panel-body" id="metadata-panel-body">
+                        <div class="mp-section" data-section="business">
+                            <div class="mp-section-header">Business</div>
+                            <div class="mp-field">
+                                <label>Name</label>
+                                <input type="text" id="mp-name" placeholder="Display name">
+                            </div>
+                            <div class="mp-field">
+                                <label>Purpose</label>
+                                <textarea id="mp-purpose" rows="2" placeholder="Business purpose / value"></textarea>
+                            </div>
+                            <div class="mp-field">
+                                <label>Owner / Stakeholder</label>
+                                <input type="text" id="mp-owner" placeholder="Team or person">
+                            </div>
+                            <div class="mp-field-group-inline">
+                                <div class="mp-field">
+                                    <label>Criticality</label>
+                                    <select id="mp-criticality">
+                                        <option value="">--</option>
+                                        <option value="low">Low</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="high">High</option>
+                                        <option value="mission">Mission Critical</option>
+                                    </select>
+                                </div>
+                                <div class="mp-field">
+                                    <label>Status</label>
+                                    <select id="mp-status">
+                                        <option value="">--</option>
+                                        <option value="planned">Planned</option>
+                                        <option value="design">In Design</option>
+                                        <option value="build">In Build</option>
+                                        <option value="active">Active</option>
+                                        <option value="deprecated">Deprecated</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mp-section" data-section="technical">
+                            <div class="mp-section-header">Technical</div>
+                            <div class="mp-field-group-inline">
+                                <div class="mp-field">
+                                    <label>Type</label>
+                                    <input type="text" id="mp-type" disabled>
+                                </div>
+                                <div class="mp-field">
+                                    <label>Refresh</label>
+                                    <select id="mp-refresh">
+                                        <option value="">--</option>
+                                        <option value="manual">Manual</option>
+                                        <option value="hourly">Hourly</option>
+                                        <option value="daily">Daily</option>
+                                        <option value="weekly">Weekly</option>
+                                        <option value="realtime">Real-time</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mp-field-group-inline">
+                                <div class="mp-field">
+                                    <label>Volume</label>
+                                    <input type="text" id="mp-volume" placeholder="e.g. 2TB / 5M rows">
+                                </div>
+                                <div class="mp-field">
+                                    <label>Latency Tolerance</label>
+                                    <input type="text" id="mp-latency" placeholder="e.g. 15 min">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mp-section" data-section="notes">
+                            <div class="mp-section-header">Notes</div>
+                            <div class="mp-field">
+                                <textarea id="mp-notes" rows="5" placeholder="Freeform notes, assumptions, risks..."></textarea>
+                            </div>
+                        </div>
+                        <div class="mp-footer" id="mp-footer">
+                            <div class="mp-status-line">
+                                <span id="mp-dirty-indicator" class="mp-dirty hidden">● Unsaved</span>
+                                <span id="mp-saved-indicator" class="mp-saved">Saved</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- End Metadata Detail Panel -->
+            </div>
+
+            <!-- Bottom Panel - Architecture Insights -->
+            <div class="fabric-insights-panel">
+                <h3><i class="fas fa-lightbulb"></i> Architecture Insights</h3>
+                <div class="insights-grid" id="architecture-insights">
+                    <div class="insight-item">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Start by adding data sources to map your architecture</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database Selection Modal -->
+    <div class="database-modal" id="database-modal" style="display: none;">
+        <div class="database-modal-content">
+            <div class="database-modal-header">
+                <h3><i class="fas fa-database"></i> Select Databases to Add</h3>
+                <button class="database-modal-close" id="database-modal-close">&times;</button>
+            </div>
+            <div class="database-modal-body">
+                <div class="database-grid">
+                    <div class="database-option" data-db-name="SQL Server" data-db-type="SQL Server" data-icon="fas fa-server">
+                        <input type="checkbox" class="db-checkbox" id="db-sqlserver">
+                        <div class="db-icon"><i class="fas fa-server"></i></div>
+                        <div class="db-info">
+                            <div class="db-name">SQL Server</div>
+                            <div class="db-type">Microsoft SQL Server</div>
+                        </div>
+                    </div>
+                    
+                    <div class="database-option" data-db-name="MySQL" data-db-type="MySQL" data-icon="fas fa-database">
+                        <input type="checkbox" class="db-checkbox" id="db-mysql">
+                        <div class="db-icon"><i class="fas fa-database"></i></div>
+                        <div class="db-info">
+                            <div class="db-name">MySQL</div>
+                            <div class="db-type">MySQL Database</div>
+                        </div>
+                    </div>
+                    
+                    <div class="database-option" data-db-name="PostgreSQL" data-db-type="PostgreSQL" data-icon="fas fa-database">
+                        <input type="checkbox" class="db-checkbox" id="db-postgresql">
+                        <div class="db-icon"><i class="fas fa-database"></i></div>
+                        <div class="db-info">
+                            <div class="db-name">PostgreSQL</div>
+                            <div class="db-type">PostgreSQL Database</div>
+                        </div>
+                    </div>
+                    
+                    <div class="database-option" data-db-name="Oracle" data-db-type="Oracle" data-icon="fas fa-database">
+                        <input type="checkbox" class="db-checkbox" id="db-oracle">
+                        <div class="db-icon"><i class="fas fa-database"></i></div>
+                        <div class="db-info">
+                            <div class="db-name">Oracle</div>
+                            <div class="db-type">Oracle Database</div>
+                        </div>
+                    </div>
+                    
+                    <div class="database-option" data-db-name="MongoDB" data-db-type="NoSQL" data-icon="fas fa-leaf">
+                        <input type="checkbox" class="db-checkbox" id="db-mongodb">
+                        <div class="db-icon"><i class="fas fa-leaf"></i></div>
+                        <div class="db-info">
+                            <div class="db-name">MongoDB</div>
+                            <div class="db-type">Document Database</div>
+                        </div>
+                    </div>
+                    
+                    <div class="database-option" data-db-name="Redis" data-db-type="Cache" data-icon="fas fa-memory">
+                        <input type="checkbox" class="db-checkbox" id="db-redis">
+                        <div class="db-icon"><i class="fas fa-memory"></i></div>
+                        <div class="db-info">
+                            <div class="db-name">Redis</div>
+                            <div class="db-type">In-Memory Cache</div>
+                        </div>
+                    </div>
+                    
+                    <div class="database-option" data-db-name="Atlas" data-db-type="Custom" data-icon="fas fa-server">
+                        <input type="checkbox" class="db-checkbox" id="db-atlas">
+                        <div class="db-icon"><i class="fas fa-server"></i></div>
+                        <div class="db-info">
+                            <div class="db-name">Atlas</div>
+                            <div class="db-type">Custom Database</div>
+                        </div>
+                    </div>
+                    
+                    <div class="database-option" data-db-name="QAS" data-db-type="Custom" data-icon="fas fa-server">
+                        <input type="checkbox" class="db-checkbox" id="db-qas">
+                        <div class="db-icon"><i class="fas fa-server"></i></div>
+                        <div class="db-info">
+                            <div class="db-name">QAS</div>
+                            <div class="db-type">Quality Assurance DB</div>
+                        </div>
+                    </div>
+                    
+                    <div class="database-option" data-db-name="Procapita" data-db-type="Cloud" data-icon="fas fa-cloud">
+                        <input type="checkbox" class="db-checkbox" id="db-procapita">
+                        <div class="db-icon"><i class="fas fa-cloud"></i></div>
+                        <div class="db-info">
+                            <div class="db-name">Procapita</div>
+                            <div class="db-type">Cloud Service</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="database-modal-footer">
+                <button class="btn btn-secondary" id="select-all-btn">Select All</button>
+                <button class="btn btn-secondary" id="clear-all-btn">Clear All</button>
+                <button class="btn btn-primary" id="add-selected-btn">Add Selected</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNa5l8Q0X3V8YQe+TfGZNVVRFlE0YyqS/fWznuaCG2lLBVmOAXoJ1i8LojRxurx8WcN6iYG3PaY8WEXdV5xNkg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-/F2N0RduCMsZ/HXXIQK5vCk1vZ1tcHTul3e8DqRLVQjaxAg/P070nxsVXni4eWh05rq6ArlTc95xJMuSgZ8sUg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="playground.js"></script>
+</body>
+<script>
+// Add shift-click handler for PDF export (quick snapshot vs full report)
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('pdf-export-btn');
+    if(btn){
+        btn.addEventListener('click', (e)=>{
+            if(typeof exportPDF === 'function'){
+                if(e.shiftKey){ exportPDF({quick:true}); } else { exportPDF(); }
+            }
+        });
+    }
+});
+</script>
+</html>

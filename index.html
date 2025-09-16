@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BI Data Source Mapping Tool - Professional BI Consulting</title>
+    <meta name="description" content="Professional Business Intelligence data source mapping tool for consultants and BI specialists">
+    
+    <!-- Preload critical resources -->
+    <link rel="preload" href="styles.css" as="style">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" as="style">
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Modern PWA features -->
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+</head>
+<body>
+    <!-- Background decoration -->
+    <div class="bg-decoration"></div>
+    
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="app-logo">
+                    <i class="fas fa-project-diagram"></i>
+                    <h1>BI Data Source Mapper</h1>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-icon theme-toggle" onclick="app.toggleTheme()" title="Toggle Dark Mode">
+                        <i class="fas fa-moon" id="theme-icon"></i>
+                    </button>
+                    <button class="btn btn-secondary" onclick="app.newProject()">
+                        <i class="fas fa-plus"></i> New Project
+                    </button>
+                    <button class="btn btn-secondary" onclick="app.saveProject()">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                    <button class="btn btn-primary" onclick="app.generateProposal()">
+                        <i class="fas fa-file-export"></i> Generate Proposal
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="app-main">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <nav class="nav-menu">
+                    <div class="nav-item active" data-section="overview">
+                        <i class="fas fa-home"></i>
+                        <span>Overview</span>
+                    </div>
+                    <div class="nav-item" data-section="customer">
+                        <i class="fas fa-building"></i>
+                        <span>Customer Info</span>
+                    </div>
+                    <div class="nav-item" data-section="datasources">
+                        <i class="fas fa-database"></i>
+                        <span>Data Sources</span>
+                    </div>
+                    <div class="nav-item" data-section="connections">
+                        <i class="fas fa-network-wired"></i>
+                        <span>Connections</span>
+                    </div>
+                    <div class="nav-item" data-section="playground">
+                        <i class="fas fa-project-diagram"></i>
+                        <span>BI Playground</span>
+                    </div>
+                    <div class="nav-item" data-section="security">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>Security</span>
+                    </div>
+                    <div class="nav-item" data-section="requirements">
+                        <i class="fas fa-list-check"></i>
+                        <span>Requirements</span>
+                    </div>
+                    <div class="nav-item" data-section="proposal">
+                        <i class="fas fa-file-contract"></i>
+                        <span>Proposal</span>
+                    </div>
+                </nav>
+            </aside>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Overview Section -->
+                <section id="overview-section" class="section active">
+                    <div class="section-header">
+                        <h2>Project Overview</h2>
+                        <p>Map your customer's BI requirements and data landscape</p>
+                    </div>
+                    
+                    <div class="overview-cards">
+                        <div class="overview-card">
+                            <div class="card-icon">
+                                <i class="fas fa-building"></i>
+                            </div>
+                            <div class="card-content">
+                                <h3>Customer Profile</h3>
+                                <p>Company information and stakeholders</p>
+                                <div class="card-status" id="customer-status">Not Started</div>
+                            </div>
+                        </div>
+                        
+                        <div class="overview-card">
+                            <div class="card-icon">
+                                <i class="fas fa-database"></i>
+                            </div>
+                            <div class="card-content">
+                                <h3>Data Sources</h3>
+                                <p>Inventory of all data systems</p>
+                                <div class="card-status" id="datasources-status">0 Sources</div>
+                            </div>
+                        </div>
+                        
+                        <div class="overview-card">
+                            <div class="card-icon">
+                                <i class="fas fa-network-wired"></i>
+                            </div>
+                            <div class="card-content">
+                                <h3>Connections</h3>
+                                <p>Integration and connectivity mapping</p>
+                                <div class="card-status" id="connections-status">Not Mapped</div>
+                            </div>
+                        </div>
+                        
+                        <div class="overview-card">
+                            <div class="card-icon">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <div class="card-content">
+                                <h3>Security</h3>
+                                <p>Authentication and authorization requirements</p>
+                                <div class="card-status" id="security-status">Not Assessed</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="quick-start">
+                        <h3>Quick Start</h3>
+                        <div class="quick-start-steps">
+                            <div class="step-item">
+                                <div class="step-number">1</div>
+                                <div class="step-content">
+                                    <h4>Customer Information</h4>
+                                    <p>Start by gathering basic customer and project information</p>
+                                    <button class="btn btn-outline" onclick="app.goToSection('customer')">
+                                        Start Here
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="step-item">
+                                <div class="step-number">2</div>
+                                <div class="step-content">
+                                    <h4>Map Data Sources</h4>
+                                    <p>Identify and catalog all data sources in the organization</p>
+                                    <button class="btn btn-outline" onclick="app.goToSection('datasources')">
+                                        Add Sources
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="step-item">
+                                <div class="step-number">3</div>
+                                <div class="step-content">
+                                    <h4>Generate Proposal</h4>
+                                    <p>Create a comprehensive BI implementation proposal</p>
+                                    <button class="btn btn-outline" onclick="app.goToSection('proposal')">
+                                        Create Proposal
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Customer Section -->
+                <section id="customer-section" class="section">
+                    <div class="section-header">
+                        <h2>Customer Information</h2>
+                        <p>Gather essential customer and project details</p>
+                    </div>
+                    
+                    <div class="form-container">
+                        <div class="form-group">
+                            <label for="customer-name">Company Name *</label>
+                            <input type="text" id="customer-name" placeholder="Enter company name">
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="customer-industry">Industry</label>
+                                <select id="customer-industry">
+                                    <option value="">Select industry</option>
+                                    <option value="finance">Financial Services</option>
+                                    <option value="healthcare">Healthcare</option>
+                                    <option value="retail">Retail & E-commerce</option>
+                                    <option value="manufacturing">Manufacturing</option>
+                                    <option value="technology">Technology</option>
+                                    <option value="education">Education</option>
+                                    <option value="government">Government</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="customer-size">Company Size</label>
+                                <select id="customer-size">
+                                    <option value="">Select size</option>
+                                    <option value="small">Small (1-50 employees)</option>
+                                    <option value="medium">Medium (51-500 employees)</option>
+                                    <option value="large">Large (501-5000 employees)</option>
+                                    <option value="enterprise">Enterprise (5000+ employees)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="project-description">Project Description</label>
+                            <textarea id="project-description" rows="4" placeholder="Describe the BI project goals and objectives"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="stakeholders">Key Stakeholders</label>
+                            <div id="stakeholders-list" class="stakeholders-list">
+                                <!-- Stakeholders will be added here -->
+                            </div>
+                            <button class="btn btn-outline" onclick="app.addStakeholder()">
+                                <i class="fas fa-plus"></i> Add Stakeholder
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Data Sources Section -->
+                <section id="datasources-section" class="section">
+                    <div class="section-header">
+                        <h2>Data Sources Inventory</h2>
+                        <p>Map all data sources that will be part of the BI solution</p>
+                        <button class="btn btn-primary" onclick="app.addDataSource()">
+                            <i class="fas fa-plus"></i> Add Data Source
+                        </button>
+                    </div>
+                    
+                    <div class="data-sources-grid" id="data-sources-grid">
+                        <!-- Data sources will be added here -->
+                    </div>
+                </section>
+
+                <!-- Connections Section -->
+                <section id="connections-section" class="section">
+                    <div class="section-header">
+                        <h2>Connection Mapping</h2>
+                        <p>Define how data sources will connect to the BI platform and assess connectivity requirements</p>
+                        <button class="btn btn-primary" onclick="app.analyzeConnections()">
+                            <i class="fas fa-search"></i> Analyze Connections
+                        </button>
+                    </div>
+                    
+                    <!-- Connection Architecture Overview -->
+                    <div class="connection-architecture">
+                        <h3>Connection Architecture</h3>
+                        <div class="architecture-diagram">
+                            <div class="architecture-layer">
+                                <h4>Data Sources</h4>
+                                <div class="sources-list" id="architecture-sources">
+                                    <!-- Data sources will be listed here -->
+                                </div>
+                            </div>
+                            <div class="architecture-arrow">
+                                <i class="fas fa-arrow-right"></i>
+                            </div>
+                            <div class="architecture-layer">
+                                <h4>Connectivity Layer</h4>
+                                <div class="connectivity-options">
+                                    <div class="connection-type">
+                                        <i class="fas fa-cloud"></i>
+                                        <span>Direct Cloud</span>
+                                    </div>
+                                    <div class="connection-type">
+                                        <i class="fas fa-server"></i>
+                                        <span>On-Premises Gateway</span>
+                                    </div>
+                                    <div class="connection-type">
+                                        <i class="fas fa-sync"></i>
+                                        <span>Hybrid</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="architecture-arrow">
+                                <i class="fas fa-arrow-right"></i>
+                            </div>
+                            <div class="architecture-layer">
+                                <h4>Power BI Platform</h4>
+                                <div class="powerbi-components">
+                                    <div class="powerbi-service">
+                                        <i class="fas fa-chart-bar"></i>
+                                        <span>Power BI Service</span>
+                                    </div>
+                                    <div class="powerbi-desktop">
+                                        <i class="fas fa-desktop"></i>
+                                        <span>Power BI Desktop</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Connection Details Grid -->
+                    <div class="connection-details">
+                        <h3>Connection Details by Data Source</h3>
+                        <div class="connection-grid" id="connection-grid">
+                            <!-- Connection details will be populated here -->
+                        </div>
+                    </div>
+
+                    <!-- Infrastructure Requirements -->
+                    <div class="infrastructure-requirements">
+                        <h3>Infrastructure Requirements</h3>
+                        <div class="requirements-grid" id="requirements-grid">
+                            <!-- Requirements will be dynamically populated -->
+                        </div>
+                    </div>
+
+                    <!-- Connection Summary -->
+                    <div class="connection-summary">
+                        <h3>Connection Summary</h3>
+                        <div class="summary-stats" id="summary-stats">
+                            <!-- Summary stats will be dynamically populated -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- BI Playground Section -->
+                <section id="playground-section" class="section">
+                    
+                    <div class="fabric-workspace">
+                        <!-- Fabric Header -->
+                        <div class="fabric-workspace-header">
+                            <div class="workspace-title">
+                                <i class="fas fa-project-diagram"></i>
+                                <h2></h2>
+                                <!-- workspace-actions removed per request -->
+                            </div>
+                        </div>
+
+                        <!-- Fabric Toolbar -->
+                        <div class="fabric-toolbar">
+                            <div class="toolbar-left">
+                                <div class="add-items-dropdown toolbar-dropdown">
+                                    <select id="item-type-selector" onchange="app.handleItemTypeSelection()">
+                                        <option value="">Select item type...</option>
+                                        <option value="notebook">📓 Notebook</option>
+                                        <option value="pipeline">🔄 Data Pipeline</option>
+                                        <option value="dataset">📊 Dataset</option>
+                                        <option value="dataflow">🌊 Dataflow</option>
+                                        <option value="report">📈 Report</option>
+                                        <option value="dashboard">📋 Dashboard</option>
+                                        <option value="semantic-model">🧠 Semantic Model</option>
+                                        <option value="warehouse">🏬 Warehouse</option>
+                                        <option value="lakehouse">🏞️ Lakehouse</option>
+                                    </select>
+                                    <button class="add-to-canvas-btn" onclick="app.addSelectedItemToCanvas()" disabled>
+                                        <i class="fas fa-plus"></i> Add to Canvas
+                                    </button>
+                                </div>
+                                <button class="connection-toggle" id="connection-toggle-btn">
+                                    <i class="fas fa-project-diagram"></i>
+                                    <span>Connect Mode</span>
+                                </button>
+                            </div>
+                            <div class="toolbar-right"><!-- empty on purpose --></div>
+                        </div>
+
+                        <!-- Main Workspace -->
+                        <div class="fabric-main-workspace">
+                            <!-- Left Sidebar -->
+                            <div class="fabric-sidebar">
+                                <div class="sidebar-section">
+                                    <h4>Data Sources</h4>
+                                    <div class="data-sources-list" id="fabric-data-sources-list">
+                                        <!-- Data sources will be populated here -->
+                                    </div>
+                                    <button class="sidebar-add-btn" onclick="app.goToSection('datasources')">
+                                        <i class="fas fa-plus"></i> Add Data Source
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Canvas Area -->
+                            <div class="fabric-canvas">
+                                <!-- Dynamic items will be added here via JavaScript -->
+                            </div>
+
+                            <!-- Right Panel - Consumption -->
+                            <div class="fabric-panel consumption-panel">
+                                <div class="panel-header">
+                                    <h3><i class="fas fa-chart-line"></i> Consumption</h3>
+                                    <span class="consumption-count" id="consumption-count">4</span>
+                                </div>
+                                <div class="panel-content">
+                                    <div class="consumption-grid">
+                                        <div class="consumption-item">
+                                            <i class="fas fa-chart-bar" style="color: #F2C811;"></i>
+                                            <span>Power BI</span>
+                                        </div>
+                                        <div class="consumption-item">
+                                            <i class="fas fa-file-excel" style="color: #217346;"></i>
+                                            <span>Excel</span>
+                                        </div>
+                                        <div class="consumption-item">
+                                            <i class="fas fa-database" style="color: #0078D4;"></i>
+                                            <span>SQL Endpoint</span>
+                                        </div>
+                                        <div class="consumption-item">
+                                            <i class="fas fa-code" style="color: #6A5ACD;"></i>
+                                            <span>Notebooks</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bottom Panel - Architecture Insights -->
+                        <div class="fabric-insights-panel">
+                            <h3><i class="fas fa-lightbulb"></i> Architecture Insights</h3>
+                            <div class="insights-grid" id="architecture-insights">
+                                <!-- Insights will be generated based on data sources -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Security Section -->
+                <section id="security-section" class="section">
+                    <div class="section-header">
+                        <h2>Security Requirements</h2>
+                        <p>Define authentication, authorization, and data governance requirements</p>
+                    </div>
+                    
+                    <div class="security-form">
+                        <!-- Security requirements form will be here -->
+                    </div>
+                </section>
+
+                <!-- Requirements Section -->
+                <section id="requirements-section" class="section">
+                    <div class="section-header">
+                        <h2>Technical Requirements</h2>
+                        <p>Specify technical and business requirements for the BI implementation</p>
+                    </div>
+                    
+                    <div class="requirements-form">
+                        <!-- Requirements form will be here -->
+                    </div>
+                </section>
+
+                <!-- Proposal Section -->
+                <section id="proposal-section" class="section">
+                    <div class="section-header">
+                        <h2>Implementation Proposal</h2>
+                        <p>Generate a comprehensive proposal based on your analysis</p>
+                        <button class="btn btn-primary" onclick="app.generateProposal()">
+                            <i class="fas fa-magic"></i> Generate Proposal
+                        </button>
+                    </div>
+                    
+                    <div class="proposal-preview" id="proposal-preview">
+                        <!-- Generated proposal will appear here -->
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal for Data Source Form -->
+    <div id="data-source-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Data Source</h3>
+                <button class="modal-close" onclick="app.closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Data source form will be here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

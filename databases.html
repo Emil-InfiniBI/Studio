@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Databases - InfiniBI Studio</title>
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="playground-container">
+        <!-- Header -->
+        <header class="playground-header">
+            <div class="header-content">
+                <div class="app-logo">
+                    <i class="fas fa-database"></i>
+                    <h1>Company Databases</h1>
+                </div>
+                <nav class="header-nav">
+                    <a href="playground.html" class="nav-link">
+                        <i class="fas fa-project-diagram"></i> Architecture
+                    </a>
+                    <a href="databases.html" class="nav-link active">
+                        <i class="fas fa-database"></i> Databases
+                    </a>
+                </nav>
+                <div class="header-actions">
+                    <button class="btn btn-icon theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">
+                        <i class="fas fa-moon" id="theme-icon"></i>
+                    </button>
+                    <button class="btn btn-primary" onclick="addDatabase()" title="Add new database">
+                        <i class="fas fa-plus"></i> Add Database
+                    </button>
+                    <button class="btn btn-secondary" onclick="exportDatabases()" title="Export database inventory">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="databases-main">
+            <!-- Search and Filters -->
+            <div class="databases-toolbar">
+                <div class="search-section">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="database-search" placeholder="Search databases, servers, or technologies..." oninput="filterDatabases()">
+                    </div>
+                </div>
+                <div class="filter-section">
+                    <select id="type-filter" onchange="filterDatabases()">
+                        <option value="">All Types</option>
+                        <option value="sql-server">SQL Server</option>
+                        <option value="oracle">Oracle</option>
+                        <option value="mysql">MySQL</option>
+                        <option value="postgresql">PostgreSQL</option>
+                        <option value="mongodb">MongoDB</option>
+                        <option value="redis">Redis</option>
+                        <option value="cassandra">Cassandra</option>
+                        <option value="snowflake">Snowflake</option>
+                        <option value="bigquery">BigQuery</option>
+                        <option value="azure-sql">Azure SQL</option>
+                        <option value="aws-rds">AWS RDS</option>
+                    </select>
+                    <select id="environment-filter" onchange="filterDatabases()">
+                        <option value="">All Environments</option>
+                        <option value="production">Production</option>
+                        <option value="staging">Staging</option>
+                        <option value="development">Development</option>
+                        <option value="testing">Testing</option>
+                    </select>
+                    <select id="status-filter" onchange="filterDatabases()">
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="deprecated">Deprecated</option>
+                        <option value="planned">Planned</option>
+                        <option value="maintenance">Maintenance</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Database Grid -->
+            <div class="databases-grid" id="databases-grid">
+                <!-- Database cards will be populated by JavaScript -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Database Modal -->
+    <div id="add-database-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-database"></i> Add Database</h3>
+                <button class="btn btn-icon" onclick="closeAddDatabaseModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="database-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="db-name">Database Name *</label>
+                            <input type="text" id="db-name" required placeholder="e.g., CustomerDB">
+                        </div>
+                        <div class="form-group">
+                            <label for="db-server">Server Name *</label>
+                            <input type="text" id="db-server" required placeholder="e.g., SQL-PROD-01">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="db-type">Database Type *</label>
+                            <select id="db-type" required>
+                                <option value="">Select Type</option>
+                                <option value="sql-server">SQL Server</option>
+                                <option value="oracle">Oracle</option>
+                                <option value="mysql">MySQL</option>
+                                <option value="postgresql">PostgreSQL</option>
+                                <option value="mongodb">MongoDB</option>
+                                <option value="redis">Redis</option>
+                                <option value="cassandra">Cassandra</option>
+                                <option value="snowflake">Snowflake</option>
+                                <option value="bigquery">BigQuery</option>
+                                <option value="azure-sql">Azure SQL</option>
+                                <option value="aws-rds">AWS RDS</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="db-environment">Environment *</label>
+                            <select id="db-environment" required>
+                                <option value="">Select Environment</option>
+                                <option value="production">Production</option>
+                                <option value="staging">Staging</option>
+                                <option value="development">Development</option>
+                                <option value="testing">Testing</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="db-status">Status</label>
+                            <select id="db-status">
+                                <option value="active">Active</option>
+                                <option value="deprecated">Deprecated</option>
+                                <option value="planned">Planned</option>
+                                <option value="maintenance">Maintenance</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="db-version">Version</label>
+                            <input type="text" id="db-version" placeholder="e.g., 2019, 13.2, etc.">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="db-purpose">Purpose/Description</label>
+                        <textarea id="db-purpose" rows="3" placeholder="Describe what this database is used for..."></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="db-owner">Data Owner/Team</label>
+                            <input type="text" id="db-owner" placeholder="e.g., Finance Team, IT Operations">
+                        </div>
+                        <div class="form-group">
+                            <label for="db-contact">Contact Person</label>
+                            <input type="text" id="db-contact" placeholder="e.g., john.doe@company.com">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="db-size">Approximate Size</label>
+                            <input type="text" id="db-size" placeholder="e.g., 500GB, 2TB">
+                        </div>
+                        <div class="form-group">
+                            <label for="db-users">Typical Users</label>
+                            <input type="text" id="db-users" placeholder="e.g., 50-100 concurrent users">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="db-notes">Additional Notes</label>
+                        <textarea id="db-notes" rows="2" placeholder="Any additional information..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeAddDatabaseModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveDatabaseForm()">Save Database</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Background Decoration -->
+    <div class="bg-decoration"></div>
+
+    <!-- Scripts -->
+    <script src="databases.js"></script>
+</body>
+</html>
