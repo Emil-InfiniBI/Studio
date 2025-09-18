@@ -83,6 +83,18 @@
                     </button>
                 </div>
                 <div class="toolbar-right"><!-- empty on purpose --></div>
+                <div class="toolbar-right alignment-group">
+                    <div class="align-btn-cluster">
+                        <button class="toolbar-btn" title="Align Left" onclick="playground.alignSelected('x','left')"><i class="fas fa-align-left"></i></button>
+                        <button class="toolbar-btn" title="Align Center X" onclick="playground.alignSelected('x','center')"><i class="fas fa-arrows-alt-h"></i></button>
+                        <button class="toolbar-btn" title="Align Right" onclick="playground.alignSelected('x','right')"><i class="fas fa-align-right"></i></button>
+                        <button class="toolbar-btn" title="Align Top" onclick="playground.alignSelected('y','top')"><i class="fas fa-align-left" style="transform:rotate(90deg)"></i></button>
+                        <button class="toolbar-btn" title="Align Middle Y" onclick="playground.alignSelected('y','middle')"><i class="fas fa-arrows-alt-v"></i></button>
+                        <button class="toolbar-btn" title="Align Bottom" onclick="playground.alignSelected('y','bottom')"><i class="fas fa-align-right" style="transform:rotate(90deg)"></i></button>
+                        <button class="toolbar-btn" title="Distribute Horizontal" onclick="playground.distributeSelected('horizontal')"><i class="fas fa-ellipsis-h"></i></button>
+                        <button class="toolbar-btn" title="Distribute Vertical" onclick="playground.distributeSelected('vertical')"><i class="fas fa-ellipsis-v"></i></button>
+                    </div>
+                </div>
             </div>
 
             <!-- Palette of items above the canvas -->
@@ -125,9 +137,9 @@
                 </div>
             </div>
 
-            <!-- Main Workspace - Full Width Canvas -->
+            <!-- Main Workspace - Canvas + Inspector Layout -->
             <div class="fabric-main-workspace">
-                <!-- Canvas Area - Full Width -->
+                <!-- Canvas Area -->
                 <div class="fabric-canvas" id="fabric-canvas">
                     <!-- Background layout (non-interactive) - Single large area -->
                     <div class="canvas-background" aria-hidden="true">
@@ -138,101 +150,104 @@
 
                     <!-- Dynamic items will be added here via JavaScript -->
                 </div>
-                <!-- Metadata Detail Panel (hidden by default) -->
-                <div id="metadata-panel" class="metadata-panel hidden" aria-hidden="true">
-                    <div class="metadata-panel-header">
-                        <div class="mph-title">
-                            <i class="fas fa-circle-info"></i>
-                            <span id="mp-node-title">No Selection</span>
-                        </div>
-                        <div class="mph-actions">
-                            <button class="btn btn-icon" id="mp-close-btn" title="Close (Esc)"><i class="fas fa-times"></i></button>
-                        </div>
+                
+                <!-- Inspector Side Panel -->
+                <div id="inspector-panel" class="inspector-panel collapsed">
+                    <div class="inspector-toggle" id="inspector-toggle">
+                        <i class="fas fa-chevron-left"></i>
                     </div>
-                    <div class="metadata-panel-body" id="metadata-panel-body">
-                        <div class="mp-section" data-section="business">
-                            <div class="mp-section-header">Business</div>
-                            <div class="mp-field">
-                                <label>Name</label>
-                                <input type="text" id="mp-name" placeholder="Display name">
-                            </div>
-                            <div class="mp-field">
-                                <label>Purpose</label>
-                                <textarea id="mp-purpose" rows="2" placeholder="Business purpose / value"></textarea>
-                            </div>
-                            <div class="mp-field">
-                                <label>Owner / Stakeholder</label>
-                                <input type="text" id="mp-owner" placeholder="Team or person">
-                            </div>
-                            <div class="mp-field-group-inline">
-                                <div class="mp-field">
-                                    <label>Criticality</label>
-                                    <select id="mp-criticality">
-                                        <option value="">--</option>
-                                        <option value="low">Low</option>
-                                        <option value="medium">Medium</option>
-                                        <option value="high">High</option>
-                                        <option value="mission">Mission Critical</option>
-                                    </select>
-                                </div>
-                                <div class="mp-field">
-                                    <label>Status</label>
-                                    <select id="mp-status">
-                                        <option value="">--</option>
-                                        <option value="planned">Planned</option>
-                                        <option value="design">In Design</option>
-                                        <option value="build">In Build</option>
-                                        <option value="active">Active</option>
-                                        <option value="deprecated">Deprecated</option>
-                                    </select>
-                                </div>
+                    <div class="inspector-content">
+                        <div class="inspector-header">
+                            <div class="inspector-title">
+                                <i class="fas fa-circle-info"></i>
+                                <span id="mp-node-title">Properties</span>
                             </div>
                         </div>
-                        <div class="mp-section" data-section="technical">
-                            <div class="mp-section-header">Technical</div>
-                            <div class="mp-field-group-inline">
+                        <div class="inspector-body" id="metadata-panel-body">
+                            <div class="mp-section" data-section="business">
+                                <div class="mp-section-header">Business</div>
                                 <div class="mp-field">
-                                    <label>Type</label>
-                                    <input type="text" id="mp-type" disabled>
+                                    <label>Name</label>
+                                    <input type="text" id="mp-name" placeholder="Display name">
                                 </div>
                                 <div class="mp-field">
-                                    <label>Refresh</label>
-                                    <select id="mp-refresh">
-                                        <option value="">--</option>
-                                        <option value="manual">Manual</option>
-                                        <option value="hourly">Hourly</option>
-                                        <option value="daily">Daily</option>
-                                        <option value="weekly">Weekly</option>
-                                        <option value="realtime">Real-time</option>
-                                    </select>
+                                    <label>Purpose</label>
+                                    <textarea id="mp-purpose" rows="2" placeholder="Business purpose / value"></textarea>
+                                </div>
+                                <div class="mp-field">
+                                    <label>Owner / Stakeholder</label>
+                                    <input type="text" id="mp-owner" placeholder="Team or person">
+                                </div>
+                                <div class="mp-field-group-inline">
+                                    <div class="mp-field">
+                                        <label>Criticality</label>
+                                        <select id="mp-criticality">
+                                            <option value="">--</option>
+                                            <option value="low">Low</option>
+                                            <option value="medium">Medium</option>
+                                            <option value="high">High</option>
+                                            <option value="mission">Mission Critical</option>
+                                        </select>
+                                    </div>
+                                    <div class="mp-field">
+                                        <label>Status</label>
+                                        <select id="mp-status">
+                                            <option value="">--</option>
+                                            <option value="planned">Planned</option>
+                                            <option value="design">In Design</option>
+                                            <option value="build">In Build</option>
+                                            <option value="active">Active</option>
+                                            <option value="deprecated">Deprecated</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="mp-field-group-inline">
-                                <div class="mp-field">
-                                    <label>Volume</label>
-                                    <input type="text" id="mp-volume" placeholder="e.g. 2TB / 5M rows">
+                            <div class="mp-section" data-section="technical">
+                                <div class="mp-section-header">Technical</div>
+                                <div class="mp-field-group-inline">
+                                    <div class="mp-field">
+                                        <label>Type</label>
+                                        <input type="text" id="mp-type" disabled>
+                                    </div>
+                                    <div class="mp-field">
+                                        <label>Refresh</label>
+                                        <select id="mp-refresh">
+                                            <option value="">--</option>
+                                            <option value="manual">Manual</option>
+                                            <option value="hourly">Hourly</option>
+                                            <option value="daily">Daily</option>
+                                            <option value="weekly">Weekly</option>
+                                            <option value="realtime">Real-time</option>
+                                        </select>
+                                    </div>
                                 </div>
-                                <div class="mp-field">
-                                    <label>Latency Tolerance</label>
-                                    <input type="text" id="mp-latency" placeholder="e.g. 15 min">
+                                <div class="mp-field-group-inline">
+                                    <div class="mp-field">
+                                        <label>Volume</label>
+                                        <input type="text" id="mp-volume" placeholder="e.g. 2TB / 5M rows">
+                                    </div>
+                                    <div class="mp-field">
+                                        <label>Latency Tolerance</label>
+                                        <input type="text" id="mp-latency" placeholder="e.g. 15 min">
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="mp-section" data-section="notes">
-                            <div class="mp-section-header">Notes</div>
-                            <div class="mp-field">
-                                <textarea id="mp-notes" rows="5" placeholder="Freeform notes, assumptions, risks..."></textarea>
+                            <div class="mp-section" data-section="notes">
+                                <div class="mp-section-header">Notes</div>
+                                <div class="mp-field">
+                                    <textarea id="mp-notes" rows="5" placeholder="Freeform notes, assumptions, risks..."></textarea>
+                                </div>
                             </div>
-                        </div>
-                        <div class="mp-footer" id="mp-footer">
-                            <div class="mp-status-line">
-                                <span id="mp-dirty-indicator" class="mp-dirty hidden">● Unsaved</span>
-                                <span id="mp-saved-indicator" class="mp-saved">Saved</span>
+                            <div class="mp-footer" id="mp-footer">
+                                <div class="mp-status-line">
+                                    <span id="mp-dirty-indicator" class="mp-dirty hidden">● Unsaved</span>
+                                    <span id="mp-saved-indicator" class="mp-saved">Saved</span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <!-- End Metadata Detail Panel -->
+                <!-- End Inspector Panel -->
             </div>
 
             <!-- Bottom Panel - Architecture Insights -->

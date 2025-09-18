@@ -59,6 +59,9 @@ class ArchitecturePlayground {
         this.setupEditToggle();
         this.setupDatabaseModal();
         
+        // Setup layout change observer for connection updates
+        this.setupLayoutObserver();
+        
         // Try to restore autosaved session
             let canvas = null;
         
@@ -68,6 +71,47 @@ class ArchitecturePlayground {
         this.setupMultiSelect();
         this.setupUndoRedo();
         this.setupTemplates();
+        // Alignment guides initialization
+        this.initAlignmentGuides();
+        this.initAlignmentGuides();
+    }
+
+    // --- Alignment Guides & Snapping ---
+    initAlignmentGuides() {
+        const canvas = document.getElementById('fabric-canvas');
+        if (!canvas) return;
+        if (this.alignmentGuides) return; // avoid duplicates
+        this.alignmentGuides = {};
+        const mk = (cls) => { const d=document.createElement('div'); d.className='align-guide '+cls; d.style.cssText='position:absolute;pointer-events:none;z-index:5000;background:#4f9cf7;opacity:0.55;display:none;'; canvas.appendChild(d); return d; };
+        this.alignmentGuides.v = mk('align-guide-v');
+        this.alignmentGuides.h = mk('align-guide-h');
+    }
+    showAlignmentGuides(x=null,y=null){
+        if (!this.alignmentGuides) return;
+        if (this.alignmentGuides.v){ if (x==null) this.alignmentGuides.v.style.display='none'; else { this.alignmentGuides.v.style.display='block'; this.alignmentGuides.v.style.left=x+'px'; this.alignmentGuides.v.style.top='0'; this.alignmentGuides.v.style.width='1px'; this.alignmentGuides.v.style.height='100%'; } }
+        if (this.alignmentGuides.h){ if (y==null) this.alignmentGuides.h.style.display='none'; else { this.alignmentGuides.h.style.display='block'; this.alignmentGuides.h.style.top=y+'px'; this.alignmentGuides.h.style.left='0'; this.alignmentGuides.h.style.height='1px'; this.alignmentGuides.h.style.width='100%'; } }
+    }
+    calcSnap(primaryEl, proposedX, proposedY){
+        const SNAP=6;
+        const others=this.canvasItems.map(ci=>ci.element).filter(el=>el!==primaryEl);
+        const w=primaryEl.offsetWidth, h=primaryEl.offsetHeight;
+        let snapX=proposedX, snapY=proposedY; let gX=null,gY=null;
+        const pCenters=[ {type:'v', val:proposedX}, {type:'v', val:proposedX+w/2}, {type:'v', val:proposedX+w}, {type:'h', val:proposedY}, {type:'h', val:proposedY+h/2}, {type:'h', val:proposedY+h} ];
+        others.forEach(o=>{
+            const ox=parseInt(o.style.left)||0, oy=parseInt(o.style.top)||0, ow=o.offsetWidth, oh=o.offsetHeight;
+            const centers=[ {type:'v', val:ox}, {type:'v', val:ox+ow/2}, {type:'v', val:ox+ow}, {type:'h', val:oy}, {type:'h', val:oy+oh/2}, {type:'h', val:oy+oh} ];
+            centers.forEach(c=>{
+                pCenters.forEach(pc=>{
+                    if (c.type!==pc.type) return;
+                    if (Math.abs(c.val - pc.val) <= SNAP){
+                        if (c.type==='v') { const delta=c.val - pc.val; snapX += delta; gX=c.val; }
+                        else { const delta=c.val - pc.val; snapY += delta; gY=c.val; }
+                    }
+                });
+            });
+        });
+        this.showAlignmentGuides(gX,gY);
+        return {x:snapX,y:snapY};
     }
     
     getDefaultSources() {
@@ -425,6 +469,45 @@ class ArchitecturePlayground {
                     }
                 }
             });
+        }
+    }
+
+    setupLayoutObserver() {
+        // Observe layout changes that might affect connection positions
+        const canvas = document.getElementById('fabric-canvas');
+        const inspectorPanel = document.getElementById('inspector-panel');
+        
+        if (canvas && window.ResizeObserver) {
+            // Create a throttled update function to avoid excessive redraws
+            let updateTimeout;
+            const throttledUpdate = () => {
+                clearTimeout(updateTimeout);
+                updateTimeout = setTimeout(() => {
+                    this.updateConnections();
+                }, 100);
+            };
+            
+            // Observe canvas resize
+            const canvasObserver = new ResizeObserver(() => {
+                throttledUpdate();
+            });
+            canvasObserver.observe(canvas);
+            
+            // Observe inspector panel changes if it exists
+            if (inspectorPanel) {
+                const panelObserver = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        if (mutation.type === 'attributes' && 
+                            mutation.attributeName === 'class') {
+                            throttledUpdate();
+                        }
+                    });
+                });
+                panelObserver.observe(inspectorPanel, { 
+                    attributes: true, 
+                    attributeFilter: ['class'] 
+                });
+            }
         }
     }
 
@@ -2488,6 +2571,7 @@ class ArchitecturePlayground {
     setupCanvasItemDrag(item) {
         let isDragging = false;
         let startX, startY, initialPositions = new Map();
+        let primaryItem = item;
 
         item.addEventListener('mousedown', (e) => {
             if (this.connectionMode) return;
@@ -2541,18 +2625,25 @@ class ArchitecturePlayground {
             const deltaY = e.clientY - startY;
             
             // Move all selected items
+            // Compute snap based on primary item only
+            let snapAdjust={dx:0,dy:0};
+            const primInit = initialPositions.get(primaryItem);
+            if (primInit){
+                const candX = primInit.x + deltaX;
+                const candY = primInit.y + deltaY;
+                const grid = this.snapToGrid(candX, candY);
+                const snapped = this.calcSnap(primaryItem, grid.x, grid.y);
+                snapAdjust.dx = snapped.x - (primInit.x + deltaX);
+                snapAdjust.dy = snapped.y - (primInit.y + deltaY);
+            }
             this.selectedItems.forEach(ci => {
-                const initial = initialPositions.get(ci.element);
-                if (initial) {
-                    const newX = initial.x + deltaX;
-                    const newY = initial.y + deltaY;
-                    
-                    // Snap to grid for precise alignment
-                    const snapped = this.snapToGrid(newX, newY);
-                    
-                    ci.element.style.left = snapped.x + 'px';
-                    ci.element.style.top = snapped.y + 'px';
-                }
+                const init = initialPositions.get(ci.element);
+                if (!init) return;
+                const nx = init.x + deltaX + snapAdjust.dx;
+                const ny = init.y + deltaY + snapAdjust.dy;
+                const g = this.snapToGrid(nx, ny);
+                ci.element.style.left = g.x + 'px';
+                ci.element.style.top = g.y + 'px';
             });
             
             // Update connections immediately during drag for smooth following
@@ -2571,6 +2662,7 @@ class ArchitecturePlayground {
     document.addEventListener('mouseup', () => {
             if (isDragging) {
                 isDragging = false;
+                this.showAlignmentGuides();
                 
                 // Save state for undo after moving items
                 this.saveState('move items');
@@ -2591,13 +2683,134 @@ class ArchitecturePlayground {
         });
     }
 
+    // Alignment batch operations
+    alignSelected(axis, mode){
+        const targets=Array.from(this.selectedItems).map(ci=>ci.element);
+        if (targets.length<2) return;
+        const rects=targets.map(el=>({el,x:parseInt(el.style.left)||0,y:parseInt(el.style.top)||0,w:el.offsetWidth,h:el.offsetHeight}));
+        if (axis==='x'){
+            if (mode==='left'){const min=Math.min(...rects.map(r=>r.x));rects.forEach(r=>r.el.style.left=min+'px');}
+            if (mode==='center'){const cAvg=rects.reduce((s,r)=>s+r.x+r.w/2,0)/rects.length;rects.forEach(r=>r.el.style.left=Math.round(cAvg - r.w/2)+'px');}
+            if (mode==='right'){const max=Math.max(...rects.map(r=>r.x+r.w));rects.forEach(r=>r.el.style.left=(max - r.w)+'px');}
+        } else {
+            if (mode==='top'){const min=Math.min(...rects.map(r=>r.y));rects.forEach(r=>r.el.style.top=min+'px');}
+            if (mode==='middle'){const cAvg=rects.reduce((s,r)=>s+r.y+r.h/2,0)/rects.length;rects.forEach(r=>r.el.style.top=Math.round(cAvg - r.h/2)+'px');}
+            if (mode==='bottom'){const max=Math.max(...rects.map(r=>r.y+r.h));rects.forEach(r=>r.el.style.top=(max - r.h)+'px');}
+        }
+        targets.forEach(el=>this.updateConnectionsForElement(el));
+        this.autosaveDebounced();
+    }
+    distributeSelected(direction){
+        const targets=Array.from(this.selectedItems).map(ci=>ci.element);
+        if (targets.length<3) return;
+        const rects=targets.map(el=>({el,x:parseInt(el.style.left)||0,y:parseInt(el.style.top)||0,w:el.offsetWidth,h:el.offsetHeight}));
+        if (direction==='horizontal'){
+            rects.sort((a,b)=>a.x-b.x);
+            const left=rects[0].x, right=rects[rects.length-1].x + rects[rects.length-1].w;
+            const totalWidth=rects.reduce((s,r)=>s+r.w,0);
+            const gap=(right - left - totalWidth)/(rects.length-1);
+            let cursor=left; rects.forEach(r=>{ r.el.style.left=cursor+'px'; cursor += r.w + gap; });
+        } else {
+            rects.sort((a,b)=>a.y-b.y);
+            const top=rects[0].y, bottom=rects[rects.length-1].y + rects[rects.length-1].h;
+            const totalHeight=rects.reduce((s,r)=>s+r.h,0);
+            const gap=(bottom - top - totalHeight)/(rects.length-1);
+            let cursor=top; rects.forEach(r=>{ r.el.style.top=cursor+'px'; cursor += r.h + gap; });
+        }
+        targets.forEach(el=>this.updateConnectionsForElement(el));
+        this.autosaveDebounced();
+    }
+    openMetadataPanelForElement(el){
+        const panel=document.getElementById('inspector-panel'); if(!panel) return; 
+        
+        // Show the inspector panel if collapsed
+        const wasCollapsed = panel.classList.contains('collapsed');
+        panel.classList.remove('collapsed');
+        
+        // If panel was collapsed and is now open, update connections after layout change
+        if (wasCollapsed) {
+            setTimeout(() => {
+                this.updateConnections();
+            }, 300); // Small delay to let CSS transitions complete
+        }
+        
+        const title=document.getElementById('mp-node-title'); if(title) title.textContent=this.getElementName(el);
+        // Resolve canvas item object
+        const ci = this.canvasItems.find(c=>c.element===el);
+        if(!ci){ console.warn('No canvas item record found for metadata'); return; }
+        ci.data = ci.data || {};
+        ci.data.meta = ci.data.meta || { business:{}, technical:{}, notes:'' };
+        const meta = ci.data.meta;
+
+        const markDirty = ()=>{
+            const d=document.getElementById('mp-dirty-indicator'); const s=document.getElementById('mp-saved-indicator');
+            if(d) d.classList.remove('hidden'); if(s) s.classList.add('hidden');
+            this._metaDirty = true;
+            this.scheduleMetadataSave();
+        };
+        if(!this._metaSaveDebounce){
+            this.scheduleMetadataSave = ()=>{
+                clearTimeout(this._metaSaveTimer);
+                this._metaSaveTimer = setTimeout(()=>{
+                    if(!this._metaDirty) return;
+                    this.autosave();
+                    const d=document.getElementById('mp-dirty-indicator'); const s=document.getElementById('mp-saved-indicator');
+                    if(d) d.classList.add('hidden'); if(s) s.classList.remove('hidden');
+                    this._metaDirty=false;
+                }, 600);
+            };
+        }
+        const bind = (id, getter, setter)=>{
+            const elInput=document.getElementById(id); if(!elInput) return;
+            elInput.value = getter() || '';
+            if(!elInput._bound){
+                elInput.addEventListener('input', ()=>{ setter(elInput.value); markDirty(); if(id==='mp-name'){ const label=el.querySelector('.canvas-item-title')||el.querySelector('.data-source-name'); if(label) label.textContent=elInput.value; if(title) title.textContent=elInput.value || 'Unnamed'; }});
+                elInput.addEventListener('change', ()=>{ setter(elInput.value); markDirty(); });
+                elInput._bound = true;
+            }
+        };
+        // Name and type
+        bind('mp-name', ()=> ci.data.name || this.getElementName(el), v=>{ ci.data.name = v; });
+        const typeInput=document.getElementById('mp-type'); if(typeInput){ typeInput.value=el.dataset.itemType||el.dataset.type||''; }
+        // Business
+        bind('mp-purpose', ()=> meta.business.purpose, v=> meta.business.purpose = v );
+        bind('mp-owner', ()=> meta.business.owner, v=> meta.business.owner = v );
+        bind('mp-criticality', ()=> meta.business.criticality, v=> meta.business.criticality = v );
+        bind('mp-status', ()=> meta.business.status, v=> meta.business.status = v );
+        // Technical
+        bind('mp-refresh', ()=> meta.technical.refresh, v=> meta.technical.refresh = v );
+        bind('mp-volume', ()=> meta.technical.volume, v=> meta.technical.volume = v );
+        bind('mp-latency', ()=> meta.technical.latency, v=> meta.technical.latency = v );
+        // Notes
+        bind('mp-notes', ()=> meta.notes, v=> meta.notes = v );
+
+        // Saved indicator initial state
+        const d=document.getElementById('mp-dirty-indicator'); const s=document.getElementById('mp-saved-indicator');
+        if(d) d.classList.add('hidden'); if(s) s.classList.remove('hidden');
+    }
+
     setupCanvasItemClick(item) {
         item.addEventListener('click', (e) => {
             if (this.connectionMode) {
                 e.preventDefault();
                 this.handleCanvasItemClick(item);
             } else {
-                // Open metadata panel for this item
+                // Just select the item, don't open metadata panel
+                this.clearSelections();
+                item.classList.add('selected');
+                
+                // Show helpful tip on first selection
+                if (!localStorage.getItem('properties-tip-shown')) {
+                    this.showNotification('💡 Double-click or right-click for Properties', 'info', 4000);
+                    localStorage.setItem('properties-tip-shown', 'true');
+                }
+            }
+        });
+        
+        // Double-click to open metadata panel
+        item.addEventListener('dblclick', (e) => {
+            if (!this.connectionMode) {
+                e.preventDefault();
                 try {
                     const id = item.id || this.canvasItems.find(ci => ci.element === item)?.id;
                     if (id && typeof metadataPanel !== 'undefined') {
@@ -2606,6 +2819,151 @@ class ArchitecturePlayground {
                 } catch(err){ console.warn('Metadata panel open failed', err); }
             }
         });
+        
+        // Right-click context menu
+        item.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            this.showItemContextMenu(e, item);
+        });
+    }
+    
+    showItemContextMenu(e, item) {
+        // Remove any existing context menu
+        const existing = document.querySelector('.item-context-menu');
+        if (existing) existing.remove();
+        
+        // Create context menu
+        const menu = document.createElement('div');
+        menu.className = 'item-context-menu';
+        menu.style.position = 'fixed';
+        menu.style.left = e.clientX + 'px';
+        menu.style.top = e.clientY + 'px';
+        menu.style.zIndex = '10000';
+        
+        menu.innerHTML = `
+            <div class="context-menu-item" data-action="properties">
+                <i class="fas fa-cog"></i> Properties
+            </div>
+            <div class="context-menu-item" data-action="duplicate">
+                <i class="fas fa-copy"></i> Duplicate
+            </div>
+            <div class="context-menu-item" data-action="delete">
+                <i class="fas fa-trash"></i> Delete
+            </div>
+        `;
+        
+        // Add click handlers
+        menu.addEventListener('click', (e) => {
+            const action = e.target.closest('.context-menu-item')?.dataset.action;
+            if (action === 'properties') {
+                const id = item.id || this.canvasItems.find(ci => ci.element === item)?.id;
+                if (id && typeof metadataPanel !== 'undefined') {
+                    metadataPanel.openForItem(id);
+                }
+            } else if (action === 'duplicate') {
+                this.duplicateItem(item);
+            } else if (action === 'delete') {
+                this.deleteItem(item);
+            }
+            menu.remove();
+        });
+        
+        document.body.appendChild(menu);
+        
+        // Close menu when clicking outside
+        const closeMenu = (e) => {
+            if (!menu.contains(e.target)) {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', closeMenu), 0);
+    }
+    
+    duplicateItem(item) {
+        try {
+            this.saveState('duplicate item');
+            
+            const canvasItem = this.canvasItems.find(ci => ci.element === item);
+            if (!canvasItem) {
+                console.warn('Canvas item not found for duplication');
+                return;
+            }
+            
+            // Get current position and offset for duplicate
+            const currentLeft = parseInt(item.style.left) || 0;
+            const currentTop = parseInt(item.style.top) || 0;
+            const x = currentLeft + 30;
+            const y = currentTop + 30;
+            
+            // Create a copy of the item data
+            const newData = {
+                ...canvasItem.data,
+                name: (canvasItem.data.name || this.getElementName(item)) + ' Copy'
+            };
+            
+            // Create the duplicate based on the type
+            if (item.classList.contains('canvas-item')) {
+                if (item.classList.contains('consumption-canvas-item')) {
+                    this.addConsumptionItemToCanvas(newData, x, y);
+                } else {
+                    // For other canvas items, determine type from classes or data
+                    const itemType = canvasItem.data.itemType || 'generic';
+                    this.addCanvasItem(itemType, x, y);
+                }
+            } else {
+                // Handle data sources
+                this.addDataSourceToCanvas(newData, x, y);
+            }
+            
+            this.showNotification('Item duplicated successfully', 'success');
+            
+        } catch (error) {
+            console.error('Error duplicating item:', error);
+            this.showNotification('Failed to duplicate item', 'error');
+        }
+    }
+    
+    deleteItem(item) {
+        if (confirm('Are you sure you want to delete this item?')) {
+            try {
+                this.saveState('delete item');
+                
+                // Find and remove from canvasItems array
+                const index = this.canvasItems.findIndex(ci => ci.element === item);
+                if (index !== -1) {
+                    this.canvasItems.splice(index, 1);
+                }
+                
+                // Remove any connections involving this item
+                const involved = this.connections.filter(c => c.from === item || c.to === item);
+                involved.forEach(c => {
+                    if (c.element && this.connectionSvg) {
+                        try { this.connectionSvg.removeChild(c.element); } catch {}
+                    }
+                    // Also remove mid-arrows if they exist
+                    if (c.midArrow && this.connectionSvg) {
+                        try { this.connectionSvg.removeChild(c.midArrow); } catch {}
+                    }
+                });
+                this.connections = this.connections.filter(c => !(c.from === item || c.to === item));
+                
+                // Remove from DOM
+                item.remove();
+                
+                // Clear selection
+                this.clearSelections();
+                
+                // Save state
+                this.autosave();
+                
+                this.showNotification('Item deleted successfully', 'success');
+                
+            } catch (error) {
+                console.error('Error deleting item:', error);
+                this.showNotification('Failed to delete item', 'error');
+            }
+        }
     }
 
     // Find a free non-overlapping spot inside the current visible viewport of the canvas
@@ -2828,26 +3186,121 @@ class ArchitecturePlayground {
             }
         }
 
-        // Build an orthogonal (elbow) path based on chosen anchors in SVG space
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         let pts;
-        if (Math.abs(toX - fromX) >= Math.abs(toY - fromY)) {
-            const midX = Math.round((fromX + toX) / 2);
-            pts = [[fromX, fromY], [midX, fromY], [midX, toY], [toX, toY]];
+        const horizDominant = Math.abs(toX - fromX) >= Math.abs(toY - fromY);
+        if (horizDominant) {
+            const dir = toX > fromX ? 1 : -1;
+            const offset = 40; // distance out from node edge before turning
+            const elbowX = fromX + dir * offset;
+            const preEndX = toX - dir * offset;
+            if ((dir === 1 && elbowX < preEndX) || (dir === -1 && elbowX > preEndX)) {
+                pts = [[fromX, fromY], [elbowX, fromY], [elbowX, toY], [toX, toY]];
+            } else {
+                const midX = Math.round((fromX + toX) / 2);
+                pts = [[fromX, fromY], [midX, fromY], [midX, toY], [toX, toY]];
+            }
         } else {
-            const midY = Math.round((fromY + toY) / 2);
-            pts = [[fromX, fromY], [fromX, midY], [toX, midY], [toX, toY]];
+            const dir = toY > fromY ? 1 : -1;
+            const offset = 40;
+            const elbowY = fromY + dir * offset;
+            const preEndY = toY - dir * offset;
+            if ((dir === 1 && elbowY < preEndY) || (dir === -1 && elbowY > preEndY)) {
+                pts = [[fromX, fromY], [fromX, elbowY], [toX, elbowY], [toX, toY]];
+            } else {
+                const midY = Math.round((fromY + toY) / 2);
+                pts = [[fromX, fromY], [fromX, midY], [toX, midY], [toX, toY]];
+            }
         }
+        const adjustForObstacles = () => {
+            const selector = '#fabric-canvas .data-source-card, #fabric-canvas .canvas-item, #fabric-canvas .medallion-target';
+            const all = Array.from(document.querySelectorAll(selector));
+            const others = all.filter(el => el !== connection.from && el !== connection.to);
+            if (!others.length) return;
+            const rects = others.map(r => {
+                const tl = toSvgPoint(r.getBoundingClientRect().left, r.getBoundingClientRect().top);
+                const br = toSvgPoint(r.getBoundingClientRect().right, r.getBoundingClientRect().bottom);
+                return { left: tl.x, top: tl.y, right: br.x, bottom: br.y };
+            });
+            const margin = 12;
+            if (horizDominant) {
+                let x = pts[1][0];
+                let changed = false; let safety = 0;
+                while (safety < 12) {
+                    const y1 = Math.min(pts[1][1], pts[2][1]);
+                    const y2 = Math.max(pts[1][1], pts[2][1]);
+                    const hit = rects.find(rc => x >= rc.left - 0.5 && x <= rc.right + 0.5 && y2 >= rc.top && y1 <= rc.bottom);
+                    if (!hit) break;
+                    if (toX > fromX) x = hit.right + margin; else x = hit.left - margin; // push outward
+                    changed = true; safety++;
+                }
+                if (changed) { pts[1][0] = x; pts[2][0] = x; }
+            } else {
+                let y = pts[1][1];
+                let changed = false; let safety = 0;
+                while (safety < 12) {
+                    const x1 = Math.min(pts[1][0], pts[2][0]);
+                    const x2 = Math.max(pts[1][0], pts[2][0]);
+                    const hit = rects.find(rc => y >= rc.top - 0.5 && y <= rc.bottom + 0.5 && x2 >= rc.left && x1 <= rc.right);
+                    if (!hit) break;
+                    if (toY > fromY) y = hit.bottom + margin; else y = hit.top - margin;
+                    changed = true; safety++;
+                }
+                if (changed) { pts[1][1] = y; pts[2][1] = y; }
+            }
+        };
+        adjustForObstacles();
         const toD = (p) => `M ${p[0][0]} ${p[0][1]} L ${p[1][0]} ${p[1][1]} L ${p[2][0]} ${p[2][1]} L ${p[3][0]} ${p[3][1]}`;
         const pathData = toD(pts);
 
         path.setAttribute('d', pathData);
         path.setAttribute('stroke', '#ffffff');
-        path.setAttribute('stroke-width', '2');
+    path.setAttribute('stroke-width', '2');
+    path.setAttribute('vector-effect', 'non-scaling-stroke');
         path.setAttribute('fill', 'none');
         path.setAttribute('stroke-linejoin', 'miter');
         path.setAttribute('stroke-linecap', 'butt');
         path.style.opacity = '0.8';
+        // Mid-line arrow (direction indicator)
+        const createMidArrow = (polyPts) => {
+            // Flatten into segments and compute total length
+            const segs = [];
+            let total = 0;
+            for (let i = 0; i < polyPts.length - 1; i++) {
+                const a = polyPts[i];
+                const b = polyPts[i + 1];
+                const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+                segs.push({ a, b, len });
+                total += len;
+            }
+            if (!total) return null;
+            const target = total / 2; // midpoint along full path
+            let acc = 0; let chosen = segs[0]; let t = 0;
+            for (const s of segs) {
+                if (acc + s.len >= target) { chosen = s; t = (target - acc) / s.len; break; }
+                acc += s.len;
+            }
+            const mx = chosen.a[0] + (chosen.b[0] - chosen.a[0]) * t;
+            const my = chosen.a[1] + (chosen.b[1] - chosen.a[1]) * t;
+            const angle = Math.atan2(chosen.b[1] - chosen.a[1], chosen.b[0] - chosen.a[0]);
+            const lenBase = 10; // slightly larger than end arrow for visibility inside path
+            const half = 4.5;
+            // Arrow pointing in direction of flow
+            const tipX = mx + lenBase * Math.cos(angle);
+            const tipY = my + lenBase * Math.sin(angle);
+            const leftX = mx - half * Math.cos(angle) + half * Math.sin(angle);
+            const leftY = my - half * Math.sin(angle) - half * Math.cos(angle);
+            const rightX = mx - half * Math.cos(angle) - half * Math.sin(angle);
+            const rightY = my - half * Math.sin(angle) + half * Math.cos(angle);
+            const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            poly.setAttribute('points', `${tipX},${tipY} ${leftX},${leftY} ${rightX},${rightY}`);
+            poly.setAttribute('class', 'connection-mid-arrow');
+            poly.setAttribute('fill', '#ffffff');
+            poly.setAttribute('stroke', 'rgba(0,0,0,0.35)');
+            poly.setAttribute('stroke-width', '1');
+            poly.style.pointerEvents = 'none';
+            return poly;
+        };
         
     // Add arrowhead at end point with correct orientation
     const arrowHead = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
@@ -2864,9 +3317,11 @@ class ArchitecturePlayground {
         arrowHead.setAttribute('points', `${toX},${toY} ${arrowX1},${arrowY1} ${arrowX2},${arrowY2}`);
     arrowHead.setAttribute('fill', '#ffffff');
         
-        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        group.appendChild(path);
-        group.appendChild(arrowHead);
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    group.appendChild(path);
+    const midArrow = createMidArrow(pts);
+    if (midArrow) group.appendChild(midArrow);
+    group.appendChild(arrowHead);
         
         connection.element = group;
         this.connectionSvg.appendChild(group);
@@ -2999,11 +3454,48 @@ class ArchitecturePlayground {
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', pathData);
         path.setAttribute('stroke', '#ffffff');
-        path.setAttribute('stroke-width', '2');
+    path.setAttribute('stroke-width', '2');
+    path.setAttribute('vector-effect', 'non-scaling-stroke');
         path.setAttribute('fill', 'none');
         path.setAttribute('stroke-linejoin', 'miter');
         path.setAttribute('stroke-linecap', 'butt');
         path.style.opacity = '0.8';
+        
+        // Mid-line arrow for manual connections
+        const createMidArrow = (polyPts) => {
+            const segs = [];
+            let total = 0;
+            for (let i = 0; i < polyPts.length - 1; i++) {
+                const a = polyPts[i];
+                const b = polyPts[i + 1];
+                const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+                segs.push({ a, b, len });
+                total += len;
+            }
+            if (!total) return null;
+            const target = total / 2;
+            let acc = 0; let chosen = segs[0]; let t = 0;
+            for (const s of segs) { if (acc + s.len >= target) { chosen = s; t = (target - acc) / s.len; break; } acc += s.len; }
+            const mx = chosen.a[0] + (chosen.b[0] - chosen.a[0]) * t;
+            const my = chosen.a[1] + (chosen.b[1] - chosen.a[1]) * t;
+            const angle = Math.atan2(chosen.b[1] - chosen.a[1], chosen.b[0] - chosen.a[0]);
+            const lenBase = 10;
+            const half = 4.5;
+            const tipX = mx + lenBase * Math.cos(angle);
+            const tipY = my + lenBase * Math.sin(angle);
+            const leftX = mx - half * Math.cos(angle) + half * Math.sin(angle);
+            const leftY = my - half * Math.sin(angle) - half * Math.cos(angle);
+            const rightX = mx - half * Math.cos(angle) - half * Math.sin(angle);
+            const rightY = my - half * Math.sin(angle) + half * Math.cos(angle);
+            const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            poly.setAttribute('points', `${tipX},${tipY} ${leftX},${leftY} ${rightX},${rightY}`);
+            poly.setAttribute('class', 'connection-mid-arrow');
+            poly.setAttribute('fill', '#ffffff');
+            poly.setAttribute('stroke', 'rgba(0,0,0,0.35)');
+            poly.setAttribute('stroke-width', '1');
+            poly.style.pointerEvents = 'none';
+            return poly;
+        };
 
         // Add arrowhead at the end point
         const arrowHead = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
@@ -3025,8 +3517,10 @@ class ArchitecturePlayground {
         // Create group and add visual indicator for manual connection
         const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         group.setAttribute('data-manual', 'true'); // Mark as manual connection
-        group.appendChild(path);
-        group.appendChild(arrowHead);
+    group.appendChild(path);
+    const midArrow = createMidArrow(pathPoints);
+    if (midArrow) group.appendChild(midArrow);
+    group.appendChild(arrowHead);
 
         // Add small indicators at anchor points to show they're manual
         const createAnchorIndicator = (point, color = '#ffffff') => {
@@ -3175,6 +3669,13 @@ class ArchitecturePlayground {
                 const rect = ci.element.getBoundingClientRect();
                 const canvas = document.getElementById('fabric-canvas');
                 const canvasRect = canvas.getBoundingClientRect();
+                // Ensure latest visible name (user edits) is captured
+                const nameEl = ci.element.querySelector('.canvas-item-title') || ci.element.querySelector('.data-source-name');
+                if (nameEl) {
+                    ci.data = ci.data || {};
+                    const newName = nameEl.textContent.trim();
+                    if (newName) ci.data.name = newName;
+                }
                 
                 return {
                     id: ci.id,
@@ -3562,10 +4063,10 @@ const metadataPanel = (function(){
     };
 
     function init(){
-        el.panel = document.getElementById('metadata-panel');
+        el.panel = document.getElementById('inspector-panel');
         if(!el.panel) return; // Not on this page
         el.title = document.getElementById('mp-node-title');
-        el.closeBtn = document.getElementById('mp-close-btn');
+        // Remove closeBtn since we're using toggle instead
         el.name = document.getElementById('mp-name');
         el.purpose = document.getElementById('mp-purpose');
         el.owner = document.getElementById('mp-owner');
@@ -3583,10 +4084,12 @@ const metadataPanel = (function(){
             if(!inp) return;
             inp.addEventListener('input', handleFieldChange);
         });
-        if(el.closeBtn) el.closeBtn.addEventListener('click', close);
+        // Remove close button listener
         document.addEventListener('keydown', e => {
-            if(e.key === 'Escape' && !el.panel.classList.contains('hidden')) close();
-            if(e.key === 's' && (e.ctrlKey||e.metaKey) && !el.panel.classList.contains('hidden')) { e.preventDefault(); flushChanges(); }
+            if(e.key === 'Escape' && !el.panel.classList.contains('collapsed')) {
+                el.panel.classList.add('collapsed');
+            }
+            if(e.key === 's' && (e.ctrlKey||e.metaKey) && !el.panel.classList.contains('collapsed')) { e.preventDefault(); flushChanges(); }
         });
     }
 
@@ -3611,7 +4114,7 @@ const metadataPanel = (function(){
         currentItemId = itemId;
         ensureMetaStructure(entry);
         populate(entry);
-        el.panel.classList.remove('hidden');
+        el.panel.classList.remove('collapsed');
         el.panel.setAttribute('aria-hidden','false');
     }
 
@@ -3670,7 +4173,10 @@ const metadataPanel = (function(){
 
     function close(){
         currentItemId = null;
-        if(el.panel){ el.panel.classList.add('hidden'); el.panel.setAttribute('aria-hidden','true'); }
+        if(el.panel){ 
+            el.panel.classList.add('collapsed'); 
+            el.panel.setAttribute('aria-hidden','true'); 
+        }
     }
 
     // Public API
@@ -4239,9 +4745,26 @@ async function exportPDF(options={}) {
             if(idx % 2 === 0){
                 doc.setFillColor(246,247,249); let zx=40; headers.forEach(h=>{ doc.rect(zx,y-12,h.w,rowHeight,'F'); zx+=h.w; });
             }
-            const meta = (it.data && it.data.meta) || {}; // metadata could be simple strings
-            const business = typeof meta.business === 'string'? meta.business: (meta.business?.purpose||meta.business?.name||'');
-            const technical = typeof meta.technical === 'string'? meta.technical: (meta.technical?.details||meta.technical?.refresh||'');
+            const meta = (it.data && it.data.meta) || {}; // metadata object
+            // Build concise business summary
+            let business = '';
+            if (typeof meta.business === 'string') { business = meta.business; }
+            else if (meta.business) {
+                const parts = [];
+                if (meta.business.purpose) parts.push(meta.business.purpose);
+                if (meta.business.owner) parts.push(`Owner: ${meta.business.owner}`);
+                if (meta.business.criticality) parts.push(`Crit: ${meta.business.criticality}`);
+                business = parts.join(' – ');
+            }
+            let technical = '';
+            if (typeof meta.technical === 'string') { technical = meta.technical; }
+            else if (meta.technical) {
+                const tparts = [];
+                if (meta.technical.refresh) tparts.push(meta.technical.refresh);
+                if (meta.technical.latency) tparts.push(meta.technical.latency);
+                if (meta.technical.volume) tparts.push(meta.technical.volume);
+                technical = tparts.join(' | ');
+            }
             const name = (it.data?.name)|| it.type || it.id;
             x=40;
             const cells = {
@@ -4258,12 +4781,34 @@ async function exportPDF(options={}) {
 
         // DETAIL PAGES
         data.items.forEach(it=>{
-            const meta = (it.data && it.data.meta) || {}; const businessTxt = typeof meta.business === 'string'? meta.business:''; const technicalTxt = typeof meta.technical === 'string'? meta.technical:''; const notesTxt = typeof meta.notes === 'string'? meta.notes:'';
-            if(!businessTxt && !technicalTxt && !notesTxt) return; // skip empty detail
+            const meta = (it.data && it.data.meta) || {}; 
+            // Expand business object
+            let businessTxt = '';
+            if (typeof meta.business === 'string') businessTxt = meta.business;
+            else if (meta.business) {
+                const lines = [];
+                if (meta.business.purpose) lines.push(`Purpose: ${meta.business.purpose}`);
+                if (meta.business.owner) lines.push(`Owner: ${meta.business.owner}`);
+                if (meta.business.criticality) lines.push(`Criticality: ${meta.business.criticality}`);
+                if (meta.business.status) lines.push(`Status: ${meta.business.status}`);
+                businessTxt = lines.join('\n');
+            }
+            let technicalTxt = '';
+            if (typeof meta.technical === 'string') technicalTxt = meta.technical;
+            else if (meta.technical) {
+                const lines = [];
+                if (meta.technical.refresh) lines.push(`Refresh: ${meta.technical.refresh}`);
+                if (meta.technical.latency) lines.push(`Latency: ${meta.technical.latency}`);
+                if (meta.technical.volume) lines.push(`Volume: ${meta.technical.volume}`);
+                technicalTxt = lines.join('\n');
+            }
+            const notesTxt = typeof meta.notes === 'string'? meta.notes:'';
+            if(!businessTxt && !technicalTxt && !notesTxt) return; // skip empty detail page
             doc.addPage('a4','landscape');
             doc.setFontSize(14); doc.text((it.data?.name)|| it.type || it.id,40,50);
             doc.setFontSize(9);
-            let cy=70; const maxW = pageWidth - 80; const addSection=(title,txt)=>{ if(!txt) return; doc.setFontSize(11); doc.text(title,40,cy); cy+=14; doc.setFontSize(9); const words=txt.split(/\s+/); let line=''; words.forEach(w=>{ if(doc.getTextWidth(line+' '+w) > maxW){ doc.text(line,40,cy); cy+=12; line=w; if(cy>pageHeight-40){ doc.addPage('a4','landscape'); cy=60; } } else { line = line? line+' '+w : w; } }); if(line){ if(cy>pageHeight-40){ doc.addPage('a4','landscape'); cy=60;} doc.text(line,40,cy); cy+=18; } };
+            let cy=70; const maxW = pageWidth - 80; 
+            const addSection=(title,txt)=>{ if(!txt) return; doc.setFontSize(11); doc.text(title,40,cy); cy+=14; doc.setFontSize(9); const paragraphs = String(txt).split(/\n+/); paragraphs.forEach(p=>{ const words=p.split(/\s+/); let line=''; words.forEach(w=>{ if(doc.getTextWidth(line+' '+w) > maxW){ doc.text(line,40,cy); cy+=12; line=w; if(cy>pageHeight-40){ doc.addPage('a4','landscape'); cy=60; } } else { line = line? line+' '+w : w; } }); if(line){ if(cy>pageHeight-40){ doc.addPage('a4','landscape'); cy=60;} doc.text(line,40,cy); cy+=12; } cy+=6; }); cy+=6; };
             addSection('Business', businessTxt);
             addSection('Technical', technicalTxt);
             addSection('Notes', notesTxt);
@@ -4460,4 +5005,19 @@ function clearSaveData() {
 let playground;
 document.addEventListener('DOMContentLoaded', () => {
     playground = new ArchitecturePlayground();
+    
+    // Initialize inspector panel toggle
+    const inspectorToggle = document.getElementById('inspector-toggle');
+    const inspectorPanel = document.getElementById('inspector-panel');
+    
+    if (inspectorToggle && inspectorPanel) {
+        inspectorToggle.addEventListener('click', () => {
+            inspectorPanel.classList.toggle('collapsed');
+            
+            // Update connections after panel layout change
+            setTimeout(() => {
+                playground.updateConnections();
+            }, 300); // Small delay to let CSS transitions complete
+        });
+    }
 });
