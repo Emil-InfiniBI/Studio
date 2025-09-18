@@ -83,57 +83,172 @@
                     </button>
                 </div>
                 <div class="toolbar-right"><!-- empty on purpose --></div>
-                <div class="toolbar-right alignment-group">
-                    <div class="align-btn-cluster">
-                        <button class="toolbar-btn" title="Align Left" onclick="playground.alignSelected('x','left')"><i class="fas fa-align-left"></i></button>
-                        <button class="toolbar-btn" title="Align Center X" onclick="playground.alignSelected('x','center')"><i class="fas fa-arrows-alt-h"></i></button>
-                        <button class="toolbar-btn" title="Align Right" onclick="playground.alignSelected('x','right')"><i class="fas fa-align-right"></i></button>
-                        <button class="toolbar-btn" title="Align Top" onclick="playground.alignSelected('y','top')"><i class="fas fa-align-left" style="transform:rotate(90deg)"></i></button>
-                        <button class="toolbar-btn" title="Align Middle Y" onclick="playground.alignSelected('y','middle')"><i class="fas fa-arrows-alt-v"></i></button>
-                        <button class="toolbar-btn" title="Align Bottom" onclick="playground.alignSelected('y','bottom')"><i class="fas fa-align-right" style="transform:rotate(90deg)"></i></button>
-                        <button class="toolbar-btn" title="Distribute Horizontal" onclick="playground.distributeSelected('horizontal')"><i class="fas fa-ellipsis-h"></i></button>
-                        <button class="toolbar-btn" title="Distribute Vertical" onclick="playground.distributeSelected('vertical')"><i class="fas fa-ellipsis-v"></i></button>
-                    </div>
-                </div>
             </div>
 
-            <!-- Palette of items above the canvas -->
-            <div class="item-palette" id="item-palette">
-                <!-- Data Sources - Database Selector Button (moved to first position) -->
-                <div class="palette-item database-selector-btn" data-type="database-selector" title="Add Databases">
-                    <i class="fas fa-database"></i><span>Databases</span>
-                </div>
+            <!-- Component Palette with Categories -->
+            <div class="component-palette" id="component-palette">
+                <div class="palette-categories">
+                    <!-- Data Sources Category -->
+                    <div class="palette-category">
+                        <button class="category-header" onclick="togglePaletteCategory('data-sources')">
+                            <i class="fas fa-database"></i>
+                            <span>Data Sources</span>
+                            <i class="fas fa-chevron-down toggle-icon"></i>
+                        </button>
+                        <div class="category-items" id="data-sources">
+                            <div class="palette-item database-selector-btn" data-type="database-selector" title="Add Databases">
+                                <i class="fas fa-database"></i><span>Databases</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="api" title="API Endpoint">
+                                <i class="fas fa-plug"></i><span>API</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="file-source" title="File Source">
+                                <i class="fas fa-file"></i><span>Files</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="stream" title="Data Stream">
+                                <i class="fas fa-stream"></i><span>Stream</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="web-scrape" title="Web Scraping">
+                                <i class="fas fa-spider"></i><span>Web Scrape</span>
+                            </div>
+                        </div>
+                    </div>
 
-                <div class="palette-item" draggable="true" data-type="notebook" title="Notebook"><i class="fas fa-book"></i><span>Notebook</span></div>
-                <div class="palette-item" draggable="true" data-type="pipeline" title="Data Pipeline"><i class="fas fa-arrows-rotate"></i><span>Data Pipeline</span></div>
-                <div class="palette-item" draggable="true" data-type="dataset" title="Dataset"><i class="fas fa-table"></i><span>Dataset</span></div>
-                <div class="palette-item" draggable="true" data-type="dataflow" title="Dataflow"><i class="fas fa-diagram-project"></i><span>Dataflow</span></div>
-                <div class="palette-item" draggable="true" data-type="report" title="Report"><i class="fas fa-chart-line"></i><span>Report</span></div>
-                <div class="palette-item" draggable="true" data-type="dashboard" title="Dashboard"><i class="fas fa-gauge-high"></i><span>Dashboard</span></div>
-                <div class="palette-item" draggable="true" data-type="semantic-model" title="Semantic Model"><i class="fas fa-cubes"></i><span>Semantic Model</span></div>
-                <div class="palette-item" draggable="true" data-type="warehouse" title="Warehouse"><i class="fas fa-warehouse"></i><span>Warehouse</span></div>
-                <div class="palette-item" draggable="true" data-type="lakehouse" title="Lakehouse"><i class="fas fa-water"></i><span>Lakehouse</span></div>
+                    <!-- Storage & Processing Category -->
+                    <div class="palette-category">
+                        <button class="category-header" onclick="togglePaletteCategory('storage-processing')">
+                            <i class="fas fa-server"></i>
+                            <span>Storage & Processing</span>
+                            <i class="fas fa-chevron-down toggle-icon"></i>
+                        </button>
+                        <div class="category-items" id="storage-processing">
+                            <div class="palette-item" draggable="true" data-type="warehouse" title="Data Warehouse">
+                                <i class="fas fa-warehouse"></i><span>Warehouse</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="lakehouse" title="Lakehouse">
+                                <i class="fas fa-water"></i><span>Lakehouse</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="data-lake" title="Data Lake">
+                                <i class="fas fa-lake"></i><span>Data Lake</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="pipeline" title="Data Pipeline">
+                                <i class="fas fa-arrows-rotate"></i><span>Pipeline</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="dataflow" title="Dataflow">
+                                <i class="fas fa-diagram-project"></i><span>Dataflow</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="etl" title="ETL Process">
+                                <i class="fas fa-cogs"></i><span>ETL</span>
+                            </div>
+                        </div>
+                    </div>
 
-                <!-- Medallion cards as draggable items -->
-                <div class="palette-item" draggable="true" data-type="bronze" title="Bronze"><i class="fas fa-award"></i><span>Bronze</span></div>
-                <div class="palette-item" draggable="true" data-type="silver" title="Silver"><i class="fas fa-award"></i><span>Silver</span></div>
-                <div class="palette-item" draggable="true" data-type="gold" title="Gold"><i class="fas fa-award"></i><span>Gold</span></div>
+                    <!-- Medallion Architecture Category -->
+                    <div class="palette-category">
+                        <button class="category-header" onclick="togglePaletteCategory('medallion')">
+                            <i class="fas fa-layer-group"></i>
+                            <span>Medallion Layers</span>
+                            <i class="fas fa-chevron-down toggle-icon"></i>
+                        </button>
+                        <div class="category-items" id="medallion">
+                            <div class="palette-item" draggable="true" data-type="bronze" title="Bronze Layer - Raw Data">
+                                <i class="fas fa-award" style="color: #CD7F32;"></i><span>Bronze</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="silver" title="Silver Layer - Cleaned Data">
+                                <i class="fas fa-award" style="color: #C0C0C0;"></i><span>Silver</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="gold" title="Gold Layer - Business Ready">
+                                <i class="fas fa-award" style="color: #FFD700;"></i><span>Gold</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="platinum" title="Platinum Layer - ML Ready">
+                                <i class="fas fa-award" style="color: #E5E4E2;"></i><span>Platinum</span>
+                            </div>
+                        </div>
+                    </div>
 
-                <!-- Consumption items moved from right panel into palette -->
-                <div class="palette-item" draggable="true"
-                     data-consumption-type="powerbi" data-name="Power BI" data-category="Analytics"
-                     data-icon="fas fa-chart-bar" data-icon-color="#F2C811" title="Power BI">
-                    <i class="fas fa-chart-bar" style="color: #F2C811;"></i><span>Power BI</span>
-                </div>
-                <div class="palette-item" draggable="true"
-                     data-consumption-type="excel" data-name="Excel" data-category="Productivity"
-                     data-icon="fas fa-file-excel" data-icon-color="#217346" title="Excel">
-                    <i class="fas fa-file-excel" style="color: #217346;"></i><span>Excel</span>
-                </div>
-                <div class="palette-item" draggable="true"
-                     data-consumption-type="sql-endpoint" data-name="SQL Endpoint" data-category="Data Access"
-                     data-icon="fas fa-database" data-icon-color="#0078D4" title="SQL Endpoint">
-                    <i class="fas fa-database" style="color: #0078D4;"></i><span>SQL Endpoint</span>
+                    <!-- Analytics & Models Category -->
+                    <div class="palette-category">
+                        <button class="category-header" onclick="togglePaletteCategory('analytics-models')">
+                            <i class="fas fa-brain"></i>
+                            <span>Analytics & Models</span>
+                            <i class="fas fa-chevron-down toggle-icon"></i>
+                        </button>
+                        <div class="category-items" id="analytics-models">
+                            <div class="palette-item" draggable="true" data-type="semantic-model" title="Semantic Model">
+                                <i class="fas fa-cubes"></i><span>Semantic Model</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="dataset" title="Dataset">
+                                <i class="fas fa-table"></i><span>Dataset</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="ml-model" title="ML Model">
+                                <i class="fas fa-robot"></i><span>ML Model</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="notebook" title="Notebook">
+                                <i class="fas fa-book"></i><span>Notebook</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="experiment" title="ML Experiment">
+                                <i class="fas fa-flask"></i><span>Experiment</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Reporting & Visualization Category -->
+                    <div class="palette-category">
+                        <button class="category-header" onclick="togglePaletteCategory('reporting-viz')">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>Reporting & Visualization</span>
+                            <i class="fas fa-chevron-down toggle-icon"></i>
+                        </button>
+                        <div class="category-items" id="reporting-viz">
+                            <div class="palette-item" draggable="true" data-type="dashboard" title="Dashboard">
+                                <i class="fas fa-gauge-high"></i><span>Dashboard</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="report" title="Report">
+                                <i class="fas fa-chart-line"></i><span>Report</span>
+                            </div>
+                            <div class="palette-item" draggable="true"
+                                 data-consumption-type="powerbi" data-name="Power BI" data-category="Analytics"
+                                 data-icon="fas fa-chart-bar" data-icon-color="#F2C811" title="Power BI">
+                                <i class="fas fa-chart-bar" style="color: #F2C811;"></i><span>Power BI</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="tableau" title="Tableau">
+                                <i class="fas fa-chart-area" style="color: #E97627;"></i><span>Tableau</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="qlik" title="Qlik">
+                                <i class="fas fa-chart-pie" style="color: #009845;"></i><span>Qlik</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Data Access Category -->
+                    <div class="palette-category">
+                        <button class="category-header" onclick="togglePaletteCategory('data-access')">
+                            <i class="fas fa-key"></i>
+                            <span>Data Access</span>
+                            <i class="fas fa-chevron-down toggle-icon"></i>
+                        </button>
+                        <div class="category-items" id="data-access">
+                            <div class="palette-item" draggable="true"
+                                 data-consumption-type="sql-endpoint" data-name="SQL Endpoint" data-category="Data Access"
+                                 data-icon="fas fa-database" data-icon-color="#0078D4" title="SQL Endpoint">
+                                <i class="fas fa-database" style="color: #0078D4;"></i><span>SQL Endpoint</span>
+                            </div>
+                            <div class="palette-item" draggable="true"
+                                 data-consumption-type="excel" data-name="Excel" data-category="Productivity"
+                                 data-icon="fas fa-file-excel" data-icon-color="#217346" title="Excel">
+                                <i class="fas fa-file-excel" style="color: #217346;"></i><span>Excel</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="rest-api" title="REST API">
+                                <i class="fas fa-globe"></i><span>REST API</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="graphql" title="GraphQL">
+                                <i class="fas fa-project-diagram" style="color: #E10098;"></i><span>GraphQL</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="odata" title="OData">
+                                <i class="fas fa-link"></i><span>OData</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 

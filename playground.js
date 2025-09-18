@@ -347,8 +347,8 @@ class ArchitecturePlayground {
     }
 
     setupEventListeners() {
-        // Palette items (drag or click to add)
-        const palette = document.getElementById('item-palette');
+        // Palette items (drag or click to add) - Updated for new component palette
+        const palette = document.getElementById('component-palette') || document.getElementById('item-palette');
         if (palette) {
             palette.querySelectorAll('.palette-item').forEach(pi => {
                 pi.addEventListener('dragstart', (e) => {
@@ -467,6 +467,9 @@ class ArchitecturePlayground {
                         this.clearConnectionState();
                         this.showNotification('Connection cancelled', 'info');
                     }
+                    
+                    // Close any open palette dropdowns
+                    closeAllDropdowns();
                 }
             });
         }
@@ -700,12 +703,32 @@ class ArchitecturePlayground {
                 companyHeader.innerHTML = '<h4><i class="fas fa-building"></i> Company Databases</h4>';
                 databaseList.appendChild(companyHeader);
 
+                // Create table structure
+                const table = document.createElement('table');
+                table.className = 'database-table';
+                table.innerHTML = `
+                    <thead>
+                        <tr>
+                            <th width="40"></th>
+                            <th>Database</th>
+                            <th>Type</th>
+                            <th>Server</th>
+                            <th>Status</th>
+                            <th>Environment</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                `;
+                
+                const tbody = table.querySelector('tbody');
                 companyDatabases.forEach(db => {
-                    console.log('Creating option for company database:', db);
-                    const option = this.createDatabaseOption(db, true);
-                    databaseList.appendChild(option);
+                    console.log('Creating row for company database:', db);
+                    const row = this.createDatabaseTableRow(db, true);
+                    tbody.appendChild(row);
                 });
-                console.log('Added all company database options');
+                
+                databaseList.appendChild(table);
+                console.log('Added company database table');
             } else {
                 console.log('No company databases found, showing default sources');
                 // No company databases - show empty state and default sources
@@ -733,11 +756,29 @@ class ArchitecturePlayground {
             defaultHeader.innerHTML = '<h4><i class="fas fa-cog"></i> Sample Databases</h4>';
             databaseList.appendChild(defaultHeader);
 
+            // Create table for default sources
+            const defaultTable = document.createElement('table');
+            defaultTable.className = 'database-table';
+            defaultTable.innerHTML = `
+                <thead>
+                    <tr>
+                        <th width="40"></th>
+                        <th>Database</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            `;
+            
+            const defaultTbody = defaultTable.querySelector('tbody');
             defaultSources.forEach(source => {
-                const option = this.createDatabaseOption(source, false);
-                databaseList.appendChild(option);
+                const row = this.createDatabaseTableRow(source, false);
+                defaultTbody.appendChild(row);
             });
-            console.log('Added all default source options');
+            
+            databaseList.appendChild(defaultTable);
+            console.log('Added default sources table');
         }
         
         console.log('populateDatabaseModal() completed successfully');
@@ -747,14 +788,14 @@ class ArchitecturePlayground {
         }
     }
 
-    createDatabaseOption(db, isCompanyDb = false) {
-        const option = document.createElement('div');
-        option.className = 'database-option';
+    createDatabaseTableRow(db, isCompanyDb = false) {
+        const row = document.createElement('tr');
+        row.className = 'database-row';
         
         // Set data attributes for the add function
-        option.dataset.dbName = db.name;
-        option.dataset.dbType = db.dataType;
-        option.dataset.icon = db.icon;
+        row.dataset.dbName = db.name;
+        row.dataset.dbType = db.dataType;
+        row.dataset.icon = db.icon;
         
         const statusBadge = isCompanyDb && db.status ? 
             `<span class="status-badge status-${db.status}">${db.status.toUpperCase()}</span>` : '';
@@ -762,32 +803,47 @@ class ArchitecturePlayground {
         const environmentBadge = isCompanyDb && db.environment ? 
             `<span class="env-badge env-${db.environment}">${db.environment.toUpperCase()}</span>` : '';
         
-        const serverInfo = isCompanyDb && db.server ? 
-            `<div class="database-server">${db.server}</div>` : '';
-            
-        const purposeInfo = isCompanyDb && db.purpose ? 
-            `<div class="database-purpose">${db.purpose}</div>` : '';
+        const serverInfo = isCompanyDb && db.server ? db.server : 'N/A';
+        const typeOrDescription = isCompanyDb ? db.type : (db.purpose || 'Sample database');
 
-        option.innerHTML = `
-            <input type="checkbox" class="db-checkbox" value="${db.name}" data-type="${db.dataType}">
-            <div class="database-info">
-                <div class="database-header-info">
-                    <i class="${db.icon}" style="color: ${this.getTypeColor(db.dataType)}"></i>
-                    <div class="database-details">
-                        <div class="database-name">${db.name}</div>
-                        <div class="database-type">${db.type}</div>
-                        ${serverInfo}
-                        ${purposeInfo}
+        if (isCompanyDb) {
+            row.innerHTML = `
+                <td>
+                    <input type="checkbox" class="db-checkbox" value="${db.name}" data-type="${db.dataType}">
+                </td>
+                <td>
+                    <div class="db-name-cell">
+                        <i class="${db.icon}" style="color: ${this.getTypeColor(db.dataType)}"></i>
+                        <span class="db-name">${db.name}</span>
                     </div>
-                </div>
-                <div class="database-badges">
-                    ${statusBadge}
-                    ${environmentBadge}
-                </div>
-            </div>
-        `;
+                </td>
+                <td class="db-type">${typeOrDescription}</td>
+                <td class="db-server">${serverInfo}</td>
+                <td class="db-status">${statusBadge}</td>
+                <td class="db-environment">${environmentBadge}</td>
+            `;
+        } else {
+            row.innerHTML = `
+                <td>
+                    <input type="checkbox" class="db-checkbox" value="${db.name}" data-type="${db.dataType}">
+                </td>
+                <td>
+                    <div class="db-name-cell">
+                        <i class="${db.icon}" style="color: ${this.getTypeColor(db.dataType)}"></i>
+                        <span class="db-name">${db.name}</span>
+                    </div>
+                </td>
+                <td class="db-type">${db.type}</td>
+                <td class="db-description">${typeOrDescription}</td>
+            `;
+        }
 
-        return option;
+        return row;
+    }
+
+    // Keep the old function for backward compatibility, but redirect to table row
+    createDatabaseOption(db, isCompanyDb = false) {
+        return this.createDatabaseTableRow(db, isCompanyDb);
     }
 
     getTypeColor(type) {
@@ -1979,6 +2035,11 @@ class ArchitecturePlayground {
             item.style.width = '140px';
             item.style.height = '130px';
             item.style.padding = '12px';
+        } else if (itemType === 'platinum') {
+            item.style.setProperty('--ci-accent', '#e5e4e2');
+            item.style.width = '140px';
+            item.style.height = '130px';
+            item.style.padding = '12px';
         }
         
     const itemId = this.ensureElementId(item, 'canvas-item');
@@ -2015,25 +2076,52 @@ class ArchitecturePlayground {
         this.ensureCanvasExtents();
         this.showNotification(`Added ${itemConfig.name} to canvas`, 'success');
         
+        // Close any open palette dropdowns after successful item addition
+        closeAllDropdowns();
+        
         // Auto-save after adding item
         setTimeout(() => this.autosave(), 500);
     }
 
     getItemConfig(itemType) {
         const configs = {
+            // Analytics & Models
             'notebook': { icon: '📓', name: 'Notebook', type: 'Development' },
-            'pipeline': { icon: '🔄', name: 'Data Pipeline', type: 'Data Engineering' },
             'dataset': { icon: '📊', name: 'Dataset', type: 'Data' },
-            'dataflow': { icon: '🌊', name: 'Dataflow', type: 'Data Engineering' },
-            'report': { icon: '📈', name: 'Report', type: 'Analytics' },
-            'dashboard': { icon: '📋', name: 'Dashboard', type: 'Analytics' },
             'semantic-model': { icon: '🧱', name: 'Semantic Model', type: 'Data Modeling' },
+            'ml-model': { icon: '🤖', name: 'ML Model', type: 'Machine Learning' },
+            'experiment': { icon: '🧪', name: 'Experiment', type: 'Research' },
+            
+            // Storage & Processing
+            'pipeline': { icon: '🔄', name: 'Data Pipeline', type: 'Data Engineering' },
+            'dataflow': { icon: '🌊', name: 'Dataflow', type: 'Data Engineering' },
             'warehouse': { icon: '🏬', name: 'Warehouse', type: 'Storage' },
             'lakehouse': { icon: '🏞️', name: 'Lakehouse', type: 'Storage' },
-            'data-lake': { icon: '🗄️', name: 'Data Lake', type: 'Raw Data Source' },
+            'data-lake': { icon: '�️', name: 'Data Lake', type: 'Raw Data Storage' },
+            'etl': { icon: '⚙️', name: 'ETL Process', type: 'Data Engineering' },
+            
+            // Data Sources
+            'api': { icon: '🔌', name: 'API', type: 'Data Source' },
+            'file-source': { icon: '📁', name: 'File Source', type: 'Data Source' },
+            'stream': { icon: '🌊', name: 'Data Stream', type: 'Real-time Data' },
+            'web-scrape': { icon: '🕷️', name: 'Web Scraping', type: 'Data Source' },
+            
+            // Reporting & Visualization
+            'report': { icon: '📈', name: 'Report', type: 'Analytics' },
+            'dashboard': { icon: '📋', name: 'Dashboard', type: 'Analytics' },
+            'tableau': { icon: '📊', name: 'Tableau', type: 'Visualization' },
+            'qlik': { icon: '📈', name: 'Qlik', type: 'Visualization' },
+            
+            // Data Access
+            'rest-api': { icon: '�', name: 'REST API', type: 'Data Access' },
+            'graphql': { icon: '🔗', name: 'GraphQL', type: 'Data Access' },
+            'odata': { icon: '�', name: 'OData', type: 'Data Access' },
+            
+            // Medallion Architecture
             'bronze': { icon: '🥉', name: 'Bronze', type: 'Raw data' },
             'silver': { icon: '🥈', name: 'Silver', type: 'Cleaned data' },
-            'gold': { icon: '🥇', name: 'Gold', type: 'Modelled data' }
+            'gold': { icon: '🥇', name: 'Gold', type: 'Modelled data' },
+            'platinum': { icon: '💎', name: 'Platinum', type: 'ML ready data' }
         };
         
         return configs[itemType] || { icon: '❓', name: 'Unknown', type: 'Unknown' };
@@ -2041,39 +2129,88 @@ class ArchitecturePlayground {
 
     getTypeClass(itemType) {
         switch (itemType) {
-            case 'pipeline': return 'ci-pipeline';
+            // Analytics & Models
+            case 'notebook': return 'ci-notebook';
             case 'dataset': return 'ci-dataset';
-            case 'dataflow': return 'ci-dataflow';
-            case 'report': return 'ci-report';
-            case 'dashboard': return 'ci-dashboard';
             case 'semantic-model': return 'ci-semantic-model';
+            case 'ml-model': return 'ci-report'; // Reuse existing styling
+            case 'experiment': return 'ci-notebook'; // Reuse existing styling
+            
+            // Storage & Processing
+            case 'pipeline': return 'ci-pipeline';
+            case 'dataflow': return 'ci-dataflow';
             case 'warehouse': return 'ci-warehouse';
             case 'lakehouse': return 'ci-lakehouse';
-            case 'data-lake': return 'ci-data-source'; // Use existing data source styling
-            case 'notebook': return 'ci-notebook';
+            case 'data-lake': return 'ci-data-source';
+            case 'etl': return 'ci-pipeline'; // Reuse pipeline styling
+            
+            // Data Sources
+            case 'api': return 'ci-data-source';
+            case 'file-source': return 'ci-data-source';
+            case 'stream': return 'ci-data-source';
+            case 'web-scrape': return 'ci-data-source';
+            
+            // Reporting & Visualization
+            case 'report': return 'ci-report';
+            case 'dashboard': return 'ci-dashboard';
+            case 'tableau': return 'ci-dashboard'; // Reuse dashboard styling
+            case 'qlik': return 'ci-dashboard'; // Reuse dashboard styling
+            
+            // Data Access
+            case 'rest-api': return 'ci-data-source';
+            case 'graphql': return 'ci-data-source';
+            case 'odata': return 'ci-data-source';
+            
+            // Medallion Architecture
             case 'bronze': return 'ci-medallion ci-medallion-bronze';
             case 'silver': return 'ci-medallion ci-medallion-silver';
             case 'gold': return 'ci-medallion ci-medallion-gold';
-            default: return '';
+            case 'platinum': return 'ci-medallion ci-medallion-platinum';
+            
+            default: return 'ci-dataset'; // Default fallback
         }
     }
 
     getIconMarkup(itemType) {
         // Prefer Font Awesome where it fits; fallback to emoji
         const fa = {
-            'pipeline': '<i class="fas fa-arrows-rotate"></i>',
+            // Analytics & Models
+            'notebook': '<i class="fas fa-book"></i>',
             'dataset': '<i class="fas fa-table"></i>',
-            'dataflow': '<i class="fas fa-diagram-project"></i>',
-            'report': '<i class="fas fa-chart-line"></i>',
-            'dashboard': '<i class="fas fa-gauge-high"></i>',
             'semantic-model': '<i class="fas fa-cubes"></i>',
+            'ml-model': '<i class="fas fa-robot"></i>',
+            'experiment': '<i class="fas fa-flask"></i>',
+            
+            // Storage & Processing
+            'pipeline': '<i class="fas fa-arrows-rotate"></i>',
+            'dataflow': '<i class="fas fa-diagram-project"></i>',
             'warehouse': '<i class="fas fa-warehouse"></i>',
             'lakehouse': '<i class="fas fa-water"></i>',
-            'data-lake': '<i class="fas fa-database"></i>',
-            'notebook': '<i class="fas fa-book"></i>',
-            'bronze': '<i class="fas fa-medal" style="color: #cd7f32;"></i>',
-            'silver': '<i class="fas fa-medal" style="color: #c0c0c0;"></i>',
-            'gold': '<i class="fas fa-medal" style="color: #ffd700;"></i>'
+            'data-lake': '<i class="fas fa-lake"></i>',
+            'etl': '<i class="fas fa-cogs"></i>',
+            
+            // Data Sources
+            'api': '<i class="fas fa-plug"></i>',
+            'file-source': '<i class="fas fa-file"></i>',
+            'stream': '<i class="fas fa-stream"></i>',
+            'web-scrape': '<i class="fas fa-spider"></i>',
+            
+            // Reporting & Visualization
+            'report': '<i class="fas fa-chart-line"></i>',
+            'dashboard': '<i class="fas fa-gauge-high"></i>',
+            'tableau': '<i class="fas fa-chart-area" style="color: #e97627;"></i>',
+            'qlik': '<i class="fas fa-chart-pie" style="color: #009845;"></i>',
+            
+            // Data Access
+            'rest-api': '<i class="fas fa-globe"></i>',
+            'graphql': '<i class="fas fa-project-diagram" style="color: #e10098;"></i>',
+            'odata': '<i class="fas fa-link"></i>',
+            
+            // Medallion Architecture
+            'bronze': '<i class="fas fa-award" style="color: #cd7f32;"></i>',
+            'silver': '<i class="fas fa-award" style="color: #c0c0c0;"></i>',
+            'gold': '<i class="fas fa-award" style="color: #ffd700;"></i>',
+            'platinum': '<i class="fas fa-award" style="color: #e5e4e2;"></i>'
         };
         return fa[itemType] || `<span class="emoji">${this.getItemConfig(itemType).icon}</span>`;
     }
@@ -5001,10 +5138,106 @@ function clearSaveData() {
     }
 }
 
+// Global function for palette category toggling
+function togglePaletteCategory(categoryId) {
+    const categoryItems = document.getElementById(categoryId);
+    
+    if (!categoryItems) {
+        console.error('Category items not found for ID:', categoryId);
+        return;
+    }
+    
+    const categoryHeader = categoryItems.previousElementSibling;
+    
+    if (categoryItems.classList.contains('expanded')) {
+        // Collapsing category
+        categoryItems.classList.remove('expanded');
+        categoryHeader.classList.remove('expanded');
+    } else {
+        // Expanding category
+        // Close all other categories first (accordion behavior)
+        document.querySelectorAll('.category-items.expanded').forEach(items => {
+            items.classList.remove('expanded');
+            items.previousElementSibling.classList.remove('expanded');
+        });
+        
+        // Calculate position relative to the header button
+        const headerRect = categoryHeader.getBoundingClientRect();
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+        
+        // Position dropdown below the header
+        const top = headerRect.bottom + scrollTop;
+        const left = headerRect.left + scrollLeft;
+        
+        // Apply positioning
+        categoryItems.style.top = top + 'px';
+        categoryItems.style.left = left + 'px';
+        
+        // Open the clicked category
+        categoryItems.classList.add('expanded');
+        categoryHeader.classList.add('expanded');
+    }
+}
+
+// Function to close all open dropdowns
+function closeAllDropdowns() {
+    document.querySelectorAll('.category-items.expanded').forEach(items => {
+        items.classList.remove('expanded');
+        items.previousElementSibling.classList.remove('expanded');
+    });
+}
+
+// Also make it available on window object for debugging
+window.togglePaletteCategory = togglePaletteCategory;
+
+// Setup event listeners for palette category toggles
+function setupPaletteCategoryToggles() {
+    // Find all category headers and set up click listeners
+    document.querySelectorAll('.category-header').forEach((header) => {
+        // Get the corresponding category items element
+        const categoryItems = header.nextElementSibling;
+        if (categoryItems && categoryItems.classList.contains('category-items')) {
+            const categoryId = categoryItems.id;
+            
+            // Remove any existing onclick and add event listener
+            header.removeAttribute('onclick');
+            header.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                togglePaletteCategory(categoryId);
+            });
+        }
+    });
+    
+    // Global click listener to close dropdowns when clicking outside
+    document.addEventListener('click', (e) => {
+        // Check if the click is outside the palette area
+        const paletteArea = e.target.closest('.component-palette');
+        const isDropdownOpen = document.querySelector('.category-items.expanded');
+        
+        // If we clicked outside the palette and there's an open dropdown, close it
+        if (!paletteArea && isDropdownOpen) {
+            closeAllDropdowns();
+        }
+    });
+}
+
 // Initialize playground when DOM is loaded
 let playground;
 document.addEventListener('DOMContentLoaded', () => {
     playground = new ArchitecturePlayground();
+    
+    // Setup palette category toggles
+    setupPaletteCategoryToggles();
+    
+    // Auto-expand first palette category
+    const firstCategory = document.querySelector('.category-items');
+    const firstHeader = document.querySelector('.category-header');
+    if (firstCategory && firstHeader) {
+        firstCategory.classList.add('expanded');
+        firstHeader.classList.add('expanded');
+    }
     
     // Initialize inspector panel toggle
     const inspectorToggle = document.getElementById('inspector-toggle');
