@@ -227,11 +227,11 @@ class DatabaseManager {
     }
 
     renderDatabases() {
-        const grid = document.getElementById('databases-grid');
+        const tableContainer = document.querySelector('.databases-table-container');
         const databasesToShow = this.filteredDatabases.length > 0 ? this.filteredDatabases : this.databases;
         
         if (databasesToShow.length === 0) {
-            grid.innerHTML = `
+            tableContainer.innerHTML = `
                 <div class="empty-state">
                     <i class="fas fa-database"></i>
                     <h3>No Databases Found</h3>
@@ -244,7 +244,28 @@ class DatabaseManager {
             return;
         }
 
-        grid.innerHTML = databasesToShow.map(db => this.createDatabaseCard(db)).join('');
+        // Restore table if it was replaced by empty state
+        if (!document.getElementById('databases-table')) {
+            tableContainer.innerHTML = `
+                <table class="databases-table" id="databases-table">
+                    <thead>
+                        <tr>
+                            <th>Database</th>
+                            <th>Type</th>
+                            <th>Server</th>
+                            <th>Environment</th>
+                            <th>Status</th>
+                            <th>Purpose</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="databases-tbody"></tbody>
+                </table>
+            `;
+        }
+
+        const tbody = document.getElementById('databases-tbody');
+        tbody.innerHTML = databasesToShow.map(db => this.createDatabaseRow(db)).join('');
     }
 
     createDatabaseCard(db) {
@@ -326,6 +347,54 @@ class DatabaseManager {
                     <small>Last updated: ${new Date(db.lastUpdated).toLocaleDateString()}</small>
                 </div>
             </div>
+        `;
+    }
+
+    createDatabaseRow(db) {
+        const typeColor = this.getTypeColor(db.type);
+        const statusColor = this.getStatusColor(db.status);
+        const envColor = this.getEnvironmentColor(db.environment);
+        const icon = this.getTypeIcon(db.type);
+
+        return `
+            <tr class="database-row" data-id="${db.id}">
+                <td>
+                    <div class="db-name-cell">
+                        <div class="database-icon" style="background: ${typeColor}">
+                            <i class="${icon}"></i>
+                        </div>
+                        <div class="database-info">
+                            <div class="db-name">${db.name}</div>
+                            <div class="db-id">#${db.id}</div>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <span class="type-badge" style="background: ${typeColor}">
+                        ${db.type.replace('-', ' ').toUpperCase()}
+                    </span>
+                </td>
+                <td class="db-server">${db.server}</td>
+                <td>
+                    <span class="env-badge" style="background: ${envColor}">
+                        ${db.environment.toUpperCase()}
+                    </span>
+                </td>
+                <td>
+                    <span class="status-badge" style="background: ${statusColor}">
+                        ${db.status.toUpperCase()}
+                    </span>
+                </td>
+                <td class="db-purpose">${db.purpose || 'No description'}</td>
+                <td class="db-actions">
+                    <button class="btn btn-sm btn-icon" onclick="editDatabase('${db.id}')" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-icon" onclick="deleteDatabase('${db.id}')" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
         `;
     }
 

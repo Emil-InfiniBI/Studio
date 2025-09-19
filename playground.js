@@ -584,10 +584,10 @@ class ArchitecturePlayground {
         
         checkboxes.forEach(checkbox => {
             checkbox.addEventListener('change', (e) => {
-                const option = checkbox.closest('.database-option');
-                if (checkbox.checked) {
+                const option = checkbox.closest('.database-row');
+                if (option && checkbox.checked) {
                     option.classList.add('selected');
-                } else {
+                } else if (option) {
                     option.classList.remove('selected');
                 }
                 this.updateModalButtons();
@@ -916,7 +916,7 @@ class ArchitecturePlayground {
         }
 
         selectedCheckboxes.forEach((checkbox, index) => {
-            const option = checkbox.closest('.database-option');
+            const option = checkbox.closest('.database-row');
             console.log(`Processing database ${index}:`, option);
             
             // Add small delay between each database addition for smooth animation
@@ -2311,7 +2311,8 @@ class ArchitecturePlayground {
         if (!canvas) return;
 
         canvas.addEventListener('mousedown', (e) => {
-            if (this.connectionMode || this.editMode) return;
+            // Allow drag selection only when NOT in edit mode and NOT in connection mode
+            if (this.connectionMode) return;
             
             // Check if clicking on empty canvas (not on an item)
             if (e.target === canvas || e.target.classList.contains('canvas-background')) {
@@ -2388,6 +2389,25 @@ class ArchitecturePlayground {
 
     endSelection(e) {
         if (this.selectionBox) {
+            // Get final selection area
+            const canvas = document.getElementById('fabric-canvas');
+            const rect = canvas.getBoundingClientRect();
+            const currentX = e.clientX - rect.left + canvas.scrollLeft;
+            const currentY = e.clientY - rect.top + canvas.scrollTop;
+
+            const left = Math.min(this.selectionStart.x, currentX);
+            const top = Math.min(this.selectionStart.y, currentY);
+            const width = Math.abs(currentX - this.selectionStart.x);
+            const height = Math.abs(currentY - this.selectionStart.y);
+
+            // Final highlight of items in selection
+            this.highlightItemsInSelection(left, top, width, height);
+            
+            // Show notification of selected items
+            if (this.selectedItems.size > 0) {
+                this.showNotification(`Selected ${this.selectedItems.size} items`, 'info');
+            }
+            
             this.selectionBox.remove();
             this.selectionBox = null;
         }
@@ -2395,6 +2415,8 @@ class ArchitecturePlayground {
     }
 
     highlightItemsInSelection(left, top, width, height) {
+        // During drag selection, we temporarily highlight items
+        // but only add them to selectedItems on endSelection
         this.canvasItems.forEach(ci => {
             const element = ci.element;
             if (!element) return;
@@ -2413,6 +2435,10 @@ class ArchitecturePlayground {
             if (overlaps) {
                 this.selectedItems.add(ci);
                 element.classList.add('multi-selected');
+            } else if (this.isSelecting) {
+                // During active selection, remove items that are no longer in selection
+                this.selectedItems.delete(ci);
+                element.classList.remove('multi-selected');
             }
         });
     }
@@ -5230,14 +5256,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Setup palette category toggles
     setupPaletteCategoryToggles();
-    
-    // Auto-expand first palette category
-    const firstCategory = document.querySelector('.category-items');
-    const firstHeader = document.querySelector('.category-header');
-    if (firstCategory && firstHeader) {
-        firstCategory.classList.add('expanded');
-        firstHeader.classList.add('expanded');
-    }
     
     // Initialize inspector panel toggle
     const inspectorToggle = document.getElementById('inspector-toggle');
