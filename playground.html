@@ -46,11 +46,34 @@
                         <i class="fas fa-trash"></i> Clear Canvas
                     </button>
                     <button class="btn btn-primary" onclick="exportCanvas()">
-                        <i class="fas fa-download"></i> Export
+                        <i class="fas fa-download"></i> Export JSON
                     </button>
-                    <button class="btn btn-secondary" id="pdf-export-btn" title="Export PDF summary (Shift = quick snapshot)">
-                        <i class="fas fa-file-pdf"></i> PDF
-                    </button>
+                    
+                    <!-- PDF Export Category (in header) -->
+                    <div class="palette-category" style="display: inline-block; margin-left: 10px; position: relative;">
+                        <button class="category-header" onclick="togglePaletteCategory('pdf-export-header')" style="background: #6c757d; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+                            <i class="fas fa-file-pdf"></i>
+                            <span>PDF Export</span>
+                            <i class="fas fa-chevron-down toggle-icon"></i>
+                        </button>
+                        <div class="category-items" id="pdf-export-header">
+                            <div class="palette-item" onclick="exportPDF({template: 'executive'})" title="Executive Summary - Concise 1-2 page overview">
+                                <i class="fas fa-chart-line" style="color: #10b981;"></i><span>Executive Summary</span>
+                            </div>
+                            <div class="palette-item" onclick="exportPDF({template: 'presentation'})" title="Client Presentation - Visual presentation format">
+                                <i class="fas fa-presentation-screen" style="color: #3b82f6;"></i><span>Client Presentation</span>
+                            </div>
+                            <div class="palette-item" onclick="exportPDF({template: 'technical'})" title="Technical Documentation - Detailed analysis">
+                                <i class="fas fa-cogs" style="color: #f59e0b;"></i><span>Technical Documentation</span>
+                            </div>
+                            <div class="palette-item" onclick="exportPDF({template: 'comprehensive'})" title="Architecture Review - Complete analysis">
+                                <i class="fas fa-file-alt" style="color: #6b7280;"></i><span>Architecture Review</span>
+                            </div>
+                            <div class="palette-item" onclick="exportPDF({quick: true})" title="Quick Snapshot - Architecture diagram only">
+                                <i class="fas fa-camera" style="color: #06b6d4;"></i><span>Quick Snapshot</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </header>
@@ -220,6 +243,58 @@
                         </div>
                     </div>
 
+                    <!-- Governance & Security Category -->
+                    <div class="palette-category">
+                        <button class="category-header" onclick="togglePaletteCategory('governance-security')">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>Governance & Security</span>
+                            <i class="fas fa-chevron-down toggle-icon"></i>
+                        </button>
+                        <div class="category-items" id="governance-security">
+                            <!-- Data Catalog/Lineage -->
+                            <div class="palette-item" draggable="true" data-type="data-catalog" title="Data Catalog (Purview/OneLake Data Hub)">
+                                <i class="fas fa-search" style="color: #0078D4;"></i><span>Data Catalog</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="data-lineage" title="Data Lineage">
+                                <i class="fas fa-route" style="color: #6C757D;"></i><span>Data Lineage</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="purview" title="Microsoft Purview">
+                                <i class="fas fa-eye" style="color: #0078D4;"></i><span>Purview</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="onelake-hub" title="OneLake Data Hub">
+                                <i class="fas fa-hub" style="color: #5C2D91;"></i><span>OneLake Hub</span>
+                            </div>
+                            
+                            <!-- Data Quality -->
+                            <div class="palette-item" draggable="true" data-type="data-quality" title="Data Quality Engine">
+                                <i class="fas fa-check-circle" style="color: #28A745;"></i><span>Data Quality</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="dq-rules" title="Data Quality Rules">
+                                <i class="fas fa-list-check" style="color: #17A2B8;"></i><span>DQ Rules</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="data-profiling" title="Data Profiling">
+                                <i class="fas fa-chart-pie" style="color: #FFC107;"></i><span>Data Profiling</span>
+                            </div>
+                            
+                            <!-- Policy & Security -->
+                            <div class="palette-item" draggable="true" data-type="security-policy" title="Security Policy">
+                                <i class="fas fa-shield-check" style="color: #DC3545;"></i><span>Security Policy</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="rls" title="Row Level Security (RLS)">
+                                <i class="fas fa-user-shield" style="color: #6F42C1;"></i><span>RLS</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="abac" title="Attribute Based Access Control (ABAC)">
+                                <i class="fas fa-key" style="color: #E83E8C;"></i><span>ABAC</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="pii-classification" title="PII Classification">
+                                <i class="fas fa-user-secret" style="color: #FD7E14;"></i><span>PII Classification</span>
+                            </div>
+                            <div class="palette-item" draggable="true" data-type="data-classification" title="Data Classification">
+                                <i class="fas fa-tags" style="color: #20C997;"></i><span>Data Classification</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Data Access Category -->
                     <div class="palette-category">
                         <button class="category-header" onclick="togglePaletteCategory('data-access')">
@@ -312,7 +387,6 @@
                                             <option value="design">In Design</option>
                                             <option value="build">In Build</option>
                                             <option value="active">Active</option>
-                                            <option value="deprecated">Deprecated</option>
                                         </select>
                                     </div>
                                 </div>
@@ -483,16 +557,17 @@
     <script src="playground.js"></script>
 </body>
 <script>
-// Add shift-click handler for PDF export (quick snapshot vs full report)
-document.addEventListener('DOMContentLoaded', () => {
-    const btn = document.getElementById('pdf-export-btn');
-    if(btn){
-        btn.addEventListener('click', (e)=>{
+// Simple PDF export with Shift+click compatibility
+document.addEventListener('DOMContentLoaded', function() {
+    // Keep backward compatibility with Shift+click for quick snapshot
+    document.addEventListener('keydown', function(e) {
+        if (e.shiftKey && e.target.closest('.dropdown-item')) {
+            e.preventDefault();
             if(typeof exportPDF === 'function'){
-                if(e.shiftKey){ exportPDF({quick:true}); } else { exportPDF(); }
+                exportPDF({quick: true});
             }
-        });
-    }
+        }
+    });
 });
 </script>
 </html>

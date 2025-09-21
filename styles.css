@@ -4085,6 +4085,60 @@ body {
 .canvas-item.ci-medallion-gold { --ci-accent: #ffd700; }
 .canvas-item.ci-medallion-platinum { --ci-accent: #e5e4e2; }
 
+/* Governance Components */
+.canvas-item.ci-governance {
+    --ci-accent: #6c757d;
+    border: 2px solid var(--ci-accent);
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(var(--ci-accent-rgb, 108, 117, 125), 0.1), rgba(var(--ci-accent-rgb, 108, 117, 125), 0.05));
+    backdrop-filter: blur(2px);
+}
+
+.canvas-item.ci-governance .canvas-item-header {
+    padding: 8px 12px;
+    gap: 8px;
+    border-bottom: 1px solid rgba(var(--ci-accent-rgb, 108, 117, 125), 0.2);
+}
+
+.canvas-item.ci-governance .ci-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, var(--ci-accent), rgba(var(--ci-accent-rgb, 108, 117, 125), 0.8));
+}
+
+.canvas-item.ci-governance .ci-icon i { 
+    font-size: 14px; 
+    color: white;
+}
+
+.canvas-item.ci-governance .canvas-item-title { 
+    font-size: 12px; 
+    font-weight: 600;
+    color: var(--ci-accent);
+}
+
+.canvas-item.ci-governance .canvas-item-type { 
+    font-size: 10px; 
+    color: rgba(var(--ci-accent-rgb, 108, 117, 125), 0.8);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Specific governance component colors */
+.canvas-item.ci-governance-catalog { --ci-accent: #0078d4; --ci-accent-rgb: 0, 120, 212; }
+.canvas-item.ci-governance-lineage { --ci-accent: #6c757d; --ci-accent-rgb: 108, 117, 125; }
+.canvas-item.ci-governance-purview { --ci-accent: #0078d4; --ci-accent-rgb: 0, 120, 212; }
+.canvas-item.ci-governance-hub { --ci-accent: #5c2d91; --ci-accent-rgb: 92, 45, 145; }
+.canvas-item.ci-governance-quality { --ci-accent: #28a745; --ci-accent-rgb: 40, 167, 69; }
+.canvas-item.ci-governance-rules { --ci-accent: #17a2b8; --ci-accent-rgb: 23, 162, 184; }
+.canvas-item.ci-governance-profiling { --ci-accent: #ffc107; --ci-accent-rgb: 255, 193, 7; }
+.canvas-item.ci-governance-security { --ci-accent: #dc3545; --ci-accent-rgb: 220, 53, 69; }
+.canvas-item.ci-governance-rls { --ci-accent: #6f42c1; --ci-accent-rgb: 111, 66, 193; }
+.canvas-item.ci-governance-abac { --ci-accent: #e83e8c; --ci-accent-rgb: 232, 62, 140; }
+.canvas-item.ci-governance-pii { --ci-accent: #fd7e14; --ci-accent-rgb: 253, 126, 20; }
+.canvas-item.ci-governance-classification { --ci-accent: #20c997; --ci-accent-rgb: 32, 201, 151; }
+
 /* Palette accent for medallions */
 .item-palette .palette-item[data-type="bronze"] i,
 .component-palette .palette-item[data-type="bronze"] i { color: #cd7f32; }
@@ -6655,8 +6709,46 @@ svg g[data-manual="true"] polygon {
 
 .status-active { background: #10b981; }
 .status-deprecated { background: #f59e0b; }
-.status-planned { background: #6366f1; }
+.status-planned { background: #8b5cf6; }
+.status-design { background: #06b6d4; }
+.status-build { background: #f59e0b; }
 .status-maintenance { background: #ef4444; }
+
+/* Component Status Indicators */
+.component-status-indicator {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    z-index: 10;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Status colors for component indicators */
+.component-status-indicator.status-planned {
+    background: #8b5cf6;
+}
+
+.component-status-indicator.status-design {
+    background: #06b6d4;
+}
+
+.component-status-indicator.status-build {
+    background: #f59e0b;
+}
+
+.component-status-indicator.status-active {
+    background: #10b981;
+    animation: statusBlink 2s infinite;
+}
+
+/* Blinking animation for active status */
+@keyframes statusBlink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0.3; }
+}
 
 .env-production { background: #ef4444; }
 .env-staging { background: #f59e0b; }
@@ -7786,3 +7878,22 @@ svg .connection-mid-arrow {
     pointer-events:none;
 }
 svg g:hover .connection-mid-arrow { opacity:1; }
+
+/* PDF Export in header - uses existing palette category styles */
+#pdf-export-header {
+    /* Override the position to work in header */
+    position: absolute !important;
+    top: 100% !important;
+    left: 0 !important;
+    min-width: 220px !important;
+}
+
+/* Header category header styling */
+.palette-category .category-header {
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.palette-category .category-header:hover {
+    background: #5a6268 !important;
+}

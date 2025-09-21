@@ -74,6 +74,11 @@ class ArchitecturePlayground {
         // Alignment guides initialization
         this.initAlignmentGuides();
         this.initAlignmentGuides();
+        
+        // Restore autosaved session after all initialization is complete
+        setTimeout(() => {
+            this.restoreAutosave();
+        }, 100);
     }
 
     // --- Alignment Guides & Snapping ---
@@ -1950,6 +1955,12 @@ class ArchitecturePlayground {
         this.setupCanvasItemClick(item);
         
     canvas.appendChild(item);
+    
+    // Add status indicator if metadata exists
+    if (data.meta && data.meta.business && data.meta.business.status) {
+        updateComponentStatusIndicator(item, data.meta.business.status);
+    }
+    
     // Attach quick actions if edit mode is on
     if (this.editMode) this.showItemQuickActions(true);
         this.canvasItems.push({
@@ -1996,6 +2007,11 @@ class ArchitecturePlayground {
         
         // Force reflow to ensure element is properly rendered
         item.offsetHeight;
+        
+        // Add status indicator if metadata exists
+        if (data.meta && data.meta.business && data.meta.business.status) {
+            updateComponentStatusIndicator(item, data.meta.business.status);
+        }
         
         if (this.editMode) this.showItemQuickActions(true);
         this.canvasItems.push({
@@ -2065,6 +2081,12 @@ class ArchitecturePlayground {
         this.setupCanvasItemClick(item);
         
     canvas.appendChild(item);
+    
+    // Add status indicator if metadata exists
+    if (itemConfig.meta && itemConfig.meta.business && itemConfig.meta.business.status) {
+        updateComponentStatusIndicator(item, itemConfig.meta.business.status);
+    }
+    
     if (this.editMode) this.showItemQuickActions(true);
         this.canvasItems.push({
             id: itemId,
@@ -2121,7 +2143,21 @@ class ArchitecturePlayground {
             'bronze': { icon: '🥉', name: 'Bronze', type: 'Raw data' },
             'silver': { icon: '🥈', name: 'Silver', type: 'Cleaned data' },
             'gold': { icon: '🥇', name: 'Gold', type: 'Modelled data' },
-            'platinum': { icon: '💎', name: 'Platinum', type: 'ML ready data' }
+            'platinum': { icon: '💎', name: 'Platinum', type: 'ML ready data' },
+            
+            // Governance & Security
+            'data-catalog': { icon: '🔍', name: 'Data Catalog', type: 'Governance' },
+            'data-lineage': { icon: '🗺️', name: 'Data Lineage', type: 'Governance' },
+            'purview': { icon: '👁️', name: 'Microsoft Purview', type: 'Governance' },
+            'onelake-hub': { icon: '🏢', name: 'OneLake Data Hub', type: 'Governance' },
+            'data-quality': { icon: '✅', name: 'Data Quality', type: 'Quality Management' },
+            'dq-rules': { icon: '📋', name: 'DQ Rules', type: 'Quality Management' },
+            'data-profiling': { icon: '📊', name: 'Data Profiling', type: 'Quality Management' },
+            'security-policy': { icon: '🛡️', name: 'Security Policy', type: 'Security' },
+            'rls': { icon: '👤', name: 'Row Level Security', type: 'Security' },
+            'abac': { icon: '🔑', name: 'ABAC', type: 'Security' },
+            'pii-classification': { icon: '🕵️', name: 'PII Classification', type: 'Security' },
+            'data-classification': { icon: '🏷️', name: 'Data Classification', type: 'Security' }
         };
         
         return configs[itemType] || { icon: '❓', name: 'Unknown', type: 'Unknown' };
@@ -2167,6 +2203,20 @@ class ArchitecturePlayground {
             case 'gold': return 'ci-medallion ci-medallion-gold';
             case 'platinum': return 'ci-medallion ci-medallion-platinum';
             
+            // Governance & Security
+            case 'data-catalog': return 'ci-governance ci-governance-catalog';
+            case 'data-lineage': return 'ci-governance ci-governance-lineage';
+            case 'purview': return 'ci-governance ci-governance-purview';
+            case 'onelake-hub': return 'ci-governance ci-governance-hub';
+            case 'data-quality': return 'ci-governance ci-governance-quality';
+            case 'dq-rules': return 'ci-governance ci-governance-rules';
+            case 'data-profiling': return 'ci-governance ci-governance-profiling';
+            case 'security-policy': return 'ci-governance ci-governance-security';
+            case 'rls': return 'ci-governance ci-governance-rls';
+            case 'abac': return 'ci-governance ci-governance-abac';
+            case 'pii-classification': return 'ci-governance ci-governance-pii';
+            case 'data-classification': return 'ci-governance ci-governance-classification';
+            
             default: return 'ci-dataset'; // Default fallback
         }
     }
@@ -2210,7 +2260,21 @@ class ArchitecturePlayground {
             'bronze': '<i class="fas fa-award" style="color: #cd7f32;"></i>',
             'silver': '<i class="fas fa-award" style="color: #c0c0c0;"></i>',
             'gold': '<i class="fas fa-award" style="color: #ffd700;"></i>',
-            'platinum': '<i class="fas fa-award" style="color: #e5e4e2;"></i>'
+            'platinum': '<i class="fas fa-award" style="color: #e5e4e2;"></i>',
+            
+            // Governance & Security
+            'data-catalog': '<i class="fas fa-search" style="color: #0078d4;"></i>',
+            'data-lineage': '<i class="fas fa-route" style="color: #6c757d;"></i>',
+            'purview': '<i class="fas fa-eye" style="color: #0078d4;"></i>',
+            'onelake-hub': '<i class="fas fa-hub" style="color: #5c2d91;"></i>',
+            'data-quality': '<i class="fas fa-check-circle" style="color: #28a745;"></i>',
+            'dq-rules': '<i class="fas fa-list-check" style="color: #17a2b8;"></i>',
+            'data-profiling': '<i class="fas fa-chart-pie" style="color: #ffc107;"></i>',
+            'security-policy': '<i class="fas fa-shield-check" style="color: #dc3545;"></i>',
+            'rls': '<i class="fas fa-user-shield" style="color: #6f42c1;"></i>',
+            'abac': '<i class="fas fa-key" style="color: #e83e8c;"></i>',
+            'pii-classification': '<i class="fas fa-user-secret" style="color: #fd7e14;"></i>',
+            'data-classification': '<i class="fas fa-tags" style="color: #20c997;"></i>'
         };
         return fa[itemType] || `<span class="emoji">${this.getItemConfig(itemType).icon}</span>`;
     }
@@ -2481,12 +2545,12 @@ class ArchitecturePlayground {
                 name: "Medallion Architecture",
                 description: "Bronze → Silver → Gold data lakehouse pattern",
                 items: [
-                    { type: 'data-lake', x: 400, y: 160 }, // Use data-lake canvas item instead of data-source
-                    { type: 'bronze', x: 580, y: 160 },
-                    { type: 'silver', x: 760, y: 160 },
-                    { type: 'gold', x: 940, y: 160 },
-                    { type: 'semantic-model', x: 1120, y: 160 },
-                    { type: 'consumption-item', name: 'Power BI', category: 'Analytics', consumptionType: 'powerbi', x: 1300, y: 160, icon: 'fas fa-chart-bar', iconColor: '#F2C811' }
+                    { type: 'data-lake', x: 200, y: 250 }, // Use data-lake canvas item instead of data-source
+                    { type: 'bronze', x: 450, y: 250 },
+                    { type: 'silver', x: 700, y: 250 },
+                    { type: 'gold', x: 950, y: 250 },
+                    { type: 'semantic-model', x: 1200, y: 250 },
+                    { type: 'consumption-item', name: 'Power BI', category: 'Analytics', consumptionType: 'powerbi', x: 1450, y: 250, icon: 'fas fa-chart-bar', iconColor: '#F2C811' }
                 ],
                 connections: [
                     { from: 0, to: 1 }, { from: 1, to: 2 }, { from: 2, to: 3 }, { from: 3, to: 4 }, { from: 4, to: 5 }
@@ -2496,13 +2560,13 @@ class ArchitecturePlayground {
                 name: "Lambda Architecture",
                 description: "Batch + Speed layers with serving layer",
                 items: [
-                    { type: 'data-lake', x: 400, y: 100 }, // Event Stream
-                    { type: 'data-lake', x: 400, y: 280 }, // Batch Data
-                    { type: 'pipeline', x: 580, y: 100 }, // Speed layer
-                    { type: 'pipeline', x: 580, y: 280 }, // Batch layer
-                    { type: 'warehouse', x: 760, y: 190 }, // Serving layer
-                    { type: 'semantic-model', x: 940, y: 190 },
-                    { type: 'consumption-item', name: 'Dashboard', category: 'Analytics', consumptionType: 'powerbi', x: 1120, y: 190, icon: 'fas fa-chart-bar', iconColor: '#F2C811' }
+                    { type: 'data-lake', x: 200, y: 150 }, // Event Stream
+                    { type: 'data-lake', x: 200, y: 350 }, // Batch Data
+                    { type: 'pipeline', x: 500, y: 150 }, // Speed layer
+                    { type: 'pipeline', x: 500, y: 350 }, // Batch layer
+                    { type: 'warehouse', x: 800, y: 250 }, // Serving layer
+                    { type: 'semantic-model', x: 1100, y: 250 },
+                    { type: 'consumption-item', name: 'Dashboard', category: 'Analytics', consumptionType: 'powerbi', x: 1400, y: 250, icon: 'fas fa-chart-bar', iconColor: '#F2C811' }
                 ],
                 connections: [
                     { from: 0, to: 2 }, { from: 1, to: 3 }, { from: 2, to: 4 }, { from: 3, to: 4 }, { from: 4, to: 5 }, { from: 5, to: 6 }
@@ -2512,15 +2576,15 @@ class ArchitecturePlayground {
                 name: "Star Schema",
                 description: "Central fact table with dimension tables",
                 items: [
-                    { type: 'data-lake', x: 400, y: 240 }, // Sales Data source
-                    { type: 'dataset', x: 580, y: 80 }, // Dim Customer
-                    { type: 'dataset', x: 760, y: 80 }, // Dim Product  
-                    { type: 'dataset', x: 940, y: 80 }, // Dim Time
-                    { type: 'warehouse', x: 760, y: 240 }, // Fact Sales (center)
-                    { type: 'dataset', x: 580, y: 400 }, // Dim Store
-                    { type: 'dataset', x: 940, y: 400 }, // Dim Geography
-                    { type: 'semantic-model', x: 1120, y: 240 },
-                    { type: 'consumption-item', name: 'Reports', category: 'Analytics', consumptionType: 'powerbi', x: 1300, y: 240, icon: 'fas fa-chart-line', iconColor: '#F2C811' }
+                    { type: 'data-lake', x: 200, y: 300 }, // Sales Data source
+                    { type: 'dataset', x: 500, y: 120 }, // Dim Customer
+                    { type: 'dataset', x: 700, y: 120 }, // Dim Product  
+                    { type: 'dataset', x: 900, y: 120 }, // Dim Time
+                    { type: 'warehouse', x: 700, y: 300 }, // Fact Sales (center)
+                    { type: 'dataset', x: 500, y: 480 }, // Dim Store
+                    { type: 'dataset', x: 900, y: 480 }, // Dim Geography
+                    { type: 'semantic-model', x: 1200, y: 300 },
+                    { type: 'consumption-item', name: 'Reports', category: 'Analytics', consumptionType: 'powerbi', x: 1500, y: 300, icon: 'fas fa-chart-line', iconColor: '#F2C811' }
                 ],
                 connections: [
                     { from: 0, to: 4 }, { from: 1, to: 4 }, { from: 2, to: 4 }, { from: 3, to: 4 }, 
@@ -2531,15 +2595,15 @@ class ArchitecturePlayground {
                 name: "Data Vault 2.0",
                 description: "Hub, Link, and Satellite pattern for data warehousing",
                 items: [
-                    { type: 'data-lake', x: 400, y: 120 }, // CRM System
-                    { type: 'data-lake', x: 400, y: 280 }, // ERP System
-                    { type: 'warehouse', x: 580, y: 120 }, // Hub Customer
-                    { type: 'warehouse', x: 580, y: 280 }, // Hub Product
-                    { type: 'warehouse', x: 760, y: 200 }, // Link Customer-Product
-                    { type: 'dataset', x: 690, y: 80 }, // Sat Customer Details
-                    { type: 'dataset', x: 690, y: 320 }, // Sat Product Details
-                    { type: 'semantic-model', x: 940, y: 200 },
-                    { type: 'consumption-item', name: 'Analytics', category: 'BI', consumptionType: 'powerbi', x: 1120, y: 200, icon: 'fas fa-chart-bar', iconColor: '#F2C811' }
+                    { type: 'data-lake', x: 200, y: 150 }, // CRM System
+                    { type: 'data-lake', x: 200, y: 350 }, // ERP System
+                    { type: 'warehouse', x: 500, y: 150 }, // Hub Customer
+                    { type: 'warehouse', x: 500, y: 350 }, // Hub Product
+                    { type: 'warehouse', x: 800, y: 250 }, // Link Customer-Product
+                    { type: 'dataset', x: 650, y: 100 }, // Sat Customer Details
+                    { type: 'dataset', x: 650, y: 400 }, // Sat Product Details
+                    { type: 'semantic-model', x: 1100, y: 250 },
+                    { type: 'consumption-item', name: 'Analytics', category: 'BI', consumptionType: 'powerbi', x: 1400, y: 250, icon: 'fas fa-chart-bar', iconColor: '#F2C811' }
                 ],
                 connections: [
                     { from: 0, to: 2 }, { from: 1, to: 3 }, { from: 2, to: 4 }, { from: 3, to: 4 },
@@ -2550,13 +2614,13 @@ class ArchitecturePlayground {
                 name: "Modern Data Stack",
                 description: "ELT with cloud-native tools",
                 items: [
-                    { type: 'data-lake', x: 400, y: 140 }, // SaaS Apps
-                    { type: 'data-lake', x: 400, y: 240 }, // Databases
-                    { type: 'pipeline', x: 580, y: 190 }, // ELT Tool
-                    { type: 'warehouse', x: 760, y: 190 }, // Cloud DW
-                    { type: 'semantic-model', x: 940, y: 190 }, // dbt models
-                    { type: 'consumption-item', name: 'BI Tool', category: 'Analytics', consumptionType: 'powerbi', x: 1120, y: 120, icon: 'fas fa-chart-bar', iconColor: '#F2C811' },
-                    { type: 'consumption-item', name: 'Notebooks', category: 'ML', consumptionType: 'notebooks', x: 1120, y: 260, icon: 'fas fa-code', iconColor: '#6A5ACD' }
+                    { type: 'data-lake', x: 200, y: 180 }, // SaaS Apps
+                    { type: 'data-lake', x: 200, y: 320 }, // Databases
+                    { type: 'pipeline', x: 500, y: 250 }, // ELT Tool
+                    { type: 'warehouse', x: 800, y: 250 }, // Cloud DW
+                    { type: 'semantic-model', x: 1100, y: 250 }, // dbt models
+                    { type: 'consumption-item', name: 'BI Tool', category: 'Analytics', consumptionType: 'powerbi', x: 1400, y: 180, icon: 'fas fa-chart-bar', iconColor: '#F2C811' },
+                    { type: 'consumption-item', name: 'Notebooks', category: 'ML', consumptionType: 'notebooks', x: 1400, y: 320, icon: 'fas fa-code', iconColor: '#6A5ACD' }
                 ],
                 connections: [
                     { from: 0, to: 2 }, { from: 1, to: 2 }, { from: 2, to: 3 }, { from: 3, to: 4 }, { from: 4, to: 5 }, { from: 4, to: 6 }
@@ -2566,15 +2630,144 @@ class ArchitecturePlayground {
                 name: "MLOps Pipeline",
                 description: "Machine learning operations workflow",
                 items: [
-                    { type: 'data-lake', x: 400, y: 160 }, // Training Data
-                    { type: 'notebook', x: 580, y: 160 }, // Feature Engineering
-                    { type: 'notebook', x: 760, y: 100 }, // Model Training
-                    { type: 'warehouse', x: 760, y: 220 }, // Model Registry
-                    { type: 'pipeline', x: 940, y: 160 }, // Deployment Pipeline
-                    { type: 'consumption-item', name: 'API Endpoint', category: 'Serving', consumptionType: 'sql-endpoint', x: 1120, y: 160, icon: 'fas fa-globe', iconColor: '#0078D4' }
+                    { type: 'data-lake', x: 200, y: 250 }, // Training Data
+                    { type: 'notebook', x: 500, y: 250 }, // Feature Engineering
+                    { type: 'notebook', x: 800, y: 150 }, // Model Training
+                    { type: 'warehouse', x: 800, y: 350 }, // Model Registry
+                    { type: 'pipeline', x: 1100, y: 250 }, // Deployment Pipeline
+                    { type: 'consumption-item', name: 'API Endpoint', category: 'Serving', consumptionType: 'sql-endpoint', x: 1400, y: 250, icon: 'fas fa-globe', iconColor: '#0078D4' }
                 ],
                 connections: [
                     { from: 0, to: 1 }, { from: 1, to: 2 }, { from: 2, to: 3 }, { from: 3, to: 4 }, { from: 4, to: 5 }
+                ]
+            },
+            kappa: {
+                name: "Kappa Architecture",
+                description: "Stream-first processing with event-driven design",
+                items: [
+                    { type: 'stream', x: 200, y: 250 }, // Event Stream
+                    { type: 'pipeline', x: 500, y: 150 }, // Stream Processing
+                    { type: 'pipeline', x: 500, y: 350 }, // Batch Reprocessing
+                    { type: 'warehouse', x: 800, y: 250 }, // Serving DB
+                    { type: 'consumption-item', name: 'Real-time Dashboard', category: 'Analytics', consumptionType: 'powerbi', x: 1100, y: 180, icon: 'fas fa-chart-line', iconColor: '#F2C811' },
+                    { type: 'consumption-item', name: 'API', category: 'Services', consumptionType: 'sql-endpoint', x: 1100, y: 320, icon: 'fas fa-globe', iconColor: '#0078D4' }
+                ],
+                connections: [
+                    { from: 0, to: 1 }, { from: 0, to: 2 }, { from: 1, to: 3 }, { from: 2, to: 3 }, { from: 3, to: 4 }, { from: 3, to: 5 }
+                ]
+            },
+            dataMesh: {
+                name: "Data Mesh Architecture",
+                description: "Domain-driven data ownership with self-serve platform",
+                items: [
+                    { type: 'data-catalog', x: 650, y: 100 }, // Data Catalog
+                    { type: 'warehouse', x: 200, y: 250 }, // Sales Domain
+                    { type: 'warehouse', x: 450, y: 250 }, // Marketing Domain  
+                    { type: 'warehouse', x: 700, y: 250 }, // Customer Domain
+                    { type: 'warehouse', x: 950, y: 250 }, // Product Domain
+                    { type: 'data-quality', x: 650, y: 400 }, // Data Quality
+                    { type: 'security-policy', x: 950, y: 100 }, // Governance
+                    { type: 'consumption-item', name: 'Self-Serve Analytics', category: 'Analytics', consumptionType: 'powerbi', x: 650, y: 550, icon: 'fas fa-chart-bar', iconColor: '#F2C811' }
+                ],
+                connections: [
+                    { from: 0, to: 1 }, { from: 0, to: 2 }, { from: 0, to: 3 }, { from: 0, to: 4 },
+                    { from: 1, to: 5 }, { from: 2, to: 5 }, { from: 3, to: 5 }, { from: 4, to: 5 },
+                    { from: 6, to: 0 }, { from: 5, to: 7 }
+                ]
+            },
+            eventDriven: {
+                name: "Event-Driven Architecture",
+                description: "Event sourcing with CQRS pattern",
+                items: [
+                    { type: 'stream', x: 200, y: 150 }, // Event Store
+                    { type: 'stream', x: 200, y: 300 }, // Command Stream
+                    { type: 'stream', x: 200, y: 450 }, // Query Stream
+                    { type: 'pipeline', x: 500, y: 150 }, // Event Processing
+                    { type: 'warehouse', x: 800, y: 225 }, // Read Model
+                    { type: 'warehouse', x: 800, y: 375 }, // Write Model
+                    { type: 'consumption-item', name: 'Real-time Views', category: 'Analytics', consumptionType: 'powerbi', x: 1100, y: 225, icon: 'fas fa-eye', iconColor: '#F2C811' },
+                    { type: 'consumption-item', name: 'Command API', category: 'Services', consumptionType: 'sql-endpoint', x: 1100, y: 375, icon: 'fas fa-terminal', iconColor: '#0078D4' }
+                ],
+                connections: [
+                    { from: 0, to: 3 }, { from: 1, to: 5 }, { from: 2, to: 4 }, { from: 3, to: 4 }, { from: 4, to: 6 }, { from: 5, to: 7 }
+                ]
+            },
+            featureStore: {
+                name: "Feature Store Architecture",
+                description: "Centralized feature management for ML",
+                items: [
+                    { type: 'data-lake', x: 200, y: 180 }, // Raw Data
+                    { type: 'data-lake', x: 200, y: 320 }, // Streaming Data
+                    { type: 'pipeline', x: 500, y: 250 }, // Feature Engineering
+                    { type: 'warehouse', x: 800, y: 180 }, // Offline Store
+                    { type: 'warehouse', x: 800, y: 320 }, // Online Store
+                    { type: 'data-catalog', x: 1100, y: 100 }, // Feature Registry
+                    { type: 'ml-model', x: 1100, y: 250 }, // ML Models
+                    { type: 'consumption-item', name: 'Real-time Inference', category: 'ML', consumptionType: 'sql-endpoint', x: 1400, y: 250, icon: 'fas fa-bolt', iconColor: '#FFD700' }
+                ],
+                connections: [
+                    { from: 0, to: 2 }, { from: 1, to: 2 }, { from: 2, to: 3 }, { from: 2, to: 4 },
+                    { from: 3, to: 5 }, { from: 4, to: 5 }, { from: 5, to: 6 }, { from: 4, to: 7 }
+                ]
+            },
+            iotPlatform: {
+                name: "IoT Data Platform",
+                description: "Time-series data with edge computing",
+                items: [
+                    { type: 'stream', x: 200, y: 180 }, // IoT Sensors
+                    { type: 'stream', x: 200, y: 320 }, // Edge Gateway
+                    { type: 'pipeline', x: 500, y: 250 }, // Stream Processing
+                    { type: 'warehouse', x: 800, y: 180 }, // Time-series DB
+                    { type: 'data-lake', x: 800, y: 320 }, // Cold Storage
+                    { type: 'data-quality', x: 500, y: 400 }, // Data Validation
+                    { type: 'ml-model', x: 1100, y: 250 }, // Anomaly Detection
+                    { type: 'consumption-item', name: 'IoT Dashboard', category: 'Monitoring', consumptionType: 'powerbi', x: 1400, y: 180, icon: 'fas fa-chart-line', iconColor: '#F2C811' },
+                    { type: 'consumption-item', name: 'Alerts', category: 'Monitoring', consumptionType: 'sql-endpoint', x: 1400, y: 320, icon: 'fas fa-bell', iconColor: '#FF4500' }
+                ],
+                connections: [
+                    { from: 0, to: 1 }, { from: 1, to: 2 }, { from: 2, to: 3 }, { from: 2, to: 4 },
+                    { from: 2, to: 5 }, { from: 3, to: 6 }, { from: 6, to: 7 }, { from: 6, to: 8 }
+                ]
+            },
+            customer360: {
+                name: "Customer 360",
+                description: "Unified customer view across touchpoints",
+                items: [
+                    { type: 'data-lake', x: 100, y: 120 }, // CRM
+                    { type: 'data-lake', x: 100, y: 240 }, // E-commerce
+                    { type: 'data-lake', x: 100, y: 360 }, // Support
+                    { type: 'data-lake', x: 100, y: 480 }, // Social Media
+                    { type: 'pipeline', x: 400, y: 300 }, // Data Integration
+                    { type: 'data-quality', x: 700, y: 200 }, // Data Quality
+                    { type: 'warehouse', x: 700, y: 400 }, // Golden Record
+                    { type: 'semantic-model', x: 1000, y: 300 }, // Customer Model
+                    { type: 'consumption-item', name: 'Customer Portal', category: 'CX', consumptionType: 'powerbi', x: 1300, y: 220, icon: 'fas fa-user', iconColor: '#6A5ACD' },
+                    { type: 'consumption-item', name: 'Marketing Campaigns', category: 'Marketing', consumptionType: 'sql-endpoint', x: 1300, y: 380, icon: 'fas fa-bullhorn', iconColor: '#FF6347' }
+                ],
+                connections: [
+                    { from: 0, to: 4 }, { from: 1, to: 4 }, { from: 2, to: 4 }, { from: 3, to: 4 },
+                    { from: 4, to: 5 }, { from: 4, to: 6 }, { from: 5, to: 7 }, { from: 6, to: 7 },
+                    { from: 7, to: 8 }, { from: 7, to: 9 }
+                ]
+            },
+            dataFabric: {
+                name: "Data Fabric",
+                description: "Unified data management across hybrid environments",
+                items: [
+                    { type: 'data-catalog', x: 650, y: 100 }, // Unified Catalog
+                    { type: 'data-lake', x: 200, y: 250 }, // On-premises
+                    { type: 'warehouse', x: 450, y: 250 }, // Cloud DW
+                    { type: 'data-lake', x: 700, y: 250 }, // Multi-cloud
+                    { type: 'warehouse', x: 950, y: 250 }, // SaaS
+                    { type: 'data-lineage', x: 325, y: 400 }, // Lineage Tracking
+                    { type: 'security-policy', x: 650, y: 400 }, // Unified Security
+                    { type: 'data-quality', x: 975, y: 400 }, // Quality Monitoring
+                    { type: 'consumption-item', name: 'Unified Analytics', category: 'Analytics', consumptionType: 'powerbi', x: 650, y: 550, icon: 'fas fa-chart-bar', iconColor: '#F2C811' }
+                ],
+                connections: [
+                    { from: 0, to: 1 }, { from: 0, to: 2 }, { from: 0, to: 3 }, { from: 0, to: 4 },
+                    { from: 1, to: 5 }, { from: 2, to: 6 }, { from: 3, to: 7 }, { from: 4, to: 8 },
+                    { from: 5, to: 8 }, { from: 6, to: 8 }, { from: 7, to: 8 }
                 ]
             }
         };
@@ -4125,6 +4318,25 @@ class ArchitecturePlayground {
         // After attempting to build all connections, log a summary
         console.log(`Rebuilt ${connectionsCreated} connections (requested: ${(data.connections||[]).length})`);
 
+        // Restore metadata for all loaded items
+        (data.items || []).forEach(savedItem => {
+            if (savedItem.data && savedItem.data.meta) {
+                const canvasItem = this.canvasItems.find(ci => ci.id === savedItem.id);
+                if (canvasItem) {
+                    // Restore the complete metadata structure
+                    canvasItem.data = canvasItem.data || {};
+                    canvasItem.data.meta = savedItem.data.meta;
+                    
+                    // Update visual status indicator if status exists
+                    if (savedItem.data.meta.business && savedItem.data.meta.business.status) {
+                        updateComponentStatusIndicator(canvasItem.element, savedItem.data.meta.business.status);
+                    }
+                    
+                    console.log('Restored metadata for item:', savedItem.id, savedItem.data.meta);
+                }
+            }
+        });
+
     // Final sanitize + redraw
     this.sanitizeConnections();
     this.updateConnections();
@@ -4322,7 +4534,11 @@ const metadataPanel = (function(){
         if(el.purpose) b.purpose = el.purpose.value.trim();
         if(el.owner) b.owner = el.owner.value.trim();
         if(el.criticality) b.criticality = el.criticality.value;
-        if(el.status) b.status = el.status.value;
+        if(el.status) {
+            b.status = el.status.value;
+            // Update visual status indicator on the component
+            updateComponentStatusIndicator(entry.element, b.status);
+        }
         if(el.refresh) t.refresh = el.refresh.value;
         if(el.volume) t.volume = el.volume.value.trim();
         if(el.latency) t.latency = el.latency.value.trim();
@@ -4435,9 +4651,342 @@ function exportCanvas() {
     }
 }
 
+function importCanvas(input) {
+    try {
+        const file = input.files[0];
+        if (!file) {
+            playground.showNotification('No file selected', 'warning');
+            return;
+        }
+        
+        if (!file.name.endsWith('.json')) {
+            playground.showNotification('Please select a JSON file', 'error');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importData = JSON.parse(e.target.result);
+                console.log('[Import] Loaded data:', {
+                    items: importData.items?.length || 0,
+                    connections: importData.connections?.length || 0,
+                    metadata: importData.metadata
+                });
+                
+                // Validate the imported data structure
+                if (!importData.items || !Array.isArray(importData.items)) {
+                    throw new Error('Invalid file format: missing items array');
+                }
+                
+                // Clear current canvas
+                playground.clearCanvas();
+                
+                // Load the imported data
+                playground.deserialize(importData);
+                
+                const itemCount = importData.items.length;
+                const connectionCount = (importData.connections || []).length;
+                
+                playground.showNotification(
+                    `Architecture imported (${itemCount} items, ${connectionCount} connections)`, 
+                    'success'
+                );
+                
+                console.log('[Import] Successfully imported architecture');
+                
+            } catch (parseError) {
+                console.error('[Import] Parse error:', parseError);
+                playground.showNotification('Failed to parse JSON file: ' + parseError.message, 'error');
+            }
+        };
+        
+        reader.onerror = function() {
+            playground.showNotification('Failed to read file', 'error');
+        };
+        
+        reader.readAsText(file);
+        
+        // Reset the file input so the same file can be imported again if needed
+        input.value = '';
+        
+    } catch (error) {
+        console.error('[Import] Import error:', error);
+        playground.showNotification('Import failed: ' + error.message, 'error');
+    }
+}
+
+// Professional PDF Template System
+const PDFTemplates = {
+    // Executive Summary Template - 1-2 pages, high-level overview
+    executive: {
+        name: "Executive Summary",
+        description: "Concise 1-2 page overview for senior stakeholders",
+        pages: ["cover", "metrics", "snapshot"],
+        colors: { primary: "#1f2937", secondary: "#3b82f6", accent: "#10b981" },
+        style: "executive"
+    },
+    
+    // Technical Documentation Template - Comprehensive technical report
+    technical: {
+        name: "Technical Documentation", 
+        description: "Detailed technical analysis with full specifications",
+        pages: ["cover", "metrics", "snapshot", "inventory", "details", "recommendations"],
+        colors: { primary: "#374151", secondary: "#6366f1", accent: "#f59e0b" },
+        style: "technical"
+    },
+    
+    // Client Presentation Template - Visual-focused for meetings
+    presentation: {
+        name: "Client Presentation",
+        description: "Visual presentation format for client meetings",
+        pages: ["cover", "overview", "snapshot", "summary", "next-steps"],
+        colors: { primary: "#0f172a", secondary: "#8b5cf6", accent: "#06b6d4" },
+        style: "presentation"
+    },
+    
+    // Architecture Review Template - Comprehensive analysis (current default)
+    comprehensive: {
+        name: "Architecture Review",
+        description: "Complete analysis with all available details (current format)",
+        pages: ["metrics", "snapshot", "inventory", "details"],
+        colors: { primary: "#1f2937", secondary: "#3b82f6", accent: "#ef4444" },
+        style: "comprehensive"
+    }
+};
+
+// Template-specific page generators
+const PDFPageGenerators = {
+    cover: (doc, data, template, branding) => {
+        const { colors } = template;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        
+        // Background gradient effect (simulated with rectangles)
+        doc.setFillColor(...hexToRgb(colors.primary));
+        doc.rect(0, 0, pageWidth, pageHeight, 'F');
+        
+        doc.setFillColor(...hexToRgb(colors.secondary + '22'));
+        doc.rect(0, 0, pageWidth, pageHeight * 0.4, 'F');
+        
+        // Company logo if provided
+        if (branding.logo) {
+            try {
+                doc.addImage(branding.logo, 'PNG', 40, 40, 120, 60);
+            } catch (e) {
+                console.warn('Logo failed to embed:', e);
+            }
+        }
+        
+        // Title section
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(28);
+        doc.text('BI Architecture Analysis', 40, branding.logo ? 140 : 100);
+        
+        doc.setFontSize(16);
+        doc.text(branding.clientName || 'Client Architecture Report', 40, branding.logo ? 165 : 125);
+        
+        // Project metadata
+        doc.setFontSize(12);
+        const y = branding.logo ? 200 : 160;
+        doc.text(`Generated: ${new Date().toLocaleDateString()}`, 40, y);
+        doc.text(`Analyst: ${branding.analystName || 'BI Consultant'}`, 40, y + 20);
+        doc.text(`Components: ${data.items.length}`, 40, y + 40);
+        doc.text(`Connections: ${(data.connections || []).length}`, 40, y + 60);
+        
+        // Footer
+        doc.setFontSize(10);
+        doc.setTextColor(200, 200, 200);
+        doc.text('Confidential Business Intelligence Assessment', 40, pageHeight - 40);
+    },
+    
+    overview: (doc, data, template, branding) => {
+        const { colors } = template;
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(20);
+        doc.text('Executive Overview', 40, 50);
+        
+        // Key insights section
+        doc.setFontSize(14);
+        doc.text('Key Findings', 40, 80);
+        
+        doc.setFontSize(11);
+        let y = 100;
+        
+        // Architecture complexity analysis
+        const complexity = data.items.length > 20 ? 'High' : data.items.length > 10 ? 'Medium' : 'Low';
+        doc.text(`• Architecture Complexity: ${complexity} (${data.items.length} components)`, 50, y);
+        y += 18;
+        
+        // Connection density
+        const connectionRatio = (data.connections || []).length / Math.max(1, data.items.length);
+        const connectivity = connectionRatio > 1.5 ? 'Highly Connected' : connectionRatio > 0.8 ? 'Well Connected' : 'Loosely Connected';
+        doc.text(`• System Integration: ${connectivity} (${(data.connections || []).length} connections)`, 50, y);
+        y += 18;
+        
+        // Data source diversity
+        const types = [...new Set(data.items.map(i => i.type || 'Unknown'))];
+        doc.text(`• Technology Diversity: ${types.length} different component types`, 50, y);
+        y += 18;
+        
+        // Recommendations teaser
+        y += 20;
+        doc.setFontSize(14);
+        doc.text('Strategic Recommendations', 40, y);
+        y += 20;
+        
+        doc.setFontSize(11);
+        doc.text('• Consolidate data sources to reduce complexity', 50, y);
+        y += 15;
+        doc.text('• Implement unified governance framework', 50, y);
+        y += 15;
+        doc.text('• Establish data quality monitoring', 50, y);
+    },
+    
+    summary: (doc, data, template, branding) => {
+        doc.setFontSize(16);
+        doc.text('Implementation Summary', 40, 50);
+        
+        // Quick stats in boxes
+        const stats = [
+            { label: 'Components', value: data.items.length, color: template.colors.primary },
+            { label: 'Connections', value: (data.connections || []).length, color: template.colors.secondary },
+            { label: 'Types', value: [...new Set(data.items.map(i => i.type))].length, color: template.colors.accent }
+        ];
+        
+        let x = 50;
+        stats.forEach(stat => {
+            // Stat box
+            doc.setFillColor(...hexToRgb(stat.color + '22'));
+            doc.setDrawColor(...hexToRgb(stat.color));
+            doc.rect(x, 80, 120, 60, 'FD');
+            
+            doc.setTextColor(...hexToRgb(stat.color));
+            doc.setFontSize(24);
+            doc.text(String(stat.value), x + 60, 105, { align: 'center' });
+            
+            doc.setFontSize(12);
+            doc.text(stat.label, x + 60, 125, { align: 'center' });
+            
+            x += 140;
+        });
+    },
+    
+    'next-steps': (doc, data, template, branding) => {
+        doc.setFontSize(16);
+        doc.text('Next Steps & Recommendations', 40, 50);
+        
+        doc.setFontSize(12);
+        let y = 80;
+        
+        const phases = [
+            {
+                title: 'Phase 1: Foundation (Weeks 1-4)',
+                items: ['Data inventory completion', 'Governance framework design', 'Security assessment']
+            },
+            {
+                title: 'Phase 2: Integration (Weeks 5-8)',
+                items: ['Data pipeline development', 'Quality monitoring implementation', 'Initial dashboard deployment']
+            },
+            {
+                title: 'Phase 3: Optimization (Weeks 9-12)',
+                items: ['Performance tuning', 'User training', 'Documentation finalization']
+            }
+        ];
+        
+        phases.forEach(phase => {
+            doc.setFontSize(14);
+            doc.text(phase.title, 40, y);
+            y += 20;
+            
+            doc.setFontSize(11);
+            phase.items.forEach(item => {
+                doc.text(`• ${item}`, 50, y);
+                y += 15;
+            });
+            y += 10;
+        });
+    },
+    
+    recommendations: (doc, data, template, branding) => {
+        doc.setFontSize(16);
+        doc.text('Technical Recommendations', 40, 50);
+        
+        doc.setFontSize(12);
+        let y = 80;
+        
+        // Analyze architecture and provide recommendations
+        const recommendations = [];
+        
+        // Check for orphaned components
+        const orphans = data.items.filter(item => {
+            const hasIncoming = (data.connections || []).some(c => c.toId === item.id);
+            const hasOutgoing = (data.connections || []).some(c => c.fromId === item.id);
+            return !hasIncoming && !hasOutgoing;
+        });
+        
+        if (orphans.length > 0) {
+            recommendations.push({
+                title: 'Isolated Components',
+                description: `${orphans.length} components are not connected to the main data flow. Consider integration or retirement.`,
+                priority: 'High'
+            });
+        }
+        
+        // Check data source count
+        const sources = data.items.filter(i => (i.type || '').toLowerCase().includes('source'));
+        if (sources.length > 10) {
+            recommendations.push({
+                title: 'Data Source Consolidation',
+                description: `${sources.length} data sources detected. Consider consolidating to reduce complexity.`,
+                priority: 'Medium'
+            });
+        }
+        
+        // Check for medallion architecture
+        const hasBronze = data.items.some(i => (i.type || '').toLowerCase().includes('bronze'));
+        const hasSilver = data.items.some(i => (i.type || '').toLowerCase().includes('silver'));
+        const hasGold = data.items.some(i => (i.type || '').toLowerCase().includes('gold'));
+        
+        if (!hasBronze || !hasSilver || !hasGold) {
+            recommendations.push({
+                title: 'Medallion Architecture Implementation',
+                description: 'Consider implementing Bronze/Silver/Gold data layers for better data quality and governance.',
+                priority: 'Medium'
+            });
+        }
+        
+        recommendations.forEach(rec => {
+            doc.setFillColor(255, 248, 220);
+            doc.rect(40, y - 5, 500, 35, 'F');
+            
+            doc.setFontSize(13);
+            doc.text(`${rec.title} (${rec.priority} Priority)`, 50, y + 5);
+            
+            doc.setFontSize(10);
+            doc.text(rec.description, 50, y + 20);
+            
+            y += 50;
+        });
+    }
+};
+
+// Helper function to convert hex to RGB
+function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex.replace(/[^#a-f\d]/gi, ''));
+    return result ? [
+        parseInt(result[1], 16),
+        parseInt(result[2], 16),
+        parseInt(result[3], 16)
+    ] : [59, 130, 246]; // fallback blue
+}
+
 // Export PDF with multi-tier fallback (normal -> sanitized -> plain -> SVG -> text-only)
 async function exportPDF(options={}) {
     const quick = options.quick === true; // quick snapshot-only mode
+    const template = options.template || 'comprehensive';
+    const branding = options.branding || JSON.parse(localStorage.getItem('pdfBranding') || '{}');
+    
     try {
         const ensureLibs = () => new Promise((resolve, reject) => {
             const needHtml2Canvas = typeof html2canvas === 'undefined';
@@ -4820,6 +5369,131 @@ async function exportPDF(options={}) {
         data.items.forEach(it=>{ const t = it.type||'Unknown'; typeCounts[t]=(typeCounts[t]||0)+1; });
         const orphanItems = data.items.filter(it => !(inCounts[it.id]) && !(outCounts[it.id]));
 
+        // === TEMPLATE SYSTEM INTEGRATION ===
+        const templateName = options.template || 'comprehensive';
+        const template = PDFTemplates[templateName] || PDFTemplates.comprehensive;
+        const branding = options.branding || {};
+        
+        console.log(`Generating PDF with template: ${template.name}`);
+        
+        // Generate pages based on template configuration
+        template.pages.forEach((pageType, index) => {
+            if (index > 0) doc.addPage('a4', 'landscape');
+            
+            try {
+                if (PDFPageGenerators[pageType]) {
+                    PDFPageGenerators[pageType](doc, data, template, branding);
+                } else {
+                    // Fall back to existing page generators for compatibility
+                    generateLegacyPage(doc, pageType, data, {
+                        buildSyntheticBoard, cropToContent, canvas,
+                        typeCounts, orphanItems, inCounts, outCounts, itemById
+                    });
+                }
+            } catch (error) {
+                console.warn(`Failed to generate page ${pageType}:`, error);
+                // Add error page
+                doc.setFontSize(16);
+                doc.text(`Error generating ${pageType} page`, 40, 100);
+                doc.setFontSize(12);
+                doc.text(error.message, 40, 120);
+            }
+        });
+        
+        // Skip legacy page generation if using modern templates
+        if (template.style !== 'comprehensive') {
+            const filename = `bi-${template.style}-${ts}.pdf`;
+            doc.save(filename);
+            playground.showNotification(`${template.name} PDF exported`, 'success');
+            return;
+        }
+
+        // === LEGACY COMPREHENSIVE TEMPLATE (CURRENT FORMAT) ===
+        
+        // Legacy page generator for backward compatibility
+        function generateLegacyPage(doc, pageType, data, helpers) {
+            const { buildSyntheticBoard, cropToContent, canvas, typeCounts, orphanItems, inCounts, outCounts, itemById } = helpers;
+            
+            switch (pageType) {
+                case 'metrics':
+                    doc.setFontSize(20); 
+                    doc.text('InfiniBI Studio Report', 40, 50);
+                    doc.setFontSize(10); 
+                    doc.text('Generated: ' + new Date().toLocaleString(), 40, 66);
+                    doc.setDrawColor(180); 
+                    doc.line(40, 72, 800, 72);
+                    doc.setFontSize(12); 
+                    doc.text('Summary Metrics', 40, 92);
+                    doc.setFontSize(10);
+                    
+                    let y = 108;
+                    const addLine = (label, val) => { 
+                        doc.text(label + ':', 40, y); 
+                        doc.text(String(val), 170, y); 
+                        y += 14; 
+                    };
+                    
+                    addLine('Total Components', data.items.length);
+                    addLine('Total Connections', (data.connections || []).length);
+                    addLine('Orphan Components', orphanItems.length);
+                    
+                    doc.text('Type Distribution:', 40, y); y += 14;
+                    Object.keys(typeCounts).sort().forEach(t => { 
+                        doc.text(`- ${t}: ${typeCounts[t]}`, 50, y); 
+                        y += 12; 
+                    });
+                    
+                    if (orphanItems.length) {
+                        y += 6; 
+                        doc.text('Orphans:', 40, y); 
+                        y += 14;
+                        orphanItems.slice(0, 10).forEach(o => { 
+                            doc.text('- ' + (o.data?.name || o.type || o.id), 50, y); 
+                            y += 12; 
+                        });
+                        if (orphanItems.length > 10) { 
+                            doc.text(`(+${orphanItems.length - 10} more)`, 50, y); 
+                            y += 12; 
+                        }
+                    }
+                    break;
+                    
+                case 'snapshot':
+                    doc.setFontSize(16); 
+                    doc.text('Architecture Snapshot', 40, 50);
+                    
+                    let boardCanvasForFull;
+                    try { 
+                        boardCanvasForFull = buildSyntheticBoard(data); 
+                    } catch(e) { 
+                        console.warn('Synthetic board render failed for full PDF, fallback to html2canvas crop', e); 
+                        boardCanvasForFull = cropToContent(canvas, { pad: 80 }); 
+                    }
+                    
+                    if (boardCanvasForFull && (boardCanvasForFull.width < 60 || boardCanvasForFull.height < 60)) {
+                        console.warn('[PDF full] Synthetic canvas tiny; using fallback raster capture');
+                        boardCanvasForFull = cropToContent(canvas, { pad: 80 });
+                    }
+                    
+                    const imgData = boardCanvasForFull.toDataURL('image/png');
+                    const pageWidth = doc.internal.pageSize.getWidth();
+                    const pageHeight = doc.internal.pageSize.getHeight();
+                    const maxImgWidth = pageWidth - 80; 
+                    const maxImgHeight = pageHeight - 100;
+                    let scale = Math.min(maxImgWidth / boardCanvasForFull.width, maxImgHeight / boardCanvasForFull.height);
+                    if (scale > 1.4) scale = 1.4;
+                    
+                    const imgW = boardCanvasForFull.width * scale; 
+                    const imgH = boardCanvasForFull.height * scale;
+                    const imgX = 40 + (maxImgWidth - imgW) / 2; 
+                    const imgY = 60 + Math.max(0, (maxImgHeight - imgH) / 4);
+                    
+                    doc.addImage(imgData, 'PNG', imgX, imgY, imgW, imgH);
+                    doc.setTextColor(0, 0, 0);
+                    break;
+            }
+        }
+        
         // PAGE 1: Metrics Summary
     doc.setFontSize(20); doc.text('InfiniBI Studio Report',40,50);
         doc.setFontSize(10); doc.text('Generated: '+ new Date().toLocaleString(),40,66);
@@ -5247,6 +5921,23 @@ function setupPaletteCategoryToggles() {
             closeAllDropdowns();
         }
     });
+}
+
+// Status indicator helper function
+function updateComponentStatusIndicator(element, status) {
+    // Remove any existing status indicator
+    const existingIndicator = element.querySelector('.component-status-indicator');
+    if (existingIndicator) {
+        existingIndicator.remove();
+    }
+    
+    // Add new status indicator if status is set
+    if (status && status.trim() !== '') {
+        const indicator = document.createElement('div');
+        indicator.className = `component-status-indicator status-${status}`;
+        indicator.title = `Status: ${status.charAt(0).toUpperCase() + status.slice(1)}`;
+        element.appendChild(indicator);
+    }
 }
 
 // Initialize playground when DOM is loaded
