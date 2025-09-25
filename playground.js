@@ -170,7 +170,40 @@ class ArchitecturePlayground {
             'snowflake': 'fas fa-snowflake',
             'bigquery': 'fas fa-chart-line',
             'azure-sql': 'fas fa-cloud',
-            'aws-rds': 'fas fa-cloud'
+            'aws-rds': 'fas fa-cloud',
+            'excel': 'fas fa-file-excel',
+            'dataverse': 'fas fa-table',
+            'sharepoint': 'fas fa-share-alt',
+            'access': 'fas fa-key',
+            'csv': 'fas fa-file-csv',
+            'json': 'fas fa-file-code',
+            'xml': 'fas fa-file-code',
+            'power-bi': 'fas fa-chart-bar',
+            'tableau': 'fas fa-chart-area',
+            'salesforce': 'fas fa-cloud-rain',
+            'dynamics-365': 'fas fa-cog',
+            'sap': 'fas fa-industry',
+            'web-service': 'fas fa-globe',
+            'rest-api': 'fas fa-plug',
+            'odata': 'fas fa-link',
+            'azure-synapse': 'fas fa-cloud',
+            'azure-data-lake': 'fas fa-water',
+            'aws-s3': 'fas fa-cube',
+            'hdfs': 'fas fa-hdd',
+            'teradata': 'fas fa-server',
+            'db2': 'fas fa-database',
+            'sybase': 'fas fa-database',
+            'mariadb': 'fas fa-leaf',
+            'sqlite': 'fas fa-file-archive',
+            'duckdb': 'fas fa-feather',
+            'clickhouse': 'fas fa-mouse-pointer',
+            'elasticsearch': 'fas fa-search',
+            'cosmos-db': 'fas fa-globe',
+            'dynamodb': 'fas fa-bolt',
+            'firebase': 'fas fa-fire',
+            'neo4j': 'fas fa-project-diagram',
+            'influxdb': 'fas fa-chart-line',
+            'other': 'fas fa-question'
         };
         return icons[dbType] || 'fas fa-database';
     }
@@ -187,7 +220,40 @@ class ArchitecturePlayground {
             'snowflake': 'Snowflake',
             'bigquery': 'BigQuery',
             'azure-sql': 'Azure SQL',
-            'aws-rds': 'AWS RDS'
+            'aws-rds': 'AWS RDS',
+            'excel': 'Excel',
+            'dataverse': 'Dataverse',
+            'sharepoint': 'SharePoint',
+            'access': 'Access',
+            'csv': 'CSV Files',
+            'json': 'JSON Files',
+            'xml': 'XML Files',
+            'power-bi': 'Power BI',
+            'tableau': 'Tableau',
+            'salesforce': 'Salesforce',
+            'dynamics-365': 'Dynamics 365',
+            'sap': 'SAP',
+            'web-service': 'Web Service',
+            'rest-api': 'REST API',
+            'odata': 'OData',
+            'azure-synapse': 'Azure Synapse',
+            'azure-data-lake': 'Azure Data Lake',
+            'aws-s3': 'AWS S3',
+            'hdfs': 'HDFS',
+            'teradata': 'Teradata',
+            'db2': 'IBM DB2',
+            'sybase': 'Sybase',
+            'mariadb': 'MariaDB',
+            'sqlite': 'SQLite',
+            'duckdb': 'DuckDB',
+            'clickhouse': 'ClickHouse',
+            'elasticsearch': 'Elasticsearch',
+            'cosmos-db': 'Cosmos DB',
+            'dynamodb': 'DynamoDB',
+            'firebase': 'Firebase',
+            'neo4j': 'Neo4j',
+            'influxdb': 'InfluxDB',
+            'other': 'Other'
         };
         return displayTypes[dbType] || dbType.toUpperCase();
     }
@@ -206,6 +272,125 @@ class ArchitecturePlayground {
         try {
             localStorage.setItem('playground-sources', JSON.stringify(this.sources));
         } catch {}
+    }
+
+    // Sync database changes from the databases page to canvas items
+    syncDatabaseChanges() {
+        try {
+            // Get the databases from the databases page
+            const databasesData = localStorage.getItem('company-databases');
+            if (!databasesData) {
+                console.log('No company databases found');
+                return;
+            }
+            
+            const databases = JSON.parse(databasesData);
+            console.log('Found databases:', databases.map(db => ({ name: db.name, type: db.type })));
+            
+            let hasChanges = false;
+            
+            // Check all canvas items
+            console.log('Checking canvas items:', this.canvasItems.length);
+            this.canvasItems.forEach((canvasItem, index) => {
+                console.log(`Canvas item ${index}:`, {
+                    type: canvasItem.type,
+                    data: canvasItem.data,
+                    element: canvasItem.element?.className,
+                    innerHTML: canvasItem.element?.innerHTML?.substring(0, 100)
+                });
+                
+                // Handle both 'data-source' items and regular canvas items
+                if ((canvasItem.type === 'data-source' || canvasItem.data?.name) && canvasItem.data) {
+                    console.log('Checking item:', canvasItem.data.name);
+                    
+                    // Find matching database by name (case insensitive)
+                    const matchingDb = databases.find(db => 
+                        db.name && canvasItem.data.name && (
+                            db.name === canvasItem.data.name || 
+                            db.name.toLowerCase() === canvasItem.data.name.toLowerCase()
+                        )
+                    );
+                    
+                    if (matchingDb) {
+                        console.log('Found matching database:', matchingDb.name, 'updating from', canvasItem.data.dataType, 'to', matchingDb.type);
+                        
+                        // Update the canvas item data with database info
+                        const oldDataType = canvasItem.data.dataType;
+                        canvasItem.data.dataType = matchingDb.type;
+                        canvasItem.data.server = matchingDb.server;
+                        canvasItem.data.environment = matchingDb.environment;
+                        canvasItem.data.status = matchingDb.status;
+                        canvasItem.data.purpose = matchingDb.purpose;
+                        
+                        // Update the visual display if dataType changed
+                        if (oldDataType !== matchingDb.type) {
+                            this.updateCanvasItemDisplay(canvasItem);
+                            hasChanges = true;
+                        }
+                    } else {
+                        console.log('No matching database found for:', canvasItem.data.name);
+                    }
+                }
+            });
+            
+            if (hasChanges) {
+                console.log('Canvas items updated, triggering autosave...');
+                // Trigger autosave to persist changes
+                if (this.canvasManager && this.canvasManager.autosaveCanvas) {
+                    this.canvasManager.autosaveCanvas();
+                }
+            } else {
+                console.log('No changes detected');
+            }
+            
+        } catch (error) {
+            console.error('Error syncing database changes:', error);
+        }
+    }
+
+    // Update the visual display of a canvas item after data changes
+    updateCanvasItemDisplay(canvasItem) {
+        if (!canvasItem.element || !canvasItem.data.dataType) {
+            console.log('Cannot update display - missing element or dataType');
+            return;
+        }
+        
+        console.log('Updating visual display for:', canvasItem.data.name, 'to type:', canvasItem.data.dataType);
+        
+        // Try different selectors for the type display
+        let typeBadge = canvasItem.element.querySelector('.data-source-type') ||  // data source items
+                        canvasItem.element.querySelector('.canvas-item-type') ||   // regular canvas items
+                        canvasItem.element.querySelector('.item-type');            // fallback
+        
+        if (typeBadge) {
+            console.log('Found type badge, updating text from', typeBadge.textContent, 'to', this.getDisplayType(canvasItem.data.dataType));
+            typeBadge.textContent = this.getDisplayType(canvasItem.data.dataType);
+        } else {
+            console.log('No type badge found in element. Available classes:', canvasItem.element.className);
+            console.log('Element HTML:', canvasItem.element.innerHTML);
+        }
+        
+        // Update the icon - try different selectors
+        let iconElement = canvasItem.element.querySelector('.ci-icon i') ||           // regular canvas items
+                          canvasItem.element.querySelector('.data-source-icon i') ||  // data source items
+                          canvasItem.element.querySelector('i');                      // fallback
+        
+        if (iconElement) {
+            const newIconClass = this.getDatabaseIcon(canvasItem.data.dataType);
+            console.log('Updating icon from', iconElement.className, 'to', newIconClass);
+            iconElement.className = newIconClass;
+        } else {
+            console.log('No icon element found');
+        }
+        
+        // Update colors
+        if (typeBadge) {
+            const newColor = this.getTypeColor(canvasItem.data.dataType);
+            console.log('Updating color to:', newColor);
+            typeBadge.style.backgroundColor = newColor;
+        }
+        
+        console.log('Visual display update completed');
     }
 
     renderDataSources() {
@@ -864,6 +1049,39 @@ class ArchitecturePlayground {
             'bigquery': '#4285f4',
             'azure-sql': '#0078d4',
             'aws-rds': '#ff9900',
+            'excel': '#217346',
+            'dataverse': '#742774',
+            'sharepoint': '#0078d4',
+            'access': '#a4373a',
+            'csv': '#28a745',
+            'json': '#f39c12',
+            'xml': '#e74c3c',
+            'power-bi': '#f2c811',
+            'tableau': '#e97627',
+            'salesforce': '#00a1e0',
+            'dynamics-365': '#0078d4',
+            'sap': '#0f7dc7',
+            'web-service': '#17a2b8',
+            'rest-api': '#6c757d',
+            'odata': '#0066cc',
+            'azure-synapse': '#0078d4',
+            'azure-data-lake': '#0078d4',
+            'aws-s3': '#ff9900',
+            'hdfs': '#ffa500',
+            'teradata': '#f37440',
+            'db2': '#054ada',
+            'sybase': '#0066cc',
+            'mariadb': '#003545',
+            'sqlite': '#003b57',
+            'duckdb': '#fff200',
+            'clickhouse': '#ffcc01',
+            'elasticsearch': '#005571',
+            'cosmos-db': '#0078d4',
+            'dynamodb': '#ff9900',
+            'firebase': '#ff6f00',
+            'neo4j': '#008cc1',
+            'influxdb': '#22adf6',
+            'other': '#6b7280',
             'cloud': '#6366f1'
         };
         return colors[type] || '#6b7280';
@@ -1677,11 +1895,12 @@ class ArchitecturePlayground {
         if (!canvas) return;
         // Create an SVG overlay for connections
         const svgNS = 'http://www.w3.org/2000/svg';
-        const svg = document.createElementNS(svgNS, 'svg');
+    const svg = document.createElementNS(svgNS, 'svg');
         svg.setAttribute('width', '100%');
         svg.setAttribute('height', '100%');
         svg.setAttribute('viewBox', `0 0 ${canvas.clientWidth} ${canvas.clientHeight}`);
         svg.setAttribute('preserveAspectRatio', 'none');
+    svg.setAttribute('class', 'connection-svg');
         svg.style.position = 'absolute';
         svg.style.top = '0';
         svg.style.left = '0';
@@ -2034,28 +2253,15 @@ class ArchitecturePlayground {
         item.className = `canvas-item ${typeClass}`;
         item.draggable = true;
         
-        // Ensure medallions use their specific accent colors and force styling
+        // Ensure medallions use their specific accent colors
         if (itemType === 'bronze') {
             item.style.setProperty('--ci-accent', '#cd7f32');
-            // Force medallion styling
-            item.style.width = '140px';
-            item.style.height = '130px';
-            item.style.padding = '12px';
         } else if (itemType === 'silver') {
             item.style.setProperty('--ci-accent', '#c0c0c0');
-            item.style.width = '140px';
-            item.style.height = '130px';
-            item.style.padding = '12px';
         } else if (itemType === 'gold') {
             item.style.setProperty('--ci-accent', '#ffd700');
-            item.style.width = '140px';
-            item.style.height = '130px';
-            item.style.padding = '12px';
         } else if (itemType === 'platinum') {
             item.style.setProperty('--ci-accent', '#e5e4e2');
-            item.style.width = '140px';
-            item.style.height = '130px';
-            item.style.padding = '12px';
         }
         
     const itemId = this.ensureElementId(item, 'canvas-item');
@@ -3542,7 +3748,7 @@ class ArchitecturePlayground {
             }
         }
 
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         let pts;
         const horizDominant = Math.abs(toX - fromX) >= Math.abs(toY - fromY);
         if (horizDominant) {
@@ -3610,13 +3816,7 @@ class ArchitecturePlayground {
         const pathData = toD(pts);
 
         path.setAttribute('d', pathData);
-        path.setAttribute('stroke', '#ffffff');
-    path.setAttribute('stroke-width', '2');
-    path.setAttribute('vector-effect', 'non-scaling-stroke');
-        path.setAttribute('fill', 'none');
-        path.setAttribute('stroke-linejoin', 'miter');
-        path.setAttribute('stroke-linecap', 'butt');
-        path.style.opacity = '0.8';
+        path.setAttribute('class', 'connection-path');
         // Mid-line arrow (direction indicator)
         const createMidArrow = (polyPts) => {
             // Flatten into segments and compute total length
@@ -3675,6 +3875,11 @@ class ArchitecturePlayground {
         
     const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     group.appendChild(path);
+    // animated overlay following same geometry
+    const flow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    flow.setAttribute('d', pathData);
+    flow.setAttribute('class', 'connection-flow');
+    group.appendChild(flow);
     const midArrow = createMidArrow(pts);
     if (midArrow) group.appendChild(midArrow);
     group.appendChild(arrowHead);
@@ -3809,13 +4014,7 @@ class ArchitecturePlayground {
         // Create path element
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', pathData);
-        path.setAttribute('stroke', '#ffffff');
-    path.setAttribute('stroke-width', '2');
-    path.setAttribute('vector-effect', 'non-scaling-stroke');
-        path.setAttribute('fill', 'none');
-        path.setAttribute('stroke-linejoin', 'miter');
-        path.setAttribute('stroke-linecap', 'butt');
-        path.style.opacity = '0.8';
+        path.setAttribute('class', 'connection-path');
         
         // Mid-line arrow for manual connections
         const createMidArrow = (polyPts) => {
@@ -3872,8 +4071,13 @@ class ArchitecturePlayground {
 
         // Create group and add visual indicator for manual connection
         const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        group.setAttribute('data-manual', 'true'); // Mark as manual connection
-    group.appendChild(path);
+            group.setAttribute('data-manual', 'true'); // Mark as manual connection
+        group.appendChild(path);
+        // animated overlay following same geometry
+        const flow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        flow.setAttribute('d', pathData);
+        flow.setAttribute('class', 'connection-flow');
+        group.appendChild(flow);
     const midArrow = createMidArrow(pathPoints);
     if (midArrow) group.appendChild(midArrow);
     group.appendChild(arrowHead);
@@ -5945,6 +6149,11 @@ let playground;
 document.addEventListener('DOMContentLoaded', () => {
     playground = new ArchitecturePlayground();
     
+    // Sync any database changes from the databases page
+    setTimeout(() => {
+        playground.syncDatabaseChanges();
+    }, 1000); // Small delay to ensure everything is loaded
+    
     // Setup palette category toggles
     setupPaletteCategoryToggles();
     
@@ -5963,3 +6172,281 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// Canvas & Line Settings Management
+const CanvasSettings = {
+    root: document.documentElement,
+    STORAGE_KEY: 'bi-mapper.canvas-settings.v1',
+    
+    elements: {
+        openBtn: document.getElementById('settings-btn'),
+        modal: document.getElementById('settings-modal'),
+        closeBtn: document.getElementById('settings-close'),
+        applyBtn: document.getElementById('settings-apply'),
+        resetBtn: document.getElementById('settings-reset'),
+        
+        // Color inputs
+        lineColor: document.getElementById('set-line-color'),
+        baseColor: document.getElementById('set-base-color'),
+        arrowColor: document.getElementById('set-arrow-color'),
+        
+        // Range inputs
+        glow: document.getElementById('set-glow'),
+        width: document.getElementById('set-width'),
+        dashA: document.getElementById('set-dash-a'),
+        dashB: document.getElementById('set-dash-b'),
+        speed: document.getElementById('set-speed'),
+        itemSize: document.getElementById('set-item-size'),
+        
+        // Checkbox inputs
+        animate: document.getElementById('set-animate-lines'),
+        showArrows: document.getElementById('set-show-arrows'),
+        
+        // Value displays
+        glowValue: document.getElementById('glow-value'),
+        widthValue: document.getElementById('width-value'),
+        dashAValue: document.getElementById('dash-a-value'),
+        dashBValue: document.getElementById('dash-b-value'),
+        speedValue: document.getElementById('speed-value'),
+        itemSizeValue: document.getElementById('item-size-value')
+    },
+
+    // Helper functions
+    getVar(name) {
+        return getComputedStyle(this.root).getPropertyValue(name).trim();
+    },
+
+    parseAlpha(rgba) {
+        const match = (rgba || '').match(/rgba?\(\s*\d+,\s*\d+,\s*\d+(?:,\s*([0-9.]+))?\s*\)/i);
+        return match ? Number(match[1] ?? 1) : 0.85;
+    },
+
+    hexToRgba(hex, alpha = 1) {
+        const h = hex.replace('#', '');
+        const value = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+        const r = (value >> 16) & 255;
+        const g = (value >> 8) & 255;
+        const b = value & 255;
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    },
+
+    // Default settings based on current CSS variables
+    getDefaults() {
+        return {
+            lineColor: this.getVar('--connection-flow-color') || '#f59e0b',
+            baseColor: this.getVar('--connection-base-color') || '#ffffff',
+            arrowColor: this.getVar('--connection-arrow-color') || '#ffffff',
+            glow: this.parseAlpha(this.getVar('--connection-flow-glow') || 'rgba(245,158,11,0.85)'),
+            width: Number(this.getVar('--connection-flow-width') || 3),
+            dashA: Number((this.getVar('--connection-dash') || '14 10').split(/\s+/)[0] || 14),
+            dashB: Number((this.getVar('--connection-dash') || '14 10').split(/\s+/)[1] || 10),
+            speed: Number((this.getVar('--connection-speed') || '1.1s').replace('s', '')) || 1.1,
+            itemSize: Number(this.getVar('--canvas-item-size') || 1.0),
+            animate: !document.body.classList.contains('no-connection-animation'),
+            showArrows: !document.body.classList.contains('hide-mid-arrows')
+        };
+    },
+
+    // Load settings from localStorage
+    load() {
+        try {
+            const stored = JSON.parse(localStorage.getItem(this.STORAGE_KEY)) || {};
+            return { ...this.getDefaults(), ...stored };
+        } catch {
+            return this.getDefaults();
+        }
+    },
+
+    // Save settings to localStorage
+    save(settings) {
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(settings));
+    },
+
+    // Apply settings to CSS variables and body classes
+    apply(settings) {
+        this.root.style.setProperty('--connection-flow-color', settings.lineColor);
+        this.root.style.setProperty('--connection-base-color', settings.baseColor);
+        this.root.style.setProperty('--connection-arrow-color', settings.arrowColor);
+        this.root.style.setProperty('--connection-flow-glow', this.hexToRgba(settings.lineColor, Number(settings.glow)));
+        this.root.style.setProperty('--connection-flow-width', String(settings.width));
+        this.root.style.setProperty('--connection-dash', `${settings.dashA} ${settings.dashB}`);
+        this.root.style.setProperty('--connection-speed', `${settings.speed}s`);
+        this.root.style.setProperty('--canvas-item-size', String(settings.itemSize));
+
+        document.body.classList.toggle('no-connection-animation', !settings.animate);
+        document.body.classList.toggle('hide-mid-arrows', !settings.showArrows);
+
+        // Update speed slider state
+        if (this.elements.speed) {
+            this.elements.speed.disabled = !settings.animate;
+        }
+    },
+
+    // Update UI to reflect current settings
+    syncUI(settings) {
+        if (!this.elements.modal) return; // Safety check
+
+        // Update input values
+        if (this.elements.lineColor) this.elements.lineColor.value = settings.lineColor;
+        if (this.elements.baseColor) this.elements.baseColor.value = settings.baseColor;
+        if (this.elements.arrowColor) this.elements.arrowColor.value = settings.arrowColor;
+        if (this.elements.glow) this.elements.glow.value = settings.glow;
+        if (this.elements.width) this.elements.width.value = settings.width;
+        if (this.elements.dashA) this.elements.dashA.value = settings.dashA;
+        if (this.elements.dashB) this.elements.dashB.value = settings.dashB;
+        if (this.elements.speed) this.elements.speed.value = settings.speed;
+        if (this.elements.itemSize) this.elements.itemSize.value = settings.itemSize;
+        if (this.elements.animate) this.elements.animate.checked = settings.animate;
+        if (this.elements.showArrows) this.elements.showArrows.checked = settings.showArrows;
+
+        // Update value displays
+        this.updateValueDisplays(settings);
+    },
+
+    // Update the value display elements
+    updateValueDisplays(settings) {
+        if (this.elements.glowValue) this.elements.glowValue.textContent = settings.glow.toFixed(2);
+        if (this.elements.widthValue) this.elements.widthValue.textContent = settings.width;
+        if (this.elements.dashAValue) this.elements.dashAValue.textContent = settings.dashA;
+        if (this.elements.dashBValue) this.elements.dashBValue.textContent = settings.dashB;
+        if (this.elements.speedValue) this.elements.speedValue.textContent = settings.speed.toFixed(1);
+        if (this.elements.itemSizeValue) this.elements.itemSizeValue.textContent = settings.itemSize.toFixed(1);
+    },
+
+    // Get current settings from UI
+    getCurrentSettings() {
+        return {
+            lineColor: this.elements.lineColor?.value || '#f59e0b',
+            baseColor: this.elements.baseColor?.value || '#ffffff',
+            arrowColor: this.elements.arrowColor?.value || '#ffffff',
+            glow: Number(this.elements.glow?.value || 0.85),
+            width: Number(this.elements.width?.value || 3),
+            dashA: Number(this.elements.dashA?.value || 14),
+            dashB: Number(this.elements.dashB?.value || 10),
+            speed: Number(this.elements.speed?.value || 1.1),
+            itemSize: Number(this.elements.itemSize?.value || 1.0),
+            animate: !!this.elements.animate?.checked,
+            showArrows: !!this.elements.showArrows?.checked
+        };
+    },
+
+    // Handle live updates
+    handleChange() {
+        const settings = this.getCurrentSettings();
+        this.apply(settings);
+        this.updateValueDisplays(settings);
+        this.save(settings);
+    },
+
+    // Modal controls
+    openModal() {
+        if (this.elements.modal) {
+            this.elements.modal.style.display = 'flex';
+            this.elements.modal.setAttribute('aria-hidden', 'false');
+        }
+    },
+
+    closeModal() {
+        if (this.elements.modal) {
+            this.elements.modal.style.display = 'none';
+            this.elements.modal.setAttribute('aria-hidden', 'true');
+        }
+    },
+
+    // Reset to defaults
+    reset() {
+        const defaults = this.getDefaults();
+        this.apply(defaults);
+        this.syncUI(defaults);
+        this.save(defaults);
+        localStorage.removeItem(this.STORAGE_KEY);
+    },
+
+    // Initialize the settings system
+    init() {
+        if (!this.elements.modal) return; // No settings modal on this page
+
+        // Load and apply saved settings
+        const settings = this.load();
+        this.apply(settings);
+        this.syncUI(settings);
+
+        // Event listeners
+        if (this.elements.openBtn) {
+            this.elements.openBtn.addEventListener('click', () => this.openModal());
+        }
+
+        if (this.elements.closeBtn) {
+            this.elements.closeBtn.addEventListener('click', () => this.closeModal());
+        }
+
+        if (this.elements.applyBtn) {
+            this.elements.applyBtn.addEventListener('click', () => this.closeModal());
+        }
+
+        if (this.elements.resetBtn) {
+            this.elements.resetBtn.addEventListener('click', () => this.reset());
+        }
+
+        // Close modal when clicking outside
+        if (this.elements.modal) {
+            this.elements.modal.addEventListener('click', (e) => {
+                if (e.target === this.elements.modal) {
+                    this.closeModal();
+                }
+            });
+        }
+
+        // Live update event listeners
+        const allInputs = [
+            this.elements.lineColor, this.elements.baseColor, this.elements.arrowColor,
+            this.elements.glow, this.elements.width, this.elements.dashA, this.elements.dashB,
+            this.elements.speed, this.elements.itemSize, this.elements.animate, this.elements.showArrows
+        ].filter(Boolean);
+
+        allInputs.forEach(input => {
+            ['input', 'change'].forEach(eventType => {
+                input.addEventListener(eventType, () => this.handleChange());
+            });
+        });
+    }
+};
+
+// Initialize settings when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    CanvasSettings.init();
+});
+
+// Global function to sync database changes (called from HTML button)
+function syncDatabaseChanges() {
+    if (playground && playground.syncDatabaseChanges) {
+        console.log('Manual sync triggered...');
+        playground.syncDatabaseChanges();
+        
+        // Show a brief notification
+        const notification = document.createElement('div');
+        notification.innerHTML = '<i class="fas fa-check"></i> Database changes synced!';
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #10b981;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            z-index: 10000;
+            font-size: 14px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        `;
+        document.body.appendChild(notification);
+        
+        // Remove notification after 3 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 3000);
+    } else {
+        console.warn('Playground not initialized or sync function not available');
+    }
+}

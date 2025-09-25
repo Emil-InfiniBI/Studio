@@ -184,7 +184,40 @@ class DatabaseManager {
             'snowflake': 'fas fa-snowflake',
             'bigquery': 'fas fa-chart-line',
             'azure-sql': 'fas fa-cloud',
-            'aws-rds': 'fas fa-aws'
+            'aws-rds': 'fas fa-aws',
+            'excel': 'fas fa-file-excel',
+            'dataverse': 'fas fa-table',
+            'sharepoint': 'fas fa-share-alt',
+            'access': 'fas fa-key',
+            'csv': 'fas fa-file-csv',
+            'json': 'fas fa-file-code',
+            'xml': 'fas fa-file-code',
+            'power-bi': 'fas fa-chart-bar',
+            'tableau': 'fas fa-chart-area',
+            'salesforce': 'fas fa-cloud-rain',
+            'dynamics-365': 'fas fa-cog',
+            'sap': 'fas fa-industry',
+            'web-service': 'fas fa-globe',
+            'rest-api': 'fas fa-plug',
+            'odata': 'fas fa-link',
+            'azure-synapse': 'fas fa-cloud',
+            'azure-data-lake': 'fas fa-water',
+            'aws-s3': 'fas fa-cube',
+            'hdfs': 'fas fa-hdd',
+            'teradata': 'fas fa-server',
+            'db2': 'fas fa-database',
+            'sybase': 'fas fa-database',
+            'mariadb': 'fas fa-leaf',
+            'sqlite': 'fas fa-file-archive',
+            'duckdb': 'fas fa-feather',
+            'clickhouse': 'fas fa-mouse-pointer',
+            'elasticsearch': 'fas fa-search',
+            'cosmos-db': 'fas fa-globe',
+            'dynamodb': 'fas fa-bolt',
+            'firebase': 'fas fa-fire',
+            'neo4j': 'fas fa-project-diagram',
+            'influxdb': 'fas fa-chart-line',
+            'other': 'fas fa-question'
         };
         return icons[type] || 'fas fa-database';
     }
@@ -201,7 +234,40 @@ class DatabaseManager {
             'snowflake': '#56b3d9',
             'bigquery': '#4285f4',
             'azure-sql': '#0078d4',
-            'aws-rds': '#ff9900'
+            'aws-rds': '#ff9900',
+            'excel': '#217346',
+            'dataverse': '#742774',
+            'sharepoint': '#0078d4',
+            'access': '#a4373a',
+            'csv': '#28a745',
+            'json': '#f39c12',
+            'xml': '#e74c3c',
+            'power-bi': '#f2c811',
+            'tableau': '#e97627',
+            'salesforce': '#00a1e0',
+            'dynamics-365': '#0078d4',
+            'sap': '#0f7dc7',
+            'web-service': '#17a2b8',
+            'rest-api': '#6c757d',
+            'odata': '#0066cc',
+            'azure-synapse': '#0078d4',
+            'azure-data-lake': '#0078d4',
+            'aws-s3': '#ff9900',
+            'hdfs': '#ffa500',
+            'teradata': '#f37440',
+            'db2': '#054ada',
+            'sybase': '#0066cc',
+            'mariadb': '#003545',
+            'sqlite': '#003b57',
+            'duckdb': '#fff200',
+            'clickhouse': '#ffcc01',
+            'elasticsearch': '#005571',
+            'cosmos-db': '#0078d4',
+            'dynamodb': '#ff9900',
+            'firebase': '#ff6f00',
+            'neo4j': '#008cc1',
+            'influxdb': '#22adf6',
+            'other': '#6b7280'
         };
         return colors[type] || '#6b7280';
     }
@@ -224,6 +290,56 @@ class DatabaseManager {
             'testing': '#6366f1'
         };
         return colors[environment] || '#6b7280';
+    }
+
+    getTypeDisplayName(type) {
+        const displayNames = {
+            'sql-server': 'SQL SERVER',
+            'oracle': 'ORACLE',
+            'mysql': 'MYSQL',
+            'postgresql': 'POSTGRESQL',
+            'mongodb': 'MONGODB',
+            'redis': 'REDIS',
+            'cassandra': 'CASSANDRA',
+            'snowflake': 'SNOWFLAKE',
+            'bigquery': 'BIGQUERY',
+            'azure-sql': 'AZURE SQL',
+            'aws-rds': 'AWS RDS',
+            'excel': 'EXCEL',
+            'dataverse': 'DATAVERSE',
+            'sharepoint': 'SHAREPOINT',
+            'access': 'ACCESS',
+            'csv': 'CSV FILES',
+            'json': 'JSON FILES',
+            'xml': 'XML FILES',
+            'power-bi': 'POWER BI',
+            'tableau': 'TABLEAU',
+            'salesforce': 'SALESFORCE',
+            'dynamics-365': 'DYNAMICS 365',
+            'sap': 'SAP',
+            'web-service': 'WEB SERVICE',
+            'rest-api': 'REST API',
+            'odata': 'ODATA',
+            'azure-synapse': 'AZURE SYNAPSE',
+            'azure-data-lake': 'AZURE DATA LAKE',
+            'aws-s3': 'AWS S3',
+            'hdfs': 'HDFS',
+            'teradata': 'TERADATA',
+            'db2': 'IBM DB2',
+            'sybase': 'SYBASE',
+            'mariadb': 'MARIADB',
+            'sqlite': 'SQLITE',
+            'duckdb': 'DUCKDB',
+            'clickhouse': 'CLICKHOUSE',
+            'elasticsearch': 'ELASTICSEARCH',
+            'cosmos-db': 'COSMOS DB',
+            'dynamodb': 'DYNAMODB',
+            'firebase': 'FIREBASE',
+            'neo4j': 'NEO4J',
+            'influxdb': 'INFLUXDB',
+            'other': 'OTHER'
+        };
+        return displayNames[type] || type.replace('-', ' ').toUpperCase();
     }
 
     renderDatabases() {
@@ -295,7 +411,7 @@ class DatabaseManager {
                 </div>
                 
                 <div class="database-badges">
-                    <span class="badge" style="background: ${typeColor}">${db.type.replace('-', ' ').toUpperCase()}</span>
+                    <span class="badge" style="background: ${typeColor}">${this.getTypeDisplayName(db.type)}</span>
                     <span class="badge" style="background: ${envColor}">${db.environment.toUpperCase()}</span>
                     <span class="badge" style="background: ${statusColor}">${db.status.toUpperCase()}</span>
                 </div>
@@ -371,7 +487,7 @@ class DatabaseManager {
                 </td>
                 <td>
                     <span class="type-badge" style="background: ${typeColor}">
-                        ${db.type.replace('-', ' ').toUpperCase()}
+                        ${this.getTypeDisplayName(db.type)}
                     </span>
                 </td>
                 <td class="db-server">${db.server}</td>
