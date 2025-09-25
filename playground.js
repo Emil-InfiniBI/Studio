@@ -6233,10 +6233,10 @@ const CanvasSettings = {
     // Default settings based on current CSS variables
     getDefaults() {
         return {
-            lineColor: this.getVar('--connection-flow-color') || '#f59e0b',
+            lineColor: this.getVar('--connection-flow-color') || '#ffffff',
             baseColor: this.getVar('--connection-base-color') || '#ffffff',
             arrowColor: this.getVar('--connection-arrow-color') || '#ffffff',
-            glow: this.parseAlpha(this.getVar('--connection-flow-glow') || 'rgba(245,158,11,0.85)'),
+            glow: this.parseAlpha(this.getVar('--connection-flow-glow') || 'rgba(255,255,255,0)'),
             width: Number(this.getVar('--connection-flow-width') || 3),
             dashA: Number((this.getVar('--connection-dash') || '14 10').split(/\s+/)[0] || 14),
             dashB: Number((this.getVar('--connection-dash') || '14 10').split(/\s+/)[1] || 10),
