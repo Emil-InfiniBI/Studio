@@ -22,7 +22,7 @@
                     <h1>Company Databases</h1>
                 </div>
                 <nav class="header-nav">
-                    <a href="playground.html" class="nav-link">
+                    <a href="studio.html" class="nav-link">
                         <i class="fas fa-project-diagram"></i> Architecture
                     </a>
                     <a href="databases.html" class="nav-link active">
@@ -32,6 +32,12 @@
                 <div class="header-actions">
                     <button class="btn btn-icon theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">
                         <i class="fas fa-moon" id="theme-icon"></i>
+                    </button>
+                    <button class="btn btn-secondary" onclick="exportDatabaseTemplate()" title="Export Excel template for customer">
+                        <i class="fas fa-file-excel"></i> Export Template
+                    </button>
+                    <button class="btn btn-secondary" onclick="importDatabasesFromExcel()" title="Import customer database data">
+                        <i class="fas fa-file-upload"></i> Import Excel
                     </button>
                     <button class="btn btn-primary" onclick="addDatabase()" title="Add new database">
                         <i class="fas fa-plus"></i> Add Database
@@ -251,6 +257,9 @@
     <!-- Background Decoration -->
     <div class="bg-decoration"></div>
 
+    <!-- SheetJS library for Excel functionality -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
+    
     <!-- Scripts -->
     <script src="databases.js"></script>
 </body>

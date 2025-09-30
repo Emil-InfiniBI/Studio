@@ -5,10 +5,11 @@
 ### Current State
 Your playground tool has been successfully saved and is ready for continued development.
 
-### Key Files for Playground Tool:
-- `playground.html` - Main playground interface
-- `playground.js` - Playground logic and functionality  
-- `styles.css` - Shared styling (used by both main app and playground)
+### Key Files for Studio (formerly Playground):
+- `studio.html` - Main Studio interface (replaces `playground.html`)
+- `playground.html` - Legacy entry (auto-redirects to `studio.html`)
+- `playground.js` - Studio/Playground logic and functionality  
+- `styles.css` - Shared styling (used by main app and Studio)
 
 ### Recent Changes Made:
 - ✅ Removed duplicate "Notebooks" item from toolbar
@@ -39,7 +40,8 @@ A timestamped backup has been created in the `playground-backup-*` directory.
 ### File Structure:
 ```
 BI-Mapping tool/
-├── playground.html          # ✅ Your main playground interface
+├── studio.html              # ✅ Main Studio interface (new)
+├── playground.html          # ↪️ Legacy redirect to Studio
 ├── playground.js            # ✅ Playground functionality
 ├── styles.css              # ✅ Shared styling
 ├── databases.html           # Supporting database tool

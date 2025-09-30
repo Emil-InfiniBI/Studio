@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src * 'unsafe-inline'; img-src * data: blob: 'unsafe-inline'; frame-src *; style-src * 'unsafe-inline';">
     <title>InfiniBI Studio</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🅱️</text></svg>">
     
     <!-- Stylesheets -->
     <link rel="stylesheet" href="styles.css">
@@ -11,8 +13,36 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Microsoft Authentication Library (primary CDN + fallback) -->
+    <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js" crossorigin="anonymous"></script>
+    <script>
+    // Fallback to Microsoft CDN if jsDelivr fails (msal still undefined)
+    (function ensureMsalLoaded(){
+        if (typeof window.msal === 'undefined') {
+            var s = document.createElement('script');
+            s.src = 'https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js';
+            s.crossOrigin = 'anonymous';
+            document.head.appendChild(s);
+        }
+    })();
+    </script>
 </head>
 <body>
+    <script>
+    // Temporary redirect: keep old URL working but move users to Studio
+    (function(){
+        try {
+            var target = 'studio.html';
+            if (location.pathname.endsWith('playground.html')) {
+                // Preserve hash/query if any
+                var qs = location.search || '';
+                var hash = location.hash || '';
+                location.replace(target + qs + hash);
+            }
+        } catch(e) { /* no-op */ }
+    })();
+    </script>
     <div class="playground-container">
         <!-- Header -->
         <header class="playground-header">
@@ -22,7 +52,7 @@
                     <h1>InfiniBI Studio</h1>
                 </div>
                 <nav class="header-nav">
-                    <a href="playground.html" class="nav-link active">
+                    <a href="studio.html" class="nav-link active">
                         <i class="fas fa-project-diagram"></i> Architecture
                     </a>
                     <a href="databases.html" class="nav-link">
@@ -694,10 +724,12 @@
         </div>
     </div>
 
-    <!-- PDF libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNa5l8Q0X3V8YQe+TfGZNVVRFlE0YyqS/fWznuaCG2lLBVmOAXoJ1i8LojRxurx8WcN6iYG3PaY8WEXdV5xNkg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-/F2N0RduCMsZ/HXXIQK5vCk1vZ1tcHTul3e8DqRLVQjaxAg/P070nxsVXni4eWh05rq6ArlTc95xJMuSgZ8sUg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <!-- PDF libraries (no SRI to avoid local blocking) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="playground.js"></script>
+    <script src="azure-config.js"></script>
+    <script src="fabric-integration.js"></script>
 </body>
 <script>
 // Simple PDF export with Shift+click compatibility

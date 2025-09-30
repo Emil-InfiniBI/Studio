@@ -687,6 +687,216 @@ function exportDatabases() {
     databaseManager.exportDatabases();
 }
 
+// Excel Template Export Function
+function exportDatabaseTemplate() {
+    // Define the template structure with predefined columns and sample data
+    const templateData = [
+        // Header row with column names
+        [
+            'Database Name*',
+            'Server Name*', 
+            'Database Type*',
+            'Environment*',
+            'Status',
+            'Version',
+            'Purpose/Description',
+            'Data Owner/Team',
+            'Contact Person',
+            'Approximate Size',
+            'Typical Users',
+            'Additional Notes'
+        ],
+        // Sample row to guide customer
+        [
+            'CustomerDB',
+            'SQL-PROD-01',
+            'sql-server',
+            'production',
+            'active',
+            '2019',
+            'Customer relationship management and sales data',
+            'Sales Team',
+            'sales.admin@company.com',
+            '2.5TB',
+            '150-200 concurrent users',
+            'Mission critical - 24/7 availability required'
+        ],
+        // Empty row for customer to fill
+        ['', '', '', '', '', '', '', '', '', '', '', '']
+    ];
+
+    // Create worksheet with validation data
+    const ws = XLSX.utils.aoa_to_sheet(templateData);
+    
+    // Set column widths for better readability
+    ws['!cols'] = [
+        { width: 20 }, // Database Name
+        { width: 15 }, // Server Name
+        { width: 15 }, // Database Type
+        { width: 12 }, // Environment
+        { width: 10 }, // Status
+        { width: 10 }, // Version
+        { width: 30 }, // Purpose
+        { width: 15 }, // Owner
+        { width: 25 }, // Contact
+        { width: 12 }, // Size
+        { width: 20 }, // Users
+        { width: 30 }  // Notes
+    ];
+
+    // Add instructions sheet
+    const instructionsData = [
+        ['Database Information Collection Template'],
+        [''],
+        ['Instructions:'],
+        ['1. Fill out one row per database system in your organization'],
+        ['2. Required fields are marked with *'],
+        ['3. Use the provided sample row as a guide'],
+        ['4. Save the file and send it back for import'],
+        [''],
+        ['Database Type Options:'],
+        ['sql-server, oracle, mysql, postgresql, mongodb, redis, cassandra,'],
+        ['snowflake, bigquery, azure-sql, aws-rds, excel, dataverse,'],
+        ['sharepoint, access, csv, json, xml, power-bi, tableau,'],
+        ['salesforce, dynamics-365, sap, web-service, rest-api, odata,'],
+        ['azure-synapse, azure-data-lake, aws-s3, hdfs, teradata,'],
+        ['db2, sybase, mariadb, sqlite, duckdb, clickhouse,'],
+        ['elasticsearch, cosmos-db, dynamodb, firebase, neo4j, influxdb'],
+        [''],
+        ['Environment Options:'],
+        ['production, staging, development, testing'],
+        [''],
+        ['Status Options:'],
+        ['active, deprecated, planned, maintenance']
+    ];
+
+    const instructionsWs = XLSX.utils.aoa_to_sheet(instructionsData);
+    instructionsWs['!cols'] = [{ width: 60 }];
+
+    // Create workbook and add sheets
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Database Inventory');
+    XLSX.utils.book_append_sheet(wb, instructionsWs, 'Instructions');
+
+    // Generate filename with timestamp
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+    const filename = `Database_Inventory_Template_${timestamp}.xlsx`;
+
+    // Download the file
+    XLSX.writeFile(wb, filename);
+    
+    showNotification('Excel template exported successfully! Send this to your customer to fill out.', 'success');
+}
+
+// Excel Import Function
+function importDatabasesFromExcel() {
+    // Create file input element
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xlsx,.xls';
+    input.style.display = 'none';
+    
+    input.onchange = function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                // Get the first sheet (Database Inventory)
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                
+                // Convert to JSON
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+                    header: 1,
+                    defval: '' 
+                });
+                
+                if (jsonData.length < 2) {
+                    throw new Error('Excel file appears to be empty or missing data');
+                }
+
+                // Parse the data (skip header row)
+                const headers = jsonData[0];
+                const importedDatabases = [];
+                let importCount = 0;
+                let errorCount = 0;
+                const errors = [];
+
+                for (let i = 1; i < jsonData.length; i++) {
+                    const row = jsonData[i];
+                    
+                    // Skip empty rows
+                    if (!row || row.every(cell => !cell || cell.toString().trim() === '')) {
+                        continue;
+                    }
+
+                    try {
+                        // Map row data to database object
+                        const dbData = {
+                            name: row[0]?.toString().trim(),
+                            server: row[1]?.toString().trim(),
+                            type: row[2]?.toString().trim().toLowerCase(),
+                            environment: row[3]?.toString().trim().toLowerCase(),
+                            status: row[4]?.toString().trim().toLowerCase() || 'active',
+                            version: row[5]?.toString().trim(),
+                            purpose: row[6]?.toString().trim(),
+                            owner: row[7]?.toString().trim(),
+                            contact: row[8]?.toString().trim(),
+                            size: row[9]?.toString().trim(),
+                            users: row[10]?.toString().trim(),
+                            notes: row[11]?.toString().trim()
+                        };
+
+                        // Validate required fields
+                        if (!dbData.name || !dbData.server || !dbData.type || !dbData.environment) {
+                            errors.push(`Row ${i + 1}: Missing required fields (Name, Server, Type, Environment)`);
+                            errorCount++;
+                            continue;
+                        }
+
+                        // Add to database manager
+                        databaseManager.addDatabase(dbData);
+                        importedDatabases.push(dbData);
+                        importCount++;
+
+                    } catch (error) {
+                        errors.push(`Row ${i + 1}: ${error.message}`);
+                        errorCount++;
+                    }
+                }
+
+                // Show results
+                let message = `Import completed: ${importCount} databases imported successfully`;
+                if (errorCount > 0) {
+                    message += `, ${errorCount} errors`;
+                    console.warn('Import errors:', errors);
+                }
+
+                showNotification(message, errorCount > 0 ? 'warning' : 'success');
+
+                // Refresh the display
+                databaseManager.renderDatabases();
+
+            } catch (error) {
+                console.error('Import error:', error);
+                showNotification(`Error importing Excel file: ${error.message}`, 'error');
+            }
+        };
+
+        reader.readAsArrayBuffer(file);
+    };
+
+    // Trigger file selection
+    document.body.appendChild(input);
+    input.click();
+    document.body.removeChild(input);
+}
+
 function toggleTheme() {
     const currentTheme = document.documentElement.getAttribute('data-theme');
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
