@@ -17,6 +17,9 @@ class ArchitecturePlayground {
     this.editMode = false; // Toggle for edit mode
     this.gridSize = 20; // Grid snap size in pixels
     
+    // Container types constant
+    this.containerTypes = ['api-collection', 'schema-container', 'table-group', 'process-container', 'zone-container'];
+    
     // Undo/Redo system
     this.undoStack = [];
     this.redoStack = [];
@@ -1907,7 +1910,7 @@ class ArchitecturePlayground {
         svg.style.right = '0';
         svg.style.bottom = '0';
         svg.style.pointerEvents = 'none';
-        svg.style.zIndex = '1'; // behind items, above background
+        svg.style.zIndex = '5'; // Above containers (z-index: 1) but below components (z-index: 10)
 
         // Ensure canvas is positioned (should be already)
         canvas.style.position = canvas.style.position || 'relative';
@@ -2172,6 +2175,7 @@ class ArchitecturePlayground {
         
         this.setupCanvasItemDrag(item);
         this.setupCanvasItemClick(item);
+        this.setupNameEditingForItem(item);
         
     canvas.appendChild(item);
     
@@ -2221,6 +2225,7 @@ class ArchitecturePlayground {
         
         this.setupCanvasItemDrag(item);
         this.setupCanvasItemClick(item);
+        this.setupNameEditingForItem(item);
         
         canvas.appendChild(item);
         
@@ -2244,7 +2249,125 @@ class ArchitecturePlayground {
         this.showNotification(`Added ${data.name} to canvas`, 'success');
     }
 
-    addCanvasItem(itemType, x, y) {
+    // Find if coordinates are within a container
+    findContainerAt(x, y) {
+        const containers = this.canvasItems.filter(item => 
+            this.containerTypes.includes(item.type)
+        );
+        
+        console.log('Finding container at', x, y, 'containers found:', containers.length);
+        
+        for (const container of containers) {
+            const element = container.element;
+            const rect = element.getBoundingClientRect();
+            const canvas = document.getElementById('fabric-canvas');
+            const canvasRect = canvas.getBoundingClientRect();
+            
+            // Convert to canvas-relative coordinates
+            const containerX = rect.left - canvasRect.left - 4; // account for canvas padding
+            const containerY = rect.top - canvasRect.top - 4;
+            const containerWidth = rect.width;
+            const containerHeight = rect.height;
+            
+            console.log('Checking container', container.id, 'bounds:', {
+                containerX, containerY, containerWidth, containerHeight,
+                dropX: x, dropY: y
+            });
+            
+            // Check if point is within container bounds
+            if (x >= containerX && x <= containerX + containerWidth &&
+                y >= containerY && y <= containerY + containerHeight) {
+                console.log('Found container match:', container.id);
+                return container.id;
+            }
+        }
+        
+        console.log('No container found at coordinates');
+        return null;
+    }
+
+    setupContainerResize(containerElement) {
+        const handles = containerElement.querySelectorAll('.resize-handle');
+        
+        handles.forEach(handle => {
+            let isResizing = false;
+            let startX, startY, startWidth, startHeight, startLeft, startTop;
+            const direction = handle.dataset.direction;
+            
+            handle.addEventListener('mousedown', (e) => {
+                e.stopPropagation(); // Prevent triggering drag
+                isResizing = true;
+                
+                startX = e.clientX;
+                startY = e.clientY;
+                startWidth = parseInt(containerElement.offsetWidth);
+                startHeight = parseInt(containerElement.offsetHeight);
+                startLeft = parseInt(containerElement.style.left);
+                startTop = parseInt(containerElement.style.top);
+                
+                containerElement.classList.add('resizing');
+                document.body.style.cursor = handle.style.cursor;
+                
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizing) return;
+                
+                const deltaX = e.clientX - startX;
+                const deltaY = e.clientY - startY;
+                
+                let newWidth = startWidth;
+                let newHeight = startHeight;
+                let newLeft = startLeft;
+                let newTop = startTop;
+                
+                // Calculate new dimensions based on handle direction
+                switch (direction) {
+                    case 'se': // bottom-right
+                        newWidth = Math.max(200, startWidth + deltaX);
+                        newHeight = Math.max(150, startHeight + deltaY);
+                        break;
+                    case 'sw': // bottom-left
+                        newWidth = Math.max(200, startWidth - deltaX);
+                        newHeight = Math.max(150, startHeight + deltaY);
+                        newLeft = startLeft + deltaX;
+                        break;
+                    case 'ne': // top-right
+                        newWidth = Math.max(200, startWidth + deltaX);
+                        newHeight = Math.max(150, startHeight - deltaY);
+                        newTop = startTop + deltaY;
+                        break;
+                    case 'nw': // top-left
+                        newWidth = Math.max(200, startWidth - deltaX);
+                        newHeight = Math.max(150, startHeight - deltaY);
+                        newLeft = startLeft + deltaX;
+                        newTop = startTop + deltaY;
+                        break;
+                }
+                
+                // Apply new dimensions
+                containerElement.style.width = newWidth + 'px';
+                containerElement.style.height = newHeight + 'px';
+                containerElement.style.left = newLeft + 'px';
+                containerElement.style.top = newTop + 'px';
+            });
+            
+            document.addEventListener('mouseup', () => {
+                if (isResizing) {
+                    isResizing = false;
+                    containerElement.classList.remove('resizing');
+                    document.body.style.cursor = '';
+                    
+                    // Save state for undo
+                    this.saveState('resize container');
+                    this.autosave();
+                }
+            });
+        });
+    }
+
+    addCanvasItem(itemType, x, y, containerId = null) {
         this.saveState('add ' + itemType);
         
         const canvas = document.getElementById('fabric-canvas');
@@ -2267,6 +2390,7 @@ class ArchitecturePlayground {
     const itemId = this.ensureElementId(item, 'canvas-item');
         
         const itemConfig = this.getItemConfig(itemType);
+        const isContainer = this.containerTypes.includes(itemType);
         
         item.innerHTML = `
             <div class="canvas-item-header">
@@ -2275,7 +2399,13 @@ class ArchitecturePlayground {
                 </div>
                 <span class="canvas-item-title">${itemConfig.name}</span>
             </div>
-            <div class="canvas-item-type">${itemConfig.type}</div>
+            ${!isContainer ? `<div class="canvas-item-type">${itemConfig.type}</div>` : ''}
+            ${isContainer ? `
+                <div class="resize-handle nw" data-direction="nw"></div>
+                <div class="resize-handle ne" data-direction="ne"></div>
+                <div class="resize-handle sw" data-direction="sw"></div>
+                <div class="resize-handle se" data-direction="se"></div>
+            ` : ''}
         `;
         
         // Place at exact coordinates without additional clamping
@@ -2285,24 +2415,42 @@ class ArchitecturePlayground {
         
         this.setupCanvasItemDrag(item);
         this.setupCanvasItemClick(item);
+        this.setupNameEditingForItem(item);
+
+        canvas.appendChild(item);
         
-    canvas.appendChild(item);
-    
-    // Add status indicator if metadata exists
-    if (itemConfig.meta && itemConfig.meta.business && itemConfig.meta.business.status) {
-        updateComponentStatusIndicator(item, itemConfig.meta.business.status);
-    }
-    
-    if (this.editMode) this.showItemQuickActions(true);
+        // Add status indicator if metadata exists
+        if (itemConfig.meta && itemConfig.meta.business && itemConfig.meta.business.status) {
+            updateComponentStatusIndicator(item, itemConfig.meta.business.status);
+        }    if (this.editMode) this.showItemQuickActions(true);
         this.canvasItems.push({
             id: itemId,
             element: item,
             type: itemType,
-            data: itemConfig
+            data: itemConfig,
+            containerId: containerId
         });
+        
+        // Add visual indicator if item is in a container
+        if (containerId) {
+            item.classList.add('in-container');
+        }
+        
+        // Setup resize handles for containers
+        if (isContainer) {
+            this.setupContainerResize(item);
+        }
         
         this.ensureCanvasExtents();
         this.showNotification(`Added ${itemConfig.name} to canvas`, 'success');
+        
+        // Show container instructions for container types
+        if (this.containerTypes.includes(itemType) && !localStorage.getItem('container-tip-shown')) {
+            setTimeout(() => {
+                this.showNotification('💡 Double-click containers to manage their contents', 'info', 5000);
+                localStorage.setItem('container-tip-shown', 'true');
+            }, 1000);
+        }
         
         // Close any open palette dropdowns after successful item addition
         closeAllDropdowns();
@@ -2363,7 +2511,14 @@ class ArchitecturePlayground {
             'rls': { icon: '👤', name: 'Row Level Security', type: 'Security' },
             'abac': { icon: '🔑', name: 'ABAC', type: 'Security' },
             'pii-classification': { icon: '🕵️', name: 'PII Classification', type: 'Security' },
-            'data-classification': { icon: '🏷️', name: 'Data Classification', type: 'Security' }
+            'data-classification': { icon: '🏷️', name: 'Data Classification', type: 'Security' },
+            
+            // Containers & Groups
+            'api-collection': { icon: '📦', name: 'API Collection', type: 'Container' },
+            'schema-container': { icon: '📁', name: 'Schema', type: 'Container' },
+            'table-group': { icon: '📋', name: 'Table Group', type: 'Container' },
+            'process-container': { icon: '⚙️', name: 'Process Group', type: 'Container' },
+            'zone-container': { icon: '🏗️', name: 'Data Zone', type: 'Container' }
         };
         
         return configs[itemType] || { icon: '❓', name: 'Unknown', type: 'Unknown' };
@@ -2423,6 +2578,13 @@ class ArchitecturePlayground {
             case 'pii-classification': return 'ci-governance ci-governance-pii';
             case 'data-classification': return 'ci-governance ci-governance-classification';
             
+            // Containers & Groups
+            case 'api-collection': return 'ci-container ci-api-collection';
+            case 'schema-container': return 'ci-container ci-schema-container';
+            case 'table-group': return 'ci-container ci-table-group';
+            case 'process-container': return 'ci-container ci-process-container';
+            case 'zone-container': return 'ci-container ci-zone-container';
+            
             default: return 'ci-dataset'; // Default fallback
         }
     }
@@ -2480,7 +2642,14 @@ class ArchitecturePlayground {
             'rls': '<i class="fas fa-user-shield" style="color: #6f42c1;"></i>',
             'abac': '<i class="fas fa-key" style="color: #e83e8c;"></i>',
             'pii-classification': '<i class="fas fa-user-secret" style="color: #fd7e14;"></i>',
-            'data-classification': '<i class="fas fa-tags" style="color: #20c997;"></i>'
+            'data-classification': '<i class="fas fa-tags" style="color: #20c997;"></i>',
+            
+            // Containers & Groups
+            'api-collection': '<i class="fas fa-layer-group" style="color: #007bff;"></i>',
+            'schema-container': '<i class="fas fa-folder-open" style="color: #6c757d;"></i>',
+            'table-group': '<i class="fas fa-object-group" style="color: #28a745;"></i>',
+            'process-container': '<i class="fas fa-box" style="color: #ffc107;"></i>',
+            'zone-container': '<i class="fas fa-th-large" style="color: #6f42c1;"></i>'
         };
         return fa[itemType] || `<span class="emoji">${this.getItemConfig(itemType).icon}</span>`;
     }
@@ -3138,6 +3307,14 @@ class ArchitecturePlayground {
         item.addEventListener('mousedown', (e) => {
             if (this.connectionMode) return;
             
+            // Check if item is locked - prevent all drag interactions
+            if (item.dataset.locked === 'true') {
+                e.preventDefault();
+                e.stopPropagation();
+                this.showNotification('Item is locked - right-click to unlock', 'warning', 2000);
+                return;
+            }
+            
             // Handle multi-select
             if (e.ctrlKey) {
                 if (this.selectedItems.has(this.canvasItems.find(ci => ci.element === item))) {
@@ -3167,8 +3344,13 @@ class ArchitecturePlayground {
             startX = e.clientX;
             startY = e.clientY;
             
-            // Store initial positions for all selected items
+            // Store initial positions for all selected items (excluding locked items)
             this.selectedItems.forEach(ci => {
+                // Skip locked items in multi-selection drag
+                if (ci.element.dataset.locked === 'true') {
+                    return;
+                }
+                
                 initialPositions.set(ci.element, {
                     x: parseInt(ci.element.style.left) || 0,
                     y: parseInt(ci.element.style.top) || 0
@@ -3187,10 +3369,10 @@ class ArchitecturePlayground {
             const deltaY = e.clientY - startY;
             
             // Move all selected items
-            // Compute snap based on primary item only
+            // Compute snap based on primary item only (skip snap for containers)
             let snapAdjust={dx:0,dy:0};
             const primInit = initialPositions.get(primaryItem);
-            if (primInit){
+            if (primInit && !primaryItem.classList.contains('ci-container')){
                 const candX = primInit.x + deltaX;
                 const candY = primInit.y + deltaY;
                 const grid = this.snapToGrid(candX, candY);
@@ -3203,9 +3385,16 @@ class ArchitecturePlayground {
                 if (!init) return;
                 const nx = init.x + deltaX + snapAdjust.dx;
                 const ny = init.y + deltaY + snapAdjust.dy;
-                const g = this.snapToGrid(nx, ny);
-                ci.element.style.left = g.x + 'px';
-                ci.element.style.top = g.y + 'px';
+                
+                // Skip snapping for containers - allow free movement
+                if (ci.element.classList.contains('ci-container')) {
+                    ci.element.style.left = nx + 'px';
+                    ci.element.style.top = ny + 'px';
+                } else {
+                    const g = this.snapToGrid(nx, ny);
+                    ci.element.style.left = g.x + 'px';
+                    ci.element.style.top = g.y + 'px';
+                }
             });
             
             // Update connections immediately during drag for smooth following
@@ -3374,11 +3563,12 @@ class ArchitecturePlayground {
             if (!this.connectionMode) {
                 e.preventDefault();
                 try {
-                    const id = item.id || this.canvasItems.find(ci => ci.element === item)?.id;
+                    const canvasItem = this.canvasItems.find(ci => ci.element === item);
+                    const id = item.id || canvasItem?.id;
                     if (id && typeof metadataPanel !== 'undefined') {
                         metadataPanel.openForItem(id);
                     }
-                } catch(err){ console.warn('Metadata panel open failed', err); }
+                } catch(err){ console.warn('Double-click handler failed', err); }
             }
         });
         
@@ -3387,6 +3577,31 @@ class ArchitecturePlayground {
             e.preventDefault();
             this.showItemContextMenu(e, item);
         });
+    }
+
+    setupNameEditingForItem(item) {
+        // Add event listeners for name editing to trigger autosave
+        const nameElement = item.querySelector('.ci-name');
+        if (nameElement) {
+            nameElement.addEventListener('blur', () => {
+                this.saveToLocalStorage();
+            });
+            
+            nameElement.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    nameElement.blur();
+                    this.saveToLocalStorage();
+                }
+            });
+
+            nameElement.addEventListener('input', () => {
+                // Save the name to the item's data
+                const canvasItem = this.canvasItems.find(ci => ci.element === item);
+                if (canvasItem && canvasItem.data) {
+                    canvasItem.data.name = nameElement.textContent.trim();
+                }
+            });
+        }
     }
     
     showItemContextMenu(e, item) {
@@ -3402,9 +3617,15 @@ class ArchitecturePlayground {
         menu.style.top = e.clientY + 'px';
         menu.style.zIndex = '10000';
         
+        // Check if item is locked
+        const isLocked = item.dataset.locked === 'true';
+        
         menu.innerHTML = `
             <div class="context-menu-item" data-action="properties">
                 <i class="fas fa-cog"></i> Properties
+            </div>
+            <div class="context-menu-item" data-action="${isLocked ? 'unlock' : 'lock'}">
+                <i class="fas fa-${isLocked ? 'unlock' : 'lock'}"></i> ${isLocked ? 'Unlock' : 'Lock'}
             </div>
             <div class="context-menu-item" data-action="duplicate">
                 <i class="fas fa-copy"></i> Duplicate
@@ -3422,6 +3643,10 @@ class ArchitecturePlayground {
                 if (id && typeof metadataPanel !== 'undefined') {
                     metadataPanel.openForItem(id);
                 }
+            } else if (action === 'lock') {
+                this.lockItem(item);
+            } else if (action === 'unlock') {
+                this.unlockItem(item);
             } else if (action === 'duplicate') {
                 this.duplicateItem(item);
             } else if (action === 'delete') {
@@ -3525,6 +3750,42 @@ class ArchitecturePlayground {
                 console.error('Error deleting item:', error);
                 this.showNotification('Failed to delete item', 'error');
             }
+        }
+    }
+
+    lockItem(item) {
+        try {
+            item.dataset.locked = 'true';
+            item.classList.add('locked-item');
+            
+            // No lock icon overlay - just silent locking
+            
+            this.saveState('lock item');
+            this.showNotification('Item locked', 'info');
+            
+        } catch (error) {
+            console.error('Error locking item:', error);
+            this.showNotification('Failed to lock item', 'error');
+        }
+    }
+
+    unlockItem(item) {
+        try {
+            item.dataset.locked = 'false';
+            item.classList.remove('locked-item');
+            
+            // Remove any existing lock icon overlay (if any)
+            const lockIcon = item.querySelector('.lock-icon-overlay');
+            if (lockIcon) {
+                lockIcon.remove();
+            }
+            
+            this.saveState('unlock item');
+            this.showNotification('Item unlocked', 'info');
+            
+        } catch (error) {
+            console.error('Error unlocking item:', error);
+            this.showNotification('Failed to unlock item', 'error');
         }
     }
 
@@ -3697,7 +3958,8 @@ class ArchitecturePlayground {
             left:   { x: r.left,            y: r.top + r.height / 2 },
             right:  { x: r.right,           y: r.top + r.height / 2 },
             top:    { x: r.left + r.width / 2, y: r.top },
-            bottom: { x: r.left + r.width / 2, y: r.bottom }
+            bottom: { x: r.left + r.width / 2, y: r.bottom },
+            center: { x: r.left + r.width / 2, y: r.top + r.height / 2 }
         });
         const Acl = anchorsClient(fromRect);
         const Bcl = anchorsClient(toRect);
@@ -3705,13 +3967,15 @@ class ArchitecturePlayground {
             left: toSvgPoint(Acl.left.x, Acl.left.y),
             right: toSvgPoint(Acl.right.x, Acl.right.y),
             top: toSvgPoint(Acl.top.x, Acl.top.y),
-            bottom: toSvgPoint(Acl.bottom.x, Acl.bottom.y)
+            bottom: toSvgPoint(Acl.bottom.x, Acl.bottom.y),
+            center: toSvgPoint(Acl.center.x, Acl.center.y)
         };
         const B = {
             left: toSvgPoint(Bcl.left.x, Bcl.left.y),
             right: toSvgPoint(Bcl.right.x, Bcl.right.y),
             top: toSvgPoint(Bcl.top.x, Bcl.top.y),
-            bottom: toSvgPoint(Bcl.bottom.x, Bcl.bottom.y)
+            bottom: toSvgPoint(Bcl.bottom.x, Bcl.bottom.y),
+            center: toSvgPoint(Bcl.center.x, Bcl.center.y)
         };
 
         const Cfrom = center(fromRect);
@@ -3719,34 +3983,12 @@ class ArchitecturePlayground {
         const CfromSvg = toSvgPoint(Cfrom.x, Cfrom.y);
         const CtoSvg = toSvgPoint(Cto.x, Cto.y);
 
-        // Calculate connection points (choose opposing edges based on direction)
+        // Calculate connection points - always use center-to-center for clean, consistent look
         let fromX, fromY, toX, toY;
-        if (connection.type === 'source-to-item') {
-            fromX = A.right.x; fromY = A.right.y; // right edge of source
-            const dx = CtoSvg.x - CfromSvg.x;
-            const dy = CtoSvg.y - CfromSvg.y;
-            if (Math.abs(dx) >= Math.abs(dy)) {
-                // Horizontal approach
-                if (dx >= 0) { toX = B.left.x; toY = B.left.y; }
-                else { toX = B.right.x; toY = B.right.y; }
-            } else {
-                // Vertical approach
-                if (dy >= 0) { toX = B.top.x; toY = B.top.y; }
-                else { toX = B.bottom.x; toY = B.bottom.y; }
-            }
-        } else {
-            const dx = CtoSvg.x - CfromSvg.x;
-            const dy = CtoSvg.y - CfromSvg.y;
-            if (Math.abs(dx) >= Math.abs(dy)) {
-                // Mostly horizontal
-                if (dx >= 0) { fromX = A.right.x; fromY = A.right.y; toX = B.left.x; toY = B.left.y; }
-                else { fromX = A.left.x; fromY = A.left.y; toX = B.right.x; toY = B.right.y; }
-            } else {
-                // Mostly vertical
-                if (dy >= 0) { fromX = A.bottom.x; fromY = A.bottom.y; toX = B.top.x; toY = B.top.y; }
-                else { fromX = A.top.x; fromY = A.top.y; toX = B.bottom.x; toY = B.bottom.y; }
-            }
-        }
+        
+        // Always use center-to-center connections for consistent appearance
+        fromX = A.center.x; fromY = A.center.y;
+        toX = B.center.x; toY = B.center.y;
 
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         let pts;
@@ -4521,6 +4763,32 @@ class ArchitecturePlayground {
 
         // After attempting to build all connections, log a summary
         console.log(`Rebuilt ${connectionsCreated} connections (requested: ${(data.connections||[]).length})`);
+
+        // Restore dimensions for all loaded items (especially containers)
+        (data.items || []).forEach(savedItem => {
+            const canvasItem = this.canvasItems.find(ci => ci.id === savedItem.id);
+            if (canvasItem && canvasItem.element) {
+                // Restore saved dimensions if they exist
+                if (savedItem.width && savedItem.width > 0) {
+                    canvasItem.element.style.width = savedItem.width + 'px';
+                }
+                if (savedItem.height && savedItem.height > 0) {
+                    canvasItem.element.style.height = savedItem.height + 'px';
+                }
+                
+                // Restore saved name if it exists
+                if (savedItem.data && savedItem.data.name) {
+                    const nameEl = canvasItem.element.querySelector('.canvas-item-title') || 
+                                   canvasItem.element.querySelector('.data-source-name');
+                    if (nameEl) {
+                        nameEl.textContent = savedItem.data.name;
+                    }
+                    // Also update the canvasItem data
+                    canvasItem.data = canvasItem.data || {};
+                    canvasItem.data.name = savedItem.data.name;
+                }
+            }
+        });
 
         // Restore metadata for all loaded items
         (data.items || []).forEach(savedItem => {

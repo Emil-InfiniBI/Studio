@@ -188,6 +188,32 @@
 						</div>
 					</div>
 
+					<!-- Containers & Groups Category -->
+					<div class="palette-category">
+						<button class="category-header" onclick="togglePaletteCategory('containers-groups')">
+							<i class="fas fa-object-group"></i>
+							<span>Containers & Groups</span>
+							<i class="fas fa-chevron-down toggle-icon"></i>
+						</button>
+						<div class="category-items" id="containers-groups">
+							<div class="palette-item" draggable="true" data-type="api-collection" title="API Collection - Groups tables from API endpoint">
+								<i class="fas fa-layer-group" style="color: #06b6d4;"></i><span>API Collection</span>
+							</div>
+							<div class="palette-item" draggable="true" data-type="schema-container" title="Schema Container - Groups tables from same schema">
+								<i class="fas fa-folder-open" style="color: #10b981;"></i><span>Schema</span>
+							</div>
+							<div class="palette-item" draggable="true" data-type="table-group" title="Table Group - Custom grouping for related tables">
+								<i class="fas fa-th-list" style="color: #f59e0b;"></i><span>Table Group</span>
+							</div>
+							<div class="palette-item" draggable="true" data-type="process-container" title="Process Container - Groups transformation steps">
+								<i class="fas fa-cogs" style="color: #8b5cf6;"></i><span>Process Group</span>
+							</div>
+							<div class="palette-item" draggable="true" data-type="zone-container" title="Data Zone - Large area grouping (Landing/Raw/Curated)">
+								<i class="fas fa-square" style="color: #6b7280;"></i><span>Data Zone</span>
+							</div>
+						</div>
+					</div>
+
 					<!-- Medallion Architecture Category -->
 					<div class="palette-category">
 						<button class="category-header" onclick="togglePaletteCategory('medallion')">
