@@ -172,6 +172,10 @@ class DatabaseManager {
         this.renderDatabases();
     }
 
+    getDatabases() {
+        return this.databases;
+    }
+
     getTypeIcon(type) {
         const icons = {
             'sql-server': 'fas fa-server',
@@ -825,7 +829,15 @@ function importDatabasesFromExcel() {
                 const importedDatabases = [];
                 let importCount = 0;
                 let errorCount = 0;
+                let duplicateCount = 0;
                 const errors = [];
+                const duplicates = [];
+
+                // Get existing databases for duplicate checking
+                const existingDatabases = databaseManager.getDatabases();
+                const existingKeys = new Set(
+                    existingDatabases.map(db => `${db.name.toLowerCase()}|${db.server.toLowerCase()}|${db.environment.toLowerCase()}`)
+                );
 
                 for (let i = 1; i < jsonData.length; i++) {
                     const row = jsonData[i];
@@ -859,6 +871,17 @@ function importDatabasesFromExcel() {
                             continue;
                         }
 
+                        // Check for duplicates (name + server + environment combination)
+                        const dbKey = `${dbData.name.toLowerCase()}|${dbData.server.toLowerCase()}|${dbData.environment.toLowerCase()}`;
+                        if (existingKeys.has(dbKey)) {
+                            duplicates.push(`Row ${i + 1}: Database '${dbData.name}' on '${dbData.server}' (${dbData.environment}) already exists`);
+                            duplicateCount++;
+                            continue;
+                        }
+
+                        // Add to existing keys to prevent duplicates within the same import
+                        existingKeys.add(dbKey);
+
                         // Add to database manager
                         databaseManager.addDatabase(dbData);
                         importedDatabases.push(dbData);
@@ -872,12 +895,17 @@ function importDatabasesFromExcel() {
 
                 // Show results
                 let message = `Import completed: ${importCount} databases imported successfully`;
+                if (duplicateCount > 0) {
+                    message += `, ${duplicateCount} duplicates skipped`;
+                    console.warn('Duplicate databases skipped:', duplicates);
+                }
                 if (errorCount > 0) {
                     message += `, ${errorCount} errors`;
                     console.warn('Import errors:', errors);
                 }
 
-                showNotification(message, errorCount > 0 ? 'warning' : 'success');
+                const messageType = errorCount > 0 ? 'warning' : (duplicateCount > 0 ? 'info' : 'success');
+                showNotification(message, messageType);
 
                 // Refresh the display
                 databaseManager.renderDatabases();

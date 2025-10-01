@@ -8,6 +8,7 @@ class ArchitecturePlayground {
         this.selectedItem = null; // Currently selected canvas item
         this.dragUpdateTimeout = null; // Add timeout management for smooth dragging
         this.canvasItems = []; // Track canvas items
+        this.isResizingAnyContainer = false; // Flag to prevent layout interference during resize
         this.connectionSvg = null; // SVG for connections
     this.canvasSpacer = null; // Spacer to extend scroll area
     this.canvasMargin = 200; // extra space around content
@@ -1812,6 +1813,9 @@ class ArchitecturePlayground {
         if (!canvas) return;
 
         const createOrUpdateTargets = () => {
+            // Skip creating targets during container resize to prevent interference
+            if (this.isResizingAnyContainer) return;
+            
             // Remove existing targets
             canvas.querySelectorAll('.medallion-target').forEach(el => el.remove());
 
@@ -1859,12 +1863,20 @@ class ArchitecturePlayground {
 
         createOrUpdateTargets();
             window.addEventListener('resize', createOrUpdateTargets);
-        const ro = new ResizeObserver(createOrUpdateTargets);
+        const ro = new ResizeObserver(() => {
+            if (!this.isResizingAnyContainer) {
+                createOrUpdateTargets();
+            }
+        });
         ro.observe(canvas);
             // Observe DOM changes to the background layout too
             const bg = canvas.querySelector('.canvas-background');
             if (bg) {
-                const mo = new MutationObserver(createOrUpdateTargets);
+                const mo = new MutationObserver(() => {
+                    if (!this.isResizingAnyContainer) {
+                        createOrUpdateTargets();
+                    }
+                });
                 mo.observe(bg, { attributes: true, childList: true, subtree: true });
             }
     }
@@ -2290,79 +2302,88 @@ class ArchitecturePlayground {
         const handles = containerElement.querySelectorAll('.resize-handle');
         
         handles.forEach(handle => {
-            let isResizing = false;
-            let startX, startY, startWidth, startHeight, startLeft, startTop;
             const direction = handle.dataset.direction;
             
             handle.addEventListener('mousedown', (e) => {
-                e.stopPropagation(); // Prevent triggering drag
-                isResizing = true;
+                e.stopPropagation();
+                e.preventDefault();
                 
-                startX = e.clientX;
-                startY = e.clientY;
-                startWidth = parseInt(containerElement.offsetWidth);
-                startHeight = parseInt(containerElement.offsetHeight);
-                startLeft = parseInt(containerElement.style.left);
-                startTop = parseInt(containerElement.style.top);
+                // Set global flag to prevent interference
+                this.isResizingAnyContainer = true;
+                
+                // Capture initial state
+                const startX = e.clientX;
+                const startY = e.clientY;
+                const startWidth = containerElement.offsetWidth;
+                const startHeight = containerElement.offsetHeight;
+                const startLeft = parseFloat(containerElement.style.left) || 0;
+                const startTop = parseFloat(containerElement.style.top) || 0;
                 
                 containerElement.classList.add('resizing');
                 document.body.style.cursor = handle.style.cursor;
                 
-                e.preventDefault();
-            });
-            
-            document.addEventListener('mousemove', (e) => {
-                if (!isResizing) return;
+                // Create bound mousemove handler
+                const handleMouseMove = (moveEvent) => {
+                    moveEvent.preventDefault();
+                    
+                    const deltaX = moveEvent.clientX - startX;
+                    const deltaY = moveEvent.clientY - startY;
+                    
+                    let newWidth = startWidth;
+                    let newHeight = startHeight;
+                    let newLeft = startLeft;
+                    let newTop = startTop;
+                    
+                    // Calculate new dimensions based on handle direction
+                    switch (direction) {
+                        case 'se': // bottom-right
+                            newWidth = Math.max(200, startWidth + deltaX);
+                            newHeight = Math.max(150, startHeight + deltaY);
+                            break;
+                        case 'sw': // bottom-left
+                            newWidth = Math.max(200, startWidth - deltaX);
+                            newHeight = Math.max(150, startHeight + deltaY);
+                            newLeft = startLeft + (startWidth - newWidth);
+                            break;
+                        case 'ne': // top-right
+                            newWidth = Math.max(200, startWidth + deltaX);
+                            newHeight = Math.max(150, startHeight - deltaY);
+                            newTop = startTop + (startHeight - newHeight);
+                            break;
+                        case 'nw': // top-left
+                            newWidth = Math.max(200, startWidth - deltaX);
+                            newHeight = Math.max(150, startHeight - deltaY);
+                            newLeft = startLeft + (startWidth - newWidth);
+                            newTop = startTop + (startHeight - newHeight);
+                            break;
+                    }
+                    
+                    // Apply new dimensions directly - no calculations or external calls
+                    containerElement.style.width = newWidth + 'px';
+                    containerElement.style.height = newHeight + 'px';
+                    containerElement.style.left = newLeft + 'px';
+                    containerElement.style.top = newTop + 'px';
+                };
                 
-                const deltaX = e.clientX - startX;
-                const deltaY = e.clientY - startY;
-                
-                let newWidth = startWidth;
-                let newHeight = startHeight;
-                let newLeft = startLeft;
-                let newTop = startTop;
-                
-                // Calculate new dimensions based on handle direction
-                switch (direction) {
-                    case 'se': // bottom-right
-                        newWidth = Math.max(200, startWidth + deltaX);
-                        newHeight = Math.max(150, startHeight + deltaY);
-                        break;
-                    case 'sw': // bottom-left
-                        newWidth = Math.max(200, startWidth - deltaX);
-                        newHeight = Math.max(150, startHeight + deltaY);
-                        newLeft = startLeft + deltaX;
-                        break;
-                    case 'ne': // top-right
-                        newWidth = Math.max(200, startWidth + deltaX);
-                        newHeight = Math.max(150, startHeight - deltaY);
-                        newTop = startTop + deltaY;
-                        break;
-                    case 'nw': // top-left
-                        newWidth = Math.max(200, startWidth - deltaX);
-                        newHeight = Math.max(150, startHeight - deltaY);
-                        newLeft = startLeft + deltaX;
-                        newTop = startTop + deltaY;
-                        break;
-                }
-                
-                // Apply new dimensions
-                containerElement.style.width = newWidth + 'px';
-                containerElement.style.height = newHeight + 'px';
-                containerElement.style.left = newLeft + 'px';
-                containerElement.style.top = newTop + 'px';
-            });
-            
-            document.addEventListener('mouseup', () => {
-                if (isResizing) {
-                    isResizing = false;
+                // Create bound mouseup handler
+                const handleMouseUp = () => {
+                    document.removeEventListener('mousemove', handleMouseMove);
+                    document.removeEventListener('mouseup', handleMouseUp);
+                    
+                    this.isResizingAnyContainer = false;
                     containerElement.classList.remove('resizing');
                     document.body.style.cursor = '';
                     
-                    // Save state for undo
-                    this.saveState('resize container');
-                    this.autosave();
-                }
+                    // Save state for undo after a brief delay
+                    setTimeout(() => {
+                        this.saveState('resize container');
+                        this.autosave();
+                    }, 100);
+                };
+                
+                // Attach event listeners
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', handleMouseUp);
             });
         });
     }
@@ -4521,8 +4542,8 @@ class ArchitecturePlayground {
     }
 
     autosave() {
-        // Don't autosave if there's no content or during loading
-        if (this._suppressNotifications || this.canvasItems.length === 0) return;
+        // Don't autosave if there's no content, during loading, or while resizing containers
+        if (this._suppressNotifications || this.canvasItems.length === 0 || this.isResizingAnyContainer) return;
         
         try {
             const data = this.serialize();

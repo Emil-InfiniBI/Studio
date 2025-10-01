@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Container Position Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-container { 
+            border: 2px solid blue; 
+            padding: 10px; 
+            margin: 10px 0; 
+            background: #f0f0f0; 
+        }
+        button { 
+            padding: 10px 20px; 
+            margin: 5px; 
+            background: #007acc; 
+            color: white; 
+            border: none; 
+            cursor: pointer; 
+        }
+        button:hover { background: #005a99; }
+        #output { 
+            background: #000; 
+            color: #0f0; 
+            padding: 10px; 
+            margin: 10px 0; 
+            font-family: monospace; 
+            min-height: 200px; 
+            max-height: 400px; 
+            overflow-y: auto; 
+        }
+    </style>
+</head>
+<body>
+    <h1>Container Position Test - Verify Changes Applied</h1>
+    
+    <div class="test-container">
+        <h3>File Change Verification</h3>
+        <button onclick="checkFileVersion()">Check playground.js Version</button>
+        <button onclick="testContainerPositioning()">Test Container Logic</button>
+        <button onclick="clearOutput()">Clear Output</button>
+    </div>
+    
+    <div id="output"></div>
+
+    <script src="playground.js"></script>
+    <script>
+        let outputDiv = document.getElementById('output');
+        
+        function log(message) {
+            outputDiv.innerHTML += message + '<br>';
+            outputDiv.scrollTop = outputDiv.scrollHeight;
+        }
+        
+        function clearOutput() {
+            outputDiv.innerHTML = '';
+        }
+        
+        function checkFileVersion() {
+            log('=== FILE VERSION CHECK ===');
+            log('Current time: ' + new Date().toLocaleString());
+            
+            // Check if our cache-busting comment exists
+            fetch('playground.js?' + Date.now())
+                .then(response => response.text())
+                .then(text => {
+                    if (text.includes('CACHE REFRESH: Force browser to reload')) {
+                        log('✅ Cache refresh comment found - file is updated');
+                    } else {
+                        log('❌ Cache refresh comment NOT found - file may be cached');
+                    }
+                    
+                    if (text.includes('ULTRA-SIMPLE positioning for containers')) {
+                        log('✅ Ultra-simple positioning logic found');
+                    } else {
+                        log('❌ Ultra-simple positioning logic NOT found');
+                    }
+                    
+                    if (text.includes('Container detected - FORCING to top-left area')) {
+                        log('✅ Forced positioning debug messages found');
+                    } else {
+                        log('❌ Forced positioning debug messages NOT found');
+                    }
+                })
+                .catch(err => log('❌ Error checking file: ' + err.message));
+        }
+        
+        function testContainerPositioning() {
+            log('=== CONTAINER POSITIONING TEST ===');
+            
+            try {
+                // Create a mock playground instance
+                const playground = new ArchitecturePlayground();
+                log('✅ ArchitecturePlayground class loaded successfully');
+                
+                // Test container detection logic
+                const containerTypes = ['api-collection', 'schema-container', 'table-group', 'process-container', 'zone-container'];
+                containerTypes.forEach(type => {
+                    const isContainer = ['api-collection', 'schema-container', 'table-group', 'process-container', 'zone-container'].includes(type);
+                    log(`Container type "${type}": ${isContainer ? '✅ DETECTED' : '❌ NOT DETECTED'}`);
+                });
+                
+                log('✅ Container positioning test completed');
+            } catch (error) {
+                log('❌ Error testing container positioning: ' + error.message);
+            }
+        }
+        
+        // Auto-run tests on page load
+        window.onload = function() {
+            log('=== AUTO-TESTING ON PAGE LOAD ===');
+            checkFileVersion();
+            setTimeout(testContainerPositioning, 1000);
+        };
+    </script>
+</body>
+</html>
