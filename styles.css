@@ -4669,9 +4669,9 @@ body.hide-mid-arrows svg .connection-mid-arrow {
 /* medallion color accents removed */
 
 /* Ensure draggable items and the connection SVG render above the background */
-.fabric-canvas svg { z-index: 2; }
-.fabric-canvas .canvas-item { z-index: 10; }
-.fabric-canvas .canvas-item.ci-container { z-index: 1; } /* Containers stay in background */
+.fabric-canvas svg { z-index: 5; } /* Connection lines above containers */
+.fabric-canvas .canvas-item { z-index: 10; } /* Cards on top */
+.fabric-canvas .canvas-item.ci-container { z-index: 2; } /* Containers visible but below cards */
 
 /* Dark theme tweaks (keeps same vibe, slightly brighter borders) */
 [data-theme="dark"] .canvas-background .bg-panel,
@@ -5157,20 +5157,20 @@ body.hide-mid-arrows svg .connection-mid-arrow {
     width: calc(300px * var(--canvas-item-size)); /* Set reasonable default width */
     height: calc(200px * var(--canvas-item-size)); /* Set reasonable default height */
     border-radius: calc(12px * var(--canvas-item-size));
-    border: 2px dashed rgba(var(--ci-accent-rgb, 59, 130, 246), 0.4);
+    border: 2px dashed rgba(var(--ci-accent-rgb, 59, 130, 246), 0.6);
     background: linear-gradient(180deg, 
-        rgba(var(--ci-accent-rgb, 59, 130, 246), 0.03), 
-        rgba(var(--ci-accent-rgb, 59, 130, 246), 0.08)
+        rgba(var(--ci-accent-rgb, 59, 130, 246), 0.08), 
+        rgba(var(--ci-accent-rgb, 59, 130, 246), 0.15)
     );
     backdrop-filter: blur(5px);
     padding: calc(16px * var(--canvas-item-size));
     justify-content: flex-start;
     align-items: flex-start;
     text-align: left;
-    position: relative;
-    z-index: 1; /* Lower than regular items so they can be placed on top */
+    position: absolute !important; /* CRITICAL: Must be absolute to prevent layout shifts */
+    z-index: 2; /* Higher than background but lower than cards */
     box-shadow: 
-        0 4px 16px rgba(var(--ci-accent-rgb, 59, 130, 246), 0.1),
+        0 4px 16px rgba(var(--ci-accent-rgb, 59, 130, 246), 0.2),
         inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
@@ -7248,6 +7248,9 @@ svg g[data-manual="true"] polygon {
     overflow: hidden;
     box-shadow: var(--shadow-md);
     background: var(--bg-primary);
+    max-height: 70vh;
+    overflow-y: auto;
+    position: relative;
 }
 
 .databases-table {
@@ -7257,6 +7260,9 @@ svg g[data-manual="true"] polygon {
 
 .databases-table thead {
     background: var(--bg-secondary);
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .databases-table th {
