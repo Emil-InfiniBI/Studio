@@ -3937,6 +3937,88 @@ body.hide-mid-arrows svg .connection-mid-arrow {
     align-items: center;
 }
 
+/* Text Formatting Toolbar */
+.text-format-toolbar {
+    background: linear-gradient(to bottom, #f8f9fa, #ffffff);
+    border-bottom: 2px solid #00D4FF;
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.format-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.format-group label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #5a6c7d;
+    margin-right: 4px;
+}
+
+.format-btn {
+    background: white;
+    border: 1px solid #d1d3d4;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.format-btn:hover {
+    background: #f3f2f1;
+    border-color: #00D4FF;
+}
+
+.format-btn.active {
+    background: #00D4FF;
+    color: white;
+    border-color: #00D4FF;
+}
+
+.format-separator {
+    width: 1px;
+    height: 24px;
+    background: #d1d3d4;
+}
+
+#text-color-picker,
+#bg-color-picker {
+    width: 40px;
+    height: 32px;
+    border: 1px solid #d1d3d4;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 2px;
+}
+
+#text-color-picker:hover,
+#bg-color-picker:hover {
+    border-color: #00D4FF;
+}
+
 /* Item Palette */
 .item-palette {
     display: grid;
@@ -4250,6 +4332,17 @@ body.hide-mid-arrows svg .connection-mid-arrow {
 .toolbar-btn:hover {
     background: #f3f2f1;
     border-color: #c8c6c4;
+}
+
+.toolbar-btn.active {
+    background: #00D4FF;
+    color: #fff;
+    border-color: #00D4FF;
+}
+
+.toolbar-btn.active:hover {
+    background: #00b8e6;
+    border-color: #00b8e6;
 }
 
 /* Connection Toggle Button */
@@ -5130,6 +5223,62 @@ body.hide-mid-arrows svg .connection-mid-arrow {
     line-height: 1.4;
 }
 
+/* Text Label Styling */
+.canvas-item.text-label {
+    background: transparent;  /* Allow customization - no !important */
+    border: 1px dashed #666;  /* Allow customization - no !important */
+    box-shadow: none !important;
+    min-height: auto !important;
+    width: auto !important;
+    padding: 8px 12px !important;
+    font-size: 14px;  /* Allow customization - no !important */
+    color: #ffffff;  /* Allow customization - no !important */
+    font-weight: normal;  /* Allow customization - no !important */
+    text-align: left !important;
+    cursor: move !important;
+    z-index: 1000 !important;
+    border-radius: 4px !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+    white-space: nowrap !important;
+    outline: none !important;
+    display: block !important;  /* Override flex layout */
+    flex-direction: initial !important;
+    align-items: initial !important;
+    justify-content: initial !important;
+}
+
+/* Hide any child elements that might be added */
+.canvas-item.text-label .canvas-item-header,
+.canvas-item.text-label .ci-icon,
+.canvas-item.text-label .canvas-item-title,
+.canvas-item.text-label .canvas-item-type {
+    display: none !important;
+}
+
+.canvas-item.text-label:hover {
+    border-color: #00D4FF;
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
+}
+
+.canvas-item.text-label.editing {
+    border-color: #00D4FF;
+    border-style: solid;
+    cursor: text;
+    white-space: pre-wrap;
+    min-width: 100px;
+}
+
+.canvas-item.text-label.selected {
+    border-color: #00D4FF;
+    box-shadow: 0 0 12px rgba(0, 212, 255, 0.5);
+}
+
+.canvas-item.text-label:empty:before {
+    content: 'Double-click to edit';
+    color: #888;
+    font-style: italic;
+}
+
 /* Dark theme adjustments for canvas items */
 [data-theme="dark"] .canvas-item {
     background: linear-gradient(180deg, rgba(30, 35, 45, 0.96), rgba(26, 30, 37, 0.92));
@@ -5266,6 +5415,7 @@ body.hide-mid-arrows svg .connection-mid-arrow {
 .canvas-item.ci-semantic-model { --ci-accent: #8b5cf6; }
 .canvas-item.ci-warehouse { --ci-accent: #60a5fa; }
 .canvas-item.ci-lakehouse { --ci-accent: #38bdf8; }
+.canvas-item.ci-table { --ci-accent: #22c55e; }
 .canvas-item.ci-data-source { --ci-accent: #3b82f6; }
 .canvas-item.ci-notebook { --ci-accent: #6366f1; }
 
@@ -8688,3 +8838,9 @@ select[disabled] {
 }
 
 
+
+/* Text label fix: 2025-10-02 20:45:50 */
+
+/* Text formatting toolbar: 2025-10-02 21:25:57 */
+
+/* Text formatting CSS fix: 2025-10-02 21:46:12 */

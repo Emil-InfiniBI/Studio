@@ -71,6 +71,14 @@
 						<i class="fas fa-download"></i> Export JSON
 					</button>
                     
+					<!-- Export Options -->
+					<button class="btn btn-success" onclick="exportToHTML()" title="Export as standalone HTML file">
+						<i class="fas fa-file-code"></i> Export HTML
+					</button>
+					<button class="btn btn-success" onclick="exportToPNG()" title="Export as PNG image">
+						<i class="fas fa-image"></i> Export PNG
+					</button>
+					
 					<!-- PDF Export Category (in header) -->
 					<div class="palette-category" style="display: inline-block; margin-left: 10px; position: relative;">
 						<button class="category-header" onclick="togglePaletteCategory('pdf-export-header')" style="background: #6c757d; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
@@ -118,6 +126,15 @@
 						<i class="fas fa-pen"></i>
 						<span>Edit Mode</span>
 					</button>
+					<button class="toolbar-btn" id="snap-toggle-btn" onclick="playground.toggleSnapToGrid()" title="Toggle Snap to Grid">
+						<i class="fas fa-grip"></i>
+						<span>Snap to Grid</span>
+					</button>
+					<button class="toolbar-btn" onclick="playground.addTextLabel()" title="Add Text Label">
+						<i class="fas fa-font"></i>
+						<span>Add Text</span>
+					</button>
+					
 					<button class="toolbar-btn" onclick="playground.undo()" title="Undo (Ctrl+Z)">
 						<i class="fas fa-undo"></i>
 						<span>Undo</span>
@@ -128,6 +145,41 @@
 					</button>
 				</div>
 				<div class="toolbar-right"><!-- empty on purpose --></div>
+			</div>
+
+			<!-- Text Formatting Toolbar (shows when text label is selected) -->
+			<div class="text-format-toolbar" id="text-format-toolbar" style="display: none;">
+				<div class="format-group">
+					<label>Size:</label>
+					<button class="format-btn" onclick="playground.setTextSize('small')" title="Small">
+						<i class="fas fa-font" style="font-size: 10px;"></i>
+					</button>
+					<button class="format-btn" onclick="playground.setTextSize('medium')" title="Medium">
+						<i class="fas fa-font" style="font-size: 14px;"></i>
+					</button>
+					<button class="format-btn" onclick="playground.setTextSize('large')" title="Large">
+						<i class="fas fa-font" style="font-size: 18px;"></i>
+					</button>
+				</div>
+				<div class="format-separator"></div>
+				<div class="format-group">
+					<button class="format-btn" id="bold-btn" onclick="playground.toggleBold()" title="Bold">
+						<i class="fas fa-bold"></i>
+					</button>
+				</div>
+				<div class="format-separator"></div>
+				<div class="format-group">
+					<label>Text Color:</label>
+					<input type="color" id="text-color-picker" value="#ffffff" onchange="playground.setTextColor(this.value)" title="Text Color">
+				</div>
+				<div class="format-separator"></div>
+				<div class="format-group">
+					<label>Background:</label>
+					<input type="color" id="bg-color-picker" value="#000000" onchange="playground.setBackgroundColor(this.value)" title="Background Color">
+					<button class="format-btn" onclick="playground.setBackgroundTransparent()" title="Transparent Background">
+						<i class="fas fa-eye-slash"></i>
+					</button>
+				</div>
 			</div>
 
 			<!-- Component Palette with Categories -->
@@ -175,6 +227,9 @@
 							</div>
 							<div class="palette-item" draggable="true" data-type="data-lake" title="Data Lake">
 								<i class="fas fa-lake"></i><span>Data Lake</span>
+							</div>
+							<div class="palette-item" draggable="true" data-type="table" title="Table">
+								<i class="fas fa-table"></i><span>Table</span>
 							</div>
 							<div class="palette-item" draggable="true" data-type="pipeline" title="Data Pipeline">
 								<i class="fas fa-arrows-rotate"></i><span>Pipeline</span>
@@ -740,8 +795,6 @@
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 	<script src="playground.js"></script>
-	<script src="azure-config.js"></script>
-	<script src="fabric-integration.js"></script>
 </body>
 <script>
 // Simple PDF export with Shift+click compatibility
@@ -758,3 +811,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 </html>
+
+<!-- Text formatting toolbar: 2025-10-02 21:25:57 -->
