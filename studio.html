@@ -14,6 +14,9 @@
 	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+	<!-- Authentication System -->
+	<script src="auth.js"></script>
+    
 	<!-- Microsoft Authentication Library (primary CDN + fallback) -->
 	<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js" crossorigin="anonymous"></script>
 	<script>
@@ -46,61 +49,92 @@
 					</a>
 				</nav>
 				<div class="header-actions">
+					<!-- Utility Buttons -->
 					<button class="btn btn-icon theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">
 						<i class="fas fa-moon" id="theme-icon"></i>
 					</button>
 					<button class="btn btn-icon btn-secondary" id="settings-btn" title="Canvas Settings">
 						<i class="fas fa-sliders-h"></i>
 					</button>
+					<button class="btn btn-icon btn-secondary" onclick="togglePresentationMode()" title="Presentation Mode - Fullscreen Canvas">
+						<i class="fas fa-expand"></i>
+					</button>
 					<button class="btn btn-icon btn-secondary" onclick="syncDatabaseChanges()" title="Sync Database Changes">
 						<i class="fas fa-sync-alt"></i>
 					</button>
-					<button class="btn btn-secondary" onclick="importCanvas()" title="Import architecture from file">
-						<i class="fas fa-file-import"></i> Import
-					</button>
-					<button class="btn btn-secondary" onclick="loadCanvas()" title="Load saved canvas">
-						<i class="fas fa-folder-open"></i> Load
-					</button>
-					<button class="btn btn-secondary" onclick="saveCanvas()" title="Save canvas">
-						<i class="fas fa-save"></i> Save
-					</button>
-					<button class="btn btn-secondary" onclick="clearCanvas()">
-						<i class="fas fa-trash"></i> Clear Canvas
-					</button>
-					<button class="btn btn-primary" onclick="exportCanvas()">
-						<i class="fas fa-download"></i> Export JSON
-					</button>
-                    
-					<!-- Export Options -->
-					<button class="btn btn-success" onclick="exportToHTML()" title="Export as standalone HTML file">
-						<i class="fas fa-file-code"></i> Export HTML
-					</button>
-					<button class="btn btn-success" onclick="exportToPNG()" title="Export as PNG image">
-						<i class="fas fa-image"></i> Export PNG
-					</button>
 					
-					<!-- PDF Export Category (in header) -->
+					<!-- File Management Dropdown -->
 					<div class="palette-category" style="display: inline-block; margin-left: 10px; position: relative;">
-						<button class="category-header" onclick="togglePaletteCategory('pdf-export-header')" style="background: #6c757d; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
-							<i class="fas fa-file-pdf"></i>
-							<span>PDF Export</span>
+						<button class="category-header" onclick="togglePaletteCategory('file-menu-header')" style="background: #0078d4; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+							<i class="fas fa-folder"></i>
+							<span>File</span>
 							<i class="fas fa-chevron-down toggle-icon"></i>
 						</button>
-						<div class="category-items" id="pdf-export-header">
-							<div class="palette-item" onclick="exportPDF({template: 'executive'})" title="Executive Summary - Concise 1-2 page overview">
-								<i class="fas fa-chart-line" style="color: #10b981;"></i><span>Executive Summary</span>
+						<div class="category-items" id="file-menu-header" style="min-width: 200px;">
+							<div class="palette-item" onclick="saveCanvas(); togglePaletteCategory('file-menu-header')" title="Save current work">
+								<i class="fas fa-save" style="color: #0078d4;"></i><span>Save Canvas</span>
 							</div>
-							<div class="palette-item" onclick="exportPDF({template: 'presentation'})" title="Client Presentation - Visual presentation format">
-								<i class="fas fa-presentation-screen" style="color: #3b82f6;"></i><span>Client Presentation</span>
+							<div class="palette-item" onclick="loadCanvas(); togglePaletteCategory('file-menu-header')" title="Load saved canvas">
+								<i class="fas fa-folder-open" style="color: #0078d4;"></i><span>Load Canvas</span>
 							</div>
-							<div class="palette-item" onclick="exportPDF({template: 'technical'})" title="Technical Documentation - Detailed analysis">
-								<i class="fas fa-cogs" style="color: #f59e0b;"></i><span>Technical Documentation</span>
+							<hr style="margin: 4px 0; border: none; border-top: 1px solid #e1e5e9;">
+							<div class="palette-item" onclick="exportCanvas(); togglePaletteCategory('file-menu-header')" title="Export canvas as JSON file">
+								<i class="fas fa-file-export" style="color: #10b981;"></i><span>Export JSON</span>
 							</div>
-							<div class="palette-item" onclick="exportPDF({template: 'comprehensive'})" title="Architecture Review - Complete analysis">
-								<i class="fas fa-file-alt" style="color: #6b7280;"></i><span>Architecture Review</span>
+							<div class="palette-item" onclick="importCanvas(); togglePaletteCategory('file-menu-header')" title="Import canvas from JSON file">
+								<i class="fas fa-file-import" style="color: #6b7280;"></i><span>Import JSON</span>
 							</div>
-							<div class="palette-item" onclick="exportPDF({quick: true})" title="Quick Snapshot - Architecture diagram only">
-								<i class="fas fa-camera" style="color: #06b6d4;"></i><span>Quick Snapshot</span>
+							<hr style="margin: 4px 0; border: none; border-top: 1px solid #e1e5e9;">
+							<div class="palette-item" onclick="saveAsTemplate(); togglePaletteCategory('file-menu-header')" title="Save as reusable template">
+								<i class="fas fa-layer-group" style="color: #f59e0b;"></i><span>Save as Template</span>
+							</div>
+							<div class="palette-item" onclick="loadTemplate(); togglePaletteCategory('file-menu-header')" title="Load a template">
+								<i class="fas fa-file-download" style="color: #f59e0b;"></i><span>Load Template</span>
+							</div>
+							<hr style="margin: 4px 0; border: none; border-top: 1px solid #e1e5e9;">
+							<div class="palette-item" onclick="document.getElementById('settings-btn').click(); togglePaletteCategory('file-menu-header')" title="Configure canvas settings">
+								<i class="fas fa-sliders-h" style="color: #6b7280;"></i><span>Canvas Settings</span>
+							</div>
+							<hr style="margin: 4px 0; border: none; border-top: 1px solid #e1e5e9;">
+							<div class="palette-item" onclick="clearCanvas(); togglePaletteCategory('file-menu-header')" title="Clear everything">
+								<i class="fas fa-trash" style="color: #dc2626;"></i><span>Clear Canvas</span>
+							</div>
+						</div>
+					</div>
+					
+					<!-- Export Dropdown -->
+					<div class="palette-category" style="display: inline-block; margin-left: 10px; position: relative;">
+						<button class="category-header" onclick="togglePaletteCategory('export-menu-header')" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+							<i class="fas fa-download"></i>
+							<span>Export</span>
+							<i class="fas fa-chevron-down toggle-icon"></i>
+						</button>
+						<div class="category-items" id="export-menu-header" style="min-width: 220px;">
+							<div class="palette-item" onclick="exportToPNG(); togglePaletteCategory('export-menu-header')" title="Export as PNG image">
+								<i class="fas fa-image" style="color: #10b981;"></i><span>Export PNG Image</span>
+							</div>
+							<hr style="margin: 4px 0; border: none; border-top: 1px solid #e1e5e9;">
+							<div class="palette-item" onclick="exportToHTML(); togglePaletteCategory('export-menu-header')" title="Static HTML">
+								<i class="fas fa-file-code" style="color: #3b82f6;"></i><span>Export HTML (Static)</span>
+							</div>
+							<div class="palette-item" onclick="exportAnimatedHTML(); togglePaletteCategory('export-menu-header')" title="Interactive HTML with animations">
+								<i class="fas fa-film" style="color: #8b5cf6;"></i><span>Export HTML (Animated)</span>
+							</div>
+							<hr style="margin: 4px 0; border: none; border-top: 1px solid #e1e5e9;">
+							<div class="palette-item" onclick="exportPDF({template: 'executive'}); togglePaletteCategory('export-menu-header')" title="Executive Summary PDF">
+								<i class="fas fa-chart-line" style="color: #10b981;"></i><span>PDF - Executive Summary</span>
+							</div>
+							<div class="palette-item" onclick="exportPDF({template: 'presentation'}); togglePaletteCategory('export-menu-header')" title="Presentation PDF">
+								<i class="fas fa-presentation-screen" style="color: #3b82f6;"></i><span>PDF - Presentation</span>
+							</div>
+							<div class="palette-item" onclick="exportPDF({template: 'technical'}); togglePaletteCategory('export-menu-header')" title="Technical Documentation PDF">
+								<i class="fas fa-cogs" style="color: #f59e0b;"></i><span>PDF - Technical Docs</span>
+							</div>
+							<div class="palette-item" onclick="exportPDF({template: 'comprehensive'}); togglePaletteCategory('export-menu-header')" title="Comprehensive Review PDF">
+								<i class="fas fa-file-alt" style="color: #6b7280;"></i><span>PDF - Full Review</span>
+							</div>
+							<div class="palette-item" onclick="exportPDF({quick: true}); togglePaletteCategory('export-menu-header')" title="Quick Snapshot PDF">
+								<i class="fas fa-camera" style="color: #06b6d4;"></i><span>PDF - Quick Snapshot</span>
 							</div>
 						</div>
 					</div>
@@ -110,15 +144,6 @@
 
 		<!-- Main Fabric Workspace -->
 		<div class="fabric-workspace">
-			<!-- Fabric Header -->
-			<div class="fabric-workspace-header">
-				<div class="workspace-title">
-					<i class="fas fa-project-diagram"></i>
-					<h2></h2>
-					<!-- workspace-actions removed per request -->
-				</div>
-			</div>
-
 			<!-- Fabric Toolbar -->
 			<div class="fabric-toolbar">
 				<div class="toolbar-left">
@@ -176,8 +201,15 @@
 				<div class="format-group">
 					<label>Background:</label>
 					<input type="color" id="bg-color-picker" value="#000000" onchange="playground.setBackgroundColor(this.value)" title="Background Color">
-					<button class="format-btn" onclick="playground.setBackgroundTransparent()" title="Transparent Background">
-						<i class="fas fa-eye-slash"></i>
+					<button class="format-btn" onclick="playground.toggleBackgroundTransparent()" title="Toggle Transparent Background">
+						<i class="fas fa-fill-drip"></i>
+					</button>
+				</div>
+				<div class="format-separator"></div>
+				<div class="format-group">
+					<label>Border:</label>
+					<button class="format-btn" onclick="playground.toggleBorder()" title="Toggle Border">
+						<i class="fas fa-border-style"></i>
 					</button>
 				</div>
 			</div>
@@ -540,17 +572,6 @@
 					</div>
 				</div>
 				<!-- End Inspector Panel -->
-			</div>
-
-			<!-- Bottom Panel - Architecture Insights -->
-			<div class="fabric-insights-panel">
-				<h3><i class="fas fa-lightbulb"></i> Architecture Insights</h3>
-				<div class="insights-grid" id="architecture-insights">
-					<div class="insight-item">
-						<i class="fas fa-info-circle"></i>
-						<span>Start by adding data sources to map your architecture</span>
-					</div>
-				</div>
 			</div>
 		</div>
 	</div>

@@ -3898,6 +3898,27 @@ body.hide-mid-arrows svg .connection-mid-arrow {
     flex-direction: column;
 }
 
+/* Presentation Mode - Fullscreen Canvas */
+.fabric-workspace.presentation-mode {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 10000;
+    border-radius: 0;
+    border: none;
+    background: #1a1d29;
+}
+
+.fabric-workspace.presentation-mode .fabric-canvas {
+    height: 100vh !important;
+    max-height: 100vh !important;
+    min-height: 100vh !important;
+    width: 100vw !important;
+    /* Transform is set dynamically by fitCanvasToContent() */
+}
+
 /* Workspace Header */
 .fabric-workspace-header {
     background: white;
@@ -4643,10 +4664,10 @@ body.hide-mid-arrows svg .connection-mid-arrow {
         linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
     background-size: 20px 20px;
     overflow: hidden; /* Prevent any scrolling/expansion */
-    height: 800px !important; /* Fixed height with !important */
+    height: 820px !important; /* Extended canvas height for more workspace */
     width: 100% !important; /* Fixed width with !important */
-    min-height: 800px !important; /* Same as height */
-    max-height: 800px !important; /* Same as height */
+    min-height: 820px !important; /* Same as height */
+    max-height: 820px !important; /* Same as height */
     /* Debug border removed */
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 8px;
@@ -5228,9 +5249,11 @@ body.hide-mid-arrows svg .connection-mid-arrow {
     background: transparent;  /* Allow customization - no !important */
     border: 1px dashed #666;  /* Allow customization - no !important */
     box-shadow: none !important;
-    min-height: auto !important;
-    width: auto !important;
+    min-height: 30px !important;
+    min-width: 100px;
+    width: 200px;  /* Default width */
     padding: 8px 12px !important;
+    padding-bottom: 20px !important;  /* Extra space for resize handle */
     font-size: 14px;  /* Allow customization - no !important */
     color: #ffffff;  /* Allow customization - no !important */
     font-weight: normal;  /* Allow customization - no !important */
@@ -5239,12 +5262,43 @@ body.hide-mid-arrows svg .connection-mid-arrow {
     z-index: 1000 !important;
     border-radius: 4px !important;
     transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
-    white-space: nowrap !important;
+    white-space: pre-wrap !important;  /* Always allow text wrapping */
+    word-wrap: break-word !important;  /* Break long words */
     outline: none !important;
-    display: block !important;  /* Override flex layout */
+    display: block !important;
     flex-direction: initial !important;
     align-items: initial !important;
     justify-content: initial !important;
+    position: absolute !important;  /* CRITICAL: absolute positioning so it doesn't affect layout flow */
+    resize: none !important;  /* Disable browser resize, use custom */
+    overflow: visible !important;
+}
+
+/* Custom resize handle for text labels */
+.text-label-resize-handle {
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    width: 16px;
+    height: 16px;
+    cursor: nwse-resize !important;
+    z-index: 1001;
+    background: transparent;  /* Hidden by default */
+    border-bottom-right-radius: 4px;
+    opacity: 0;  /* Hidden by default */
+    transition: opacity 0.2s ease;
+}
+
+/* Show resize handle only when text label is selected */
+.canvas-item.text-label.selected .text-label-resize-handle,
+.canvas-item.text-label.multi-selected .text-label-resize-handle {
+    opacity: 1;
+    background: linear-gradient(135deg, transparent 50%, rgba(59, 130, 246, 0.7) 50%);
+}
+
+.canvas-item.text-label.selected .text-label-resize-handle:hover,
+.canvas-item.text-label.multi-selected .text-label-resize-handle:hover {
+    background: linear-gradient(135deg, transparent 50%, rgba(59, 130, 246, 0.9) 50%);
 }
 
 /* Hide any child elements that might be added */
@@ -5264,7 +5318,8 @@ body.hide-mid-arrows svg .connection-mid-arrow {
     border-color: #00D4FF;
     border-style: solid;
     cursor: text;
-    white-space: pre-wrap;
+    white-space: pre-wrap !important;  /* Keep pre-wrap for editing */
+    word-wrap: break-word !important;
     min-width: 100px;
 }
 

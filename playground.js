@@ -2796,11 +2796,25 @@ class ArchitecturePlayground {
         label.className = 'canvas-item text-label';
         label.contentEditable = 'false';  // Start as NOT editable so dragging works
         label.textContent = 'Double-click to edit';
-        label.style.position = 'absolute';
+        label.style.position = 'absolute';  // Absolutely positioned - won't affect layout
         label.style.left = '100px';
         label.style.top = '100px';
+        label.style.width = '200px';  // Default width
+        label.style.height = 'auto';  // Auto height based on content
         label.style.zIndex = '1000';
         label.draggable = true;
+        
+        // Initialize dataset properties for toggling
+        label.dataset.lastBgColor = '#1a1a2e';  // Default background color
+        label.dataset.lastBorder = '1px dashed #666';  // Default border
+        
+        // Add resize handle
+        const resizeHandle = document.createElement('div');
+        resizeHandle.className = 'text-label-resize-handle';
+        label.appendChild(resizeHandle);
+        
+        // Setup resize functionality
+        this.setupTextLabelResize(label, resizeHandle);
 
         // Add to canvas
         canvas.appendChild(label);
@@ -2810,7 +2824,11 @@ class ArchitecturePlayground {
             id: labelId,
             element: label,
             type: 'text-label',
-            data: { name: 'Text Label', type: 'text' }
+            data: { 
+                name: 'Double-click to edit', 
+                text: 'Double-click to edit',
+                type: 'text' 
+            }
         });
 
         // Set up dragging (integrates with existing drag system)
@@ -2853,7 +2871,19 @@ class ArchitecturePlayground {
             if (label.textContent.trim() === '') {
                 label.textContent = 'Double-click to edit';
             }
+            
+            // Update the canvas item data to reflect the new text
+            const canvasItem = this.canvasItems.find(ci => ci.element === label);
+            if (canvasItem) {
+                canvasItem.data = {
+                    ...canvasItem.data,
+                    name: label.textContent,
+                    text: label.textContent
+                };
+            }
+            
             this.saveState('text-edit');
+            this.autosave(); // Ensure autosave after text edit
         });
 
         // Press Escape to stop editing
@@ -2896,6 +2926,84 @@ class ArchitecturePlayground {
         // Save state
         this.saveState('add-text-label');
         this.showNotification('Text label added - Drag to move, double-click to edit, Delete to remove', 'success');
+    }
+
+    // Setup resize functionality for text labels
+    setupTextLabelResize(label, resizeHandle) {
+        // Create a unique resize state for this specific label
+        const resizeState = {
+            isResizing: false,
+            startX: 0,
+            startY: 0,
+            startWidth: 0,
+            startHeight: 0,
+            targetLabel: label  // Explicitly store which label we're resizing
+        };
+        
+        const handleMouseDown = (e) => {
+            // Only proceed if clicking THIS specific resize handle
+            if (e.target !== resizeHandle) return;
+            
+            e.preventDefault();
+            e.stopPropagation();
+            
+            resizeState.isResizing = true;
+            resizeState.startX = e.clientX;
+            resizeState.startY = e.clientY;
+            resizeState.startWidth = resizeState.targetLabel.offsetWidth;
+            resizeState.startHeight = resizeState.targetLabel.offsetHeight;
+            
+            resizeState.targetLabel.draggable = false;  // Disable dragging while resizing
+            resizeState.targetLabel.style.cursor = 'nwse-resize';
+            
+            // Add listeners to document for this specific resize operation
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+        };
+        
+        const handleMouseMove = (e) => {
+            if (!resizeState.isResizing) return;
+            
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const deltaX = e.clientX - resizeState.startX;
+            const deltaY = e.clientY - resizeState.startY;
+            const newWidth = Math.max(100, resizeState.startWidth + deltaX);  // Minimum 100px
+            const newHeight = Math.max(30, resizeState.startHeight + deltaY);  // Minimum 30px
+            
+            // Only resize THIS specific label - use requestAnimationFrame for smooth resize
+            requestAnimationFrame(() => {
+                if (resizeState.targetLabel && resizeState.isResizing) {
+                    resizeState.targetLabel.style.width = newWidth + 'px';
+                    resizeState.targetLabel.style.height = newHeight + 'px';
+                }
+            });
+        };
+        
+        const handleMouseUp = (e) => {
+            if (!resizeState.isResizing) return;
+            
+            resizeState.isResizing = false;
+            resizeState.targetLabel.draggable = true;  // Re-enable dragging
+            resizeState.targetLabel.style.cursor = 'move';
+            
+            // Remove listeners
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            
+            // Only save state once at the end of resizing
+            this.saveState('resize-text-label');
+            this.autosave();
+        };
+        
+        // Attach mousedown to the resize handle
+        resizeHandle.addEventListener('mousedown', handleMouseDown);
+        
+        // Prevent click from bubbling
+        resizeHandle.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
     }
 
     // Toggle snap-to-grid
@@ -3155,18 +3263,67 @@ class ArchitecturePlayground {
     setBackgroundColor(color) {
         if (!this.selectedTextLabel) return;
         
+        // Store the color for toggling back from transparent
+        this.selectedTextLabel.dataset.lastBgColor = color;
+        
         this.selectedTextLabel.style.background = color;
         this.selectedTextLabel.style.border = '1px solid ' + color;
         this.saveState('text-format');
     }
 
-    setBackgroundTransparent() {
+    toggleBackgroundTransparent() {
         if (!this.selectedTextLabel) return;
         
-        this.selectedTextLabel.style.background = 'transparent';
-        this.selectedTextLabel.style.border = '1px dashed #666';
+        const currentBg = window.getComputedStyle(this.selectedTextLabel).backgroundColor;
+        const isTransparent = currentBg === 'rgba(0, 0, 0, 0)' || currentBg === 'transparent';
+        
+        if (isTransparent) {
+            // Restore last color or use default
+            const lastColor = this.selectedTextLabel.dataset.lastBgColor || '#1a1a2e';
+            this.selectedTextLabel.style.background = lastColor;
+            this.selectedTextLabel.style.border = '1px solid ' + lastColor;
+            this.showNotification('Background color restored', 'info');
+            
+            // Update the color picker
+            const bgColorPicker = document.getElementById('bg-color-picker');
+            if (bgColorPicker) {
+                bgColorPicker.value = lastColor;
+            }
+        } else {
+            // Save current color and make transparent
+            this.selectedTextLabel.dataset.lastBgColor = currentBg.startsWith('rgb') ? this.rgbToHex(currentBg) : currentBg;
+            this.selectedTextLabel.style.background = 'transparent';
+            this.selectedTextLabel.style.border = '1px dashed #666';
+            this.showNotification('Background set to transparent', 'info');
+        }
+        
         this.saveState('text-format');
-        this.showNotification('Background set to transparent', 'info');
+    }
+
+    toggleBorder() {
+        if (!this.selectedTextLabel) return;
+        
+        const currentBorder = window.getComputedStyle(this.selectedTextLabel).borderStyle;
+        const hasBorder = currentBorder !== 'none';
+        
+        if (hasBorder) {
+            // Save current border and remove it
+            this.selectedTextLabel.dataset.lastBorder = this.selectedTextLabel.style.border;
+            this.selectedTextLabel.style.border = 'none';
+            this.showNotification('Border hidden', 'info');
+        } else {
+            // Restore last border or use default
+            const lastBorder = this.selectedTextLabel.dataset.lastBorder || '1px dashed #666';
+            this.selectedTextLabel.style.border = lastBorder;
+            this.showNotification('Border shown', 'info');
+        }
+        
+        this.saveState('text-format');
+    }
+
+    setBackgroundTransparent() {
+        // Keep old function for backward compatibility, redirect to toggle
+        this.toggleBackgroundTransparent();
     }
 
     rgbToHex(rgb) {
@@ -4929,7 +5086,8 @@ class ArchitecturePlayground {
                     if (newName) ci.data.name = newName;
                 }
                 
-                return {
+                // For text labels, capture the actual text content
+                let itemData = {
                     id: ci.id,
                     type: ci.type,
                     data: ci.data || {},
@@ -4942,6 +5100,37 @@ class ArchitecturePlayground {
                     className: ci.element.className,
                     innerHTML: ci.element.innerHTML
                 };
+                
+                // Special handling for text labels - save the text content
+                if (ci.type === 'text-label' && ci.element) {
+                    itemData.data = {
+                        ...itemData.data,
+                        name: ci.element.textContent || 'Double-click to edit',
+                        text: ci.element.textContent || 'Double-click to edit',
+                        lastBgColor: ci.element.dataset.lastBgColor || null,
+                        lastBorder: ci.element.dataset.lastBorder || null
+                    };
+                    
+                    // Save inline styles for text labels
+                    itemData.style = {
+                        background: ci.element.style.background || '',
+                        border: ci.element.style.border || '',
+                        color: ci.element.style.color || '',
+                        fontSize: ci.element.style.fontSize || '',
+                        fontWeight: ci.element.style.fontWeight || '',
+                        whiteSpace: ci.element.style.whiteSpace || '',  // Save white-space if manually set
+                        width: ci.element.style.width || '',  // Save width for resizable labels
+                        height: ci.element.style.height || ''  // Save height for resizable labels
+                    };
+                    
+                    // Check if text contains newlines - if so, we need pre-wrap
+                    const hasNewlines = ci.element.textContent && ci.element.textContent.includes('\n');
+                    if (hasNewlines && !itemData.style.whiteSpace) {
+                        itemData.style.whiteSpace = 'pre-wrap';
+                    }
+                }
+                
+                return itemData;
             }),
             connections: serializedConnections,
             sources: this.sources || []
@@ -4981,6 +5170,16 @@ class ArchitecturePlayground {
             if (data.items && data.items.length > 0) {
                 localStorage.setItem('playground-autosave', JSON.stringify(data));
                 console.log('Autosaved:', data.items.length, 'items');
+                
+                // Debug: Log text labels being saved
+                const textLabels = data.items.filter(item => item.type === 'text-label');
+                if (textLabels.length > 0) {
+                    console.log('Text labels saved:', textLabels.map(tl => ({
+                        id: tl.id,
+                        text: tl.data?.text,
+                        name: tl.data?.name
+                    })));
+                }
             }
         } catch (e) {
             console.warn('Autosave failed:', e);
@@ -5021,6 +5220,16 @@ class ArchitecturePlayground {
             
             // Only restore if there's meaningful content
             if (data.items && data.items.length > 0) {
+                // Debug: Log text labels being restored
+                const textLabels = data.items.filter(item => item.type === 'text-label');
+                if (textLabels.length > 0) {
+                    console.log('Restoring text labels:', textLabels.map(tl => ({
+                        id: tl.id,
+                        text: tl.data?.text,
+                        name: tl.data?.name
+                    })));
+                }
+                
                 this.loadFromData(data);
                 this.showNotification(`Autosaved session restored (${data.items.length} items)`, 'info');
             }
@@ -5083,8 +5292,15 @@ class ArchitecturePlayground {
 
         // Recreate items using creation helpers to preserve classes, accents and structure
         (data.items || []).forEach(item => {
-            const px = item.position?.x || 0;
-            const py = item.position?.y || 0;
+            let px = item.position?.x || 0;
+            let py = item.position?.y || 0;
+            
+            // Safety check: if position is (0,0) or negative for text labels, use default visible position
+            if (item.type === 'text-label') {
+                if (px <= 0) px = 100;
+                if (py <= 0) py = 100;
+            }
+            
             const savedId = item.id || ('canvas-item-' + Date.now() + '-' + Math.random());
 
             try {
@@ -5092,25 +5308,59 @@ class ArchitecturePlayground {
                 if (item.type === 'text-label') {
                     const canvas = document.getElementById('fabric-canvas');
                     if (canvas) {
+                        const textToRestore = item.data?.name || item.data?.text || 'Double-click to edit';
+                        console.log('Creating text label with text:', textToRestore, 'at position:', px, py, 'from data:', item.data);
+                        
                         const label = document.createElement('div');
                         label.id = savedId;
                         label.className = 'canvas-item text-label';
                         label.contentEditable = 'false';
-                        label.textContent = item.data?.name || item.data?.text || 'Double-click to edit';
-                        label.style.position = 'absolute';
-                        label.style.left = px + 'px';
-                        label.style.top = py + 'px';
+                        label.textContent = textToRestore;
+                        label.style.position = 'absolute';  // Force absolute positioning
+                        label.style.left = (px || 100) + 'px';  // Fallback to 100px if no position
+                        label.style.top = (py || 100) + 'px';   // Fallback to 100px if no position
                         label.style.zIndex = '1000';
                         label.draggable = true;
                         
+                        // Restore saved styles if available
+                        if (item.style) {
+                            if (item.style.background) label.style.background = item.style.background;
+                            if (item.style.border) label.style.border = item.style.border;
+                            if (item.style.color) label.style.color = item.style.color;
+                            if (item.style.fontSize) label.style.fontSize = item.style.fontSize;
+                            if (item.style.fontWeight) label.style.fontWeight = item.style.fontWeight;
+                            if (item.style.whiteSpace) label.style.whiteSpace = item.style.whiteSpace;
+                            if (item.style.width) label.style.width = item.style.width;
+                            if (item.style.height) label.style.height = item.style.height;
+                        } else {
+                            // Default width if not saved
+                            label.style.width = '200px';
+                        }
+                        
+                        // Restore dataset properties
+                        if (item.data?.lastBgColor) label.dataset.lastBgColor = item.data.lastBgColor;
+                        if (item.data?.lastBorder) label.dataset.lastBorder = item.data.lastBorder;
+                        
+                        // Add resize handle
+                        const resizeHandle = document.createElement('div');
+                        resizeHandle.className = 'text-label-resize-handle';
+                        label.appendChild(resizeHandle);
+                        
                         canvas.appendChild(label);
+                        
+                        // Setup resize functionality
+                        this.setupTextLabelResize(label, resizeHandle);
                         
                         // Add to canvasItems
                         this.canvasItems.push({
                             id: savedId,
                             element: label,
                             type: 'text-label',
-                            data: { name: label.textContent, type: 'text' }
+                            data: { 
+                                name: label.textContent, 
+                                text: label.textContent,
+                                type: 'text' 
+                            }
                         });
                         
                         loadedItems.set(savedId, label);
@@ -5151,7 +5401,19 @@ class ArchitecturePlayground {
                             if (label.textContent.trim() === '') {
                                 label.textContent = 'Double-click to edit';
                             }
+                            
+                            // Update the canvas item data to reflect the new text
+                            const canvasItem = this.canvasItems.find(ci => ci.element === label);
+                            if (canvasItem) {
+                                canvasItem.data = {
+                                    ...canvasItem.data,
+                                    name: label.textContent,
+                                    text: label.textContent
+                                };
+                            }
+                            
                             this.saveState('text-edit');
+                            this.autosave(); // Ensure autosave after text edit
                         });
                         
                         label.addEventListener('keydown', (e) => {
@@ -5436,6 +5698,158 @@ function toggleTheme() {
     );
 }
 
+// ================= Presentation Mode =================
+function togglePresentationMode() {
+    const workspace = document.querySelector('.fabric-workspace');
+    const header = document.querySelector('.playground-header');
+    const toolbar = document.querySelector('.fabric-toolbar');
+    const palette = document.querySelector('.component-palette');
+    const inspector = document.querySelector('.inspector-panel');
+    const canvas = document.querySelector('.fabric-canvas');
+    const btn = event.currentTarget;
+    const icon = btn.querySelector('i');
+    
+    if (!workspace.classList.contains('presentation-mode')) {
+        // Enter presentation mode
+        workspace.classList.add('presentation-mode');
+        if (header) header.style.display = 'none';
+        if (toolbar) toolbar.style.display = 'none';
+        if (palette) palette.style.display = 'none';
+        if (inspector) inspector.style.display = 'none';
+        icon.classList.remove('fa-expand');
+        icon.classList.add('fa-compress');
+        btn.title = 'Exit Presentation Mode';
+        
+        // Auto-fit canvas content
+        setTimeout(() => {
+            fitCanvasToContent(canvas);
+        }, 100);
+        
+        // Make workspace fullscreen
+        if (workspace.requestFullscreen) {
+            workspace.requestFullscreen();
+        } else if (workspace.webkitRequestFullscreen) {
+            workspace.webkitRequestFullscreen();
+        } else if (workspace.msRequestFullscreen) {
+            workspace.msRequestFullscreen();
+        }
+    } else {
+        // Exit presentation mode
+        exitPresentationMode();
+    }
+}
+
+function fitCanvasToContent(canvas) {
+    if (!canvas) return;
+    
+    // Get all canvas items (cards, containers, text labels)
+    const items = canvas.querySelectorAll('.canvas-item, .text-label');
+    if (items.length === 0) return;
+    
+    // Calculate bounding box of all items
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    
+    items.forEach(item => {
+        const rect = item.getBoundingClientRect();
+        const canvasRect = canvas.getBoundingClientRect();
+        
+        // Convert to canvas-relative coordinates
+        const x = rect.left - canvasRect.left + canvas.scrollLeft;
+        const y = rect.top - canvasRect.top + canvas.scrollTop;
+        const right = x + rect.width;
+        const bottom = y + rect.height;
+        
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, right);
+        maxY = Math.max(maxY, bottom);
+    });
+    
+    // Add padding around content
+    const padding = 40;
+    minX -= padding;
+    minY -= padding;
+    maxX += padding;
+    maxY += padding;
+    
+    // Calculate content dimensions
+    const contentWidth = maxX - minX;
+    const contentHeight = maxY - minY;
+    
+    // Calculate scale to fit viewport
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    const scaleX = viewportWidth / contentWidth;
+    const scaleY = viewportHeight / contentHeight;
+    const scale = Math.min(scaleX, scaleY, 2); // Max 2x zoom
+    
+    // Calculate translation to center content
+    const translateX = -minX * scale + (viewportWidth - contentWidth * scale) / 2;
+    const translateY = -minY * scale + (viewportHeight - contentHeight * scale) / 2;
+    
+    // Apply transform
+    canvas.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+    canvas.style.transformOrigin = 'top left';
+}
+
+function exitPresentationMode() {
+    const workspace = document.querySelector('.fabric-workspace');
+    const header = document.querySelector('.playground-header');
+    const toolbar = document.querySelector('.fabric-toolbar');
+    const palette = document.querySelector('.component-palette');
+    const inspector = document.querySelector('.inspector-panel');
+    const canvas = document.querySelector('.fabric-canvas');
+    const btn = document.querySelector('[onclick="togglePresentationMode()"]');
+    
+    workspace.classList.remove('presentation-mode');
+    if (header) header.style.display = '';
+    if (toolbar) toolbar.style.display = '';
+    if (palette) palette.style.display = '';
+    if (inspector) inspector.style.display = '';
+    
+    // Reset canvas transform
+    if (canvas) {
+        canvas.style.transform = '';
+        canvas.style.transformOrigin = '';
+    }
+    
+    if (btn) {
+        const icon = btn.querySelector('i');
+        icon.classList.remove('fa-compress');
+        icon.classList.add('fa-expand');
+        btn.title = 'Presentation Mode - Fullscreen Canvas';
+    }
+    
+    // Exit fullscreen
+    if (document.exitFullscreen) {
+        document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+    } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+    }
+}
+
+// Listen for ESC key or fullscreen change to exit presentation mode
+document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) {
+        const workspace = document.querySelector('.fabric-workspace');
+        if (workspace && workspace.classList.contains('presentation-mode')) {
+            exitPresentationMode();
+        }
+    }
+});
+
+document.addEventListener('webkitfullscreenchange', () => {
+    if (!document.webkitFullscreenElement) {
+        const workspace = document.querySelector('.fabric-workspace');
+        if (workspace && workspace.classList.contains('presentation-mode')) {
+            exitPresentationMode();
+        }
+    }
+});
+
 // ================= Metadata Panel Controller (MVP) =================
 // Lightweight controller object attached to window for now.
 const metadataPanel = (function(){
@@ -5592,8 +6006,24 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 function clearCanvas() {
+    // Count current items
+    const itemCount = playground.canvasItems ? playground.canvasItems.length : 0;
+    const connectionCount = playground.connections ? playground.connections.length : 0;
+    
+    if (itemCount === 0 && connectionCount === 0) {
+        playground.showNotification('Canvas is already empty', 'info');
+        return;
+    }
+    
+    // Confirmation dialog
+    const message = `Are you sure you want to clear the canvas?\n\nThis will remove:\n• ${itemCount} item(s)\n• ${connectionCount} connection(s)\n\nThis action cannot be undone.`;
+    
+    if (!confirm(message)) {
+        return;
+    }
+    
     const canvas = document.getElementById('fabric-canvas');
-    const items = canvas.querySelectorAll('.canvas-item');
+    const items = canvas.querySelectorAll('.canvas-item, .text-label');
     items.forEach(item => item.remove());
     
     playground.canvasItems = [];
@@ -5603,7 +6033,7 @@ function clearCanvas() {
         playground.connectionSvg.innerHTML = '';
     }
     
-    playground.showNotification('Canvas cleared', 'info');
+    playground.showNotification('Canvas cleared', 'success');
 }
 
 function exportCanvas() {
@@ -6191,24 +6621,108 @@ async function exportPDF(options={}) {
 
         await ensureLibs();
         const jsPDF = window.jspdf.jsPDF;
+        
+        // Use the same high-quality capture method as PNG/HTML export
         let canvas = null;
-        try { canvas = await capture(false); }
-        catch(e1){
-            console.warn('[PDF] Normal capture failed', e1);
-            try { canvas = await capture(true); }
-            catch(e2){
-                console.warn('[PDF] Sanitized capture failed', e2);
-                try { canvas = await capturePlainSafe(); }
-                catch(e3){
+        try {
+            // Always sanitize CSS to avoid oklab/lab/lch errors (same as PNG export)
+            const captureCanvas = async (sanitize = true) => {
+                const canvasEl = document.getElementById('fabric-canvas');
+                if (!canvasEl) throw new Error('Canvas not found');
+                
+                let mutated = [];
+                if (sanitize) {
+                    const disallow = /(oklab|lab\(|lch|conic-gradient|repeating-conic-gradient|color-mix)/i;
+                    const all = canvasEl.querySelectorAll('*');
+                    all.forEach(el => {
+                        const style = window.getComputedStyle(el);
+                        const bgImg = style.backgroundImage;
+                        const bgCol = style.backgroundColor;
+                        const color = style.color;
+                        const borderColor = style.borderColor;
+                        const outlineColor = style.outlineColor;
+                        const boxShadow = style.boxShadow;
+                        const textShadow = style.textShadow;
+                        
+                        if (bgImg && disallow.test(bgImg)) {
+                            mutated.push({el, prop:'backgroundImage', value: el.style.backgroundImage});
+                            el.style.backgroundImage = 'none';
+                            mutated.push({el, prop:'backgroundColor', value: el.style.backgroundColor});
+                            el.style.backgroundColor = '#1e1f25';
+                        } else if (bgCol && disallow.test(bgCol)) {
+                            mutated.push({el, prop:'backgroundColor', value: el.style.backgroundColor});
+                            el.style.backgroundColor = '#1e1f25';
+                        }
+                        
+                        if (color && disallow.test(color)) {
+                            mutated.push({el, prop:'color', value: el.style.color});
+                            el.style.color = '#ffffff';
+                        }
+                        
+                        if (borderColor && disallow.test(borderColor)) {
+                            mutated.push({el, prop:'borderColor', value: el.style.borderColor});
+                            el.style.borderColor = '#3b82f6';
+                        }
+                        
+                        if (outlineColor && disallow.test(outlineColor)) {
+                            mutated.push({el, prop:'outlineColor', value: el.style.outlineColor});
+                            el.style.outlineColor = '#3b82f6';
+                        }
+                        
+                        if (boxShadow && disallow.test(boxShadow)) {
+                            mutated.push({el, prop:'boxShadow', value: el.style.boxShadow});
+                            el.style.boxShadow = 'none';
+                        }
+                        
+                        if (textShadow && disallow.test(textShadow)) {
+                            mutated.push({el, prop:'textShadow', value: el.style.textShadow});
+                            el.style.textShadow = 'none';
+                        }
+                    });
+                }
+                
+                try {
+                    return await html2canvas(canvasEl, {
+                        backgroundColor: '#1e1f25',
+                        scale: 3, // High quality 3x scale
+                        logging: false,
+                        useCORS: true,
+                        foreignObjectRendering: false
+                    });
+                } finally {
+                    mutated.forEach(m => { m.el.style[m.prop] = m.value; });
+                }
+            };
+            
+            // Always use sanitization for PDF export
+            canvas = await captureCanvas(true);
+            
+        } catch(e1) {
+            console.warn('[PDF] High-quality capture failed', e1);
+            try { 
+                canvas = await capture(true); 
+            } catch(e2) {
+                console.warn('[PDF] Fallback capture failed', e2);
+                try { 
+                    canvas = await capturePlainSafe(); 
+                } catch(e3) {
                     console.warn('[PDF] Plain safe capture failed', e3);
-                    try { const svgData = buildSVGImage(); canvas = await svgToCanvas(svgData); }
-                    catch(e4){
+                    try { 
+                        const svgData = buildSVGImage(); 
+                        canvas = await svgToCanvas(svgData); 
+                    } catch(e4) {
                         console.warn('[PDF] SVG reconstruction failed, emitting text-only PDF', e4);
                         const doc = new jsPDF({orientation:'landscape', unit:'pt', format:'a4'});
-                        doc.setFontSize(14); doc.text('InfiniBI Studio Snapshot (Text Fallback)', 40,40);
+                        doc.setFontSize(14); 
+                        doc.text('InfiniBI Studio Snapshot (Text Fallback)', 40,40);
                         const data = playground.serialize();
-                        doc.setFontSize(10); let y=60;
-                        data.items.forEach(it=>{ if(y>520){doc.addPage(); y=40;} doc.text(`- ${it.id}: ${it.data?.name||it.type||'Item'}`,40,y); y+=14; });
+                        doc.setFontSize(10); 
+                        let y=60;
+                        data.items.forEach(it=>{ 
+                            if(y>520){doc.addPage(); y=40;} 
+                            doc.text(`- ${it.id}: ${it.data?.name||it.type||'Item'}`,40,y); 
+                            y+=14; 
+                        });
                         doc.save('bi-architecture-fallback.pdf');
                         playground.showNotification('PDF (text-only fallback) exported','info');
                         return;
@@ -6216,59 +6730,78 @@ async function exportPDF(options={}) {
                 }
             }
         }
+        
         if(!canvas) throw new Error('Canvas capture failed at all stages');
+        
+        // Auto-crop using DOM-based bounds (same as PNG/HTML export)
         const cropToContent = (baseCanvas, opts = {}) => {
             try {
-                const pad = opts.pad ?? 60; // a bit more padding to avoid clipped arrows
+                const scale = opts.scale ?? 3; // Same 3x scale as PNG/HTML exports
+                const pad = opts.pad ?? 20; // Padding in DOM pixels
+                
                 const items = Array.from(document.querySelectorAll('#fabric-canvas .canvas-item'))
-                    .filter(el => el.offsetWidth && el.offsetHeight && window.getComputedStyle(el).visibility !== 'hidden' && window.getComputedStyle(el).opacity !== '0');
+                    .filter(el => el.offsetWidth && el.offsetHeight && 
+                                  window.getComputedStyle(el).visibility !== 'hidden' && 
+                                  window.getComputedStyle(el).opacity !== '0');
+                
                 if(!items.length) return baseCanvas;
-                // Collect bounds
-                const bounds = items.map(el => {
-                    const x = parseInt(el.style.left||'0',10);
-                    const y = parseInt(el.style.top||'0',10);
-                    return { x, y, w: el.offsetWidth, h: el.offsetHeight, bottom: y + el.offsetHeight, right: x + el.offsetWidth };
+                
+                // Calculate bounds in DOM coordinates
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                
+                items.forEach(el => {
+                    const rect = el.getBoundingClientRect();
+                    const container = document.getElementById('fabric-canvas');
+                    const containerRect = container.getBoundingClientRect();
+                    
+                    const x = rect.left - containerRect.left;
+                    const y = rect.top - containerRect.top;
+                    const w = rect.width;
+                    const h = rect.height;
+                    
+                    minX = Math.min(minX, x);
+                    minY = Math.min(minY, y);
+                    maxX = Math.max(maxX, x + w);
+                    maxY = Math.max(maxY, y + h);
                 });
-                // Detect vertical outlier (e.g., stray node far below causing huge blank area)
-                if(bounds.length > 3){
-                    const bottomsSorted = [...bounds].sort((a,b)=>a.bottom-b.bottom);
-                    const last = bottomsSorted[bottomsSorted.length-1];
-                    const prev = bottomsSorted[bottomsSorted.length-2];
-                    if(last.bottom - prev.bottom > 400){
-                        // treat last as outlier; remove from bounds for cropping but keep slight inclusion
-                        const idx = bounds.indexOf(last);
-                        if(idx>-1) bounds.splice(idx,1);
-                    }
+                
+                if(!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) {
+                    return baseCanvas;
                 }
-                let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
-                bounds.forEach(b=>{ minX=Math.min(minX,b.x); minY=Math.min(minY,b.y); maxX=Math.max(maxX,b.right); maxY=Math.max(maxY,b.bottom); });
-                // Also include connection SVG paths/lines if present so arrows aren't chopped
-                const connSvg = document.querySelector('#fabric-canvas svg, #connections svg, #connection-layer svg, #connections-layer');
-                if(connSvg){
-                    try {
-                        const svgRect = connSvg.getBoundingClientRect();
-                        // Convert viewport coords to canvas coords by comparing a reference element
-                        const canvasRect = document.querySelector('#fabric-canvas').getBoundingClientRect();
-                        const relX = svgRect.left - canvasRect.left;
-                        const relY = svgRect.top - canvasRect.top;
-                        if(isFinite(relX) && isFinite(relY)){
-                            minX = Math.min(minX, relX);
-                            minY = Math.min(minY, relY);
-                            maxX = Math.max(maxX, relX + svgRect.width);
-                            maxY = Math.max(maxY, relY + svgRect.height);
-                        }
-                    } catch(svgErr){ console.warn('Connection SVG bounds failed', svgErr); }
-                }
-                if(!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) return baseCanvas;
-                const cw = (maxX - minX) + pad*2; const ch = (maxY - minY) + pad*2;
-                const crop = document.createElement('canvas'); crop.width = Math.max(50, cw); crop.height = Math.max(50, ch);
+                
+                // Add padding and convert to canvas coordinates (scaled)
+                const cropX = (minX - pad) * scale;
+                const cropY = (minY - pad) * scale;
+                const cropW = (maxX - minX + pad * 2) * scale;
+                const cropH = (maxY - minY + pad * 2) * scale;
+                
+                // Create cropped canvas
+                const crop = document.createElement('canvas');
+                crop.width = Math.max(50, Math.round(cropW));
+                crop.height = Math.max(50, Math.round(cropH));
+                
                 const ctx = crop.getContext('2d');
-                ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-                ctx.fillStyle = '#1e1f25'; ctx.fillRect(0,0,crop.width,crop.height);
-                ctx.drawImage(baseCanvas, -minX + pad, -minY + pad);
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.fillStyle = '#1e1f25';
+                ctx.fillRect(0, 0, crop.width, crop.height);
+                
+                // Draw cropped region from source canvas
+                ctx.drawImage(
+                    baseCanvas,
+                    cropX, cropY, cropW, cropH, // Source rectangle
+                    0, 0, crop.width, crop.height // Destination rectangle
+                );
+                
                 return crop;
-            } catch(e){ console.warn('Crop to content failed, using full canvas', e); return baseCanvas; }
+            } catch(e) { 
+                console.warn('Crop to content failed, using full canvas', e); 
+                return baseCanvas; 
+            }
         };
+        
+        // Apply high-quality auto-crop to the captured canvas
+        canvas = cropToContent(canvas, { scale: 3, pad: 20 });
 
         if (quick) {
             // Synthetic renderer for consistent styled snapshot (avoids html2canvas CSS loss)
@@ -6773,6 +7306,108 @@ function loadCanvas() {
         }
     }
 
+}
+
+// ================= Template Management =================
+function saveAsTemplate() {
+    try {
+        const data = playground.serialize();
+        
+        if (!data || !data.items || data.items.length === 0) {
+            playground.showNotification('Canvas is empty - nothing to save as template', 'warning');
+            return;
+        }
+        
+        // Prompt for template name
+        const templateName = prompt('Enter a name for this template:', 'My Architecture Template');
+        if (!templateName) return;
+        
+        // Create template object with metadata
+        const template = {
+            name: templateName,
+            description: `Template created on ${new Date().toLocaleDateString()}`,
+            created: new Date().toISOString(),
+            itemCount: data.items.length,
+            connectionCount: data.connections.length,
+            data: data
+        };
+        
+        // Get existing templates
+        let templates = [];
+        try {
+            const stored = localStorage.getItem('canvas-templates');
+            if (stored) {
+                templates = JSON.parse(stored);
+            }
+        } catch (e) {
+            console.error('Error loading existing templates:', e);
+        }
+        
+        // Add new template
+        templates.push(template);
+        
+        // Save back to localStorage
+        localStorage.setItem('canvas-templates', JSON.stringify(templates));
+        
+        playground.showNotification(`Template "${templateName}" saved (${data.items.length} items)`, 'success');
+        
+    } catch (e) {
+        console.error('Save template failed:', e);
+        playground.showNotification('Save template failed: ' + e.message, 'error');
+    }
+}
+
+function loadTemplate() {
+    try {
+        // Get saved templates
+        const stored = localStorage.getItem('canvas-templates');
+        if (!stored) {
+            playground.showNotification('No templates found. Save your current canvas as a template first!', 'info');
+            return;
+        }
+        
+        const templates = JSON.parse(stored);
+        if (!templates || templates.length === 0) {
+            playground.showNotification('No templates available', 'warning');
+            return;
+        }
+        
+        // Create template selection dialog
+        let message = 'Select a template to load:\n\n';
+        templates.forEach((template, index) => {
+            message += `${index + 1}. ${template.name}\n`;
+            message += `   Created: ${new Date(template.created).toLocaleDateString()}\n`;
+            message += `   Items: ${template.itemCount}, Connections: ${template.connectionCount}\n\n`;
+        });
+        message += `\nEnter template number (1-${templates.length}), or 0 to cancel:`;
+        
+        const selection = prompt(message, '1');
+        if (!selection || selection === '0') return;
+        
+        const index = parseInt(selection) - 1;
+        if (index < 0 || index >= templates.length) {
+            playground.showNotification('Invalid template number', 'error');
+            return;
+        }
+        
+        const template = templates[index];
+        
+        // Ask for confirmation if canvas is not empty
+        const currentData = playground.serialize();
+        if (currentData && currentData.items && currentData.items.length > 0) {
+            if (!confirm(`This will replace your current canvas (${currentData.items.length} items). Continue?`)) {
+                return;
+            }
+        }
+        
+        // Load the template
+        playground.loadFromData(template.data);
+        playground.showNotification(`Template "${template.name}" loaded`, 'success');
+        
+    } catch (e) {
+        console.error('Load template failed:', e);
+        playground.showNotification('Load template failed: ' + e.message, 'error');
+    }
 }
 
 function handleItemTypeSelection() {
@@ -7295,17 +7930,182 @@ async function exportToPNG() {
             playground.showNotification('Generating PNG image...', 'info');
         }
 
-        // Capture canvas with high quality settings
-        const canvas = await html2canvas(canvasEl, {
-            backgroundColor: '#1e1f25',
-            scale: 2, // Higher resolution
-            logging: false,
-            useCORS: true,
-            foreignObjectRendering: true
-        });
+        // Use the same capture settings as HTML export for consistency
+        const captureCanvas = async (withSanitize = false) => {
+            let mutated = [];
+            
+            if (withSanitize) {
+                const disallow = /(oklab|lab\(|lch|conic-gradient|repeating-conic-gradient|color-mix)/i;
+                const all = canvasEl.querySelectorAll('*');
+                
+                all.forEach(el => {
+                    const style = window.getComputedStyle(el);
+                    
+                    // Fix background image
+                    const bgImg = style.backgroundImage;
+                    if (bgImg && bgImg !== 'none' && disallow.test(bgImg)) {
+                        mutated.push({el, prop:'backgroundImage', value: el.style.backgroundImage});
+                        el.style.backgroundImage = 'none';
+                    }
+                    
+                    // Fix background color
+                    const bgCol = style.backgroundColor;
+                    if (bgCol && disallow.test(bgCol)) {
+                        mutated.push({el, prop:'backgroundColor', value: el.style.backgroundColor});
+                        el.style.backgroundColor = '#1e1f25';
+                    }
+                    
+                    // Fix text color
+                    const color = style.color;
+                    if (color && disallow.test(color)) {
+                        mutated.push({el, prop:'color', value: el.style.color});
+                        el.style.color = '#ffffff';
+                    }
+                    
+                    // Fix border color
+                    const borderColor = style.borderColor;
+                    if (borderColor && disallow.test(borderColor)) {
+                        mutated.push({el, prop:'borderColor', value: el.style.borderColor});
+                        el.style.borderColor = '#3b82f6';
+                    }
+                    
+                    // Fix outline color
+                    const outlineColor = style.outlineColor;
+                    if (outlineColor && disallow.test(outlineColor)) {
+                        mutated.push({el, prop:'outlineColor', value: el.style.outlineColor});
+                        el.style.outlineColor = '#3b82f6';
+                    }
+                    
+                    // Fix box shadow
+                    const boxShadow = style.boxShadow;
+                    if (boxShadow && boxShadow !== 'none' && disallow.test(boxShadow)) {
+                        mutated.push({el, prop:'boxShadow', value: el.style.boxShadow});
+                        el.style.boxShadow = 'none';
+                    }
+                    
+                    // Fix text shadow
+                    const textShadow = style.textShadow;
+                    if (textShadow && textShadow !== 'none' && disallow.test(textShadow)) {
+                        mutated.push({el, prop:'textShadow', value: el.style.textShadow});
+                        el.style.textShadow = 'none';
+                    }
+                });
+            }
+            
+            try {
+                return await html2canvas(canvasEl, {
+                    backgroundColor: '#1a1c22',
+                    scale: 3,  // Match HTML export quality
+                    logging: false,
+                    useCORS: true,
+                    foreignObjectRendering: false,  // Match HTML export
+                    ignoreElements: (element) => {
+                        // Ignore elements that might cause issues
+                        return element.classList?.contains('text-format-toolbar') ||
+                               element.classList?.contains('component-palette');
+                    }
+                });
+            } finally {
+                mutated.forEach(m => {
+                    m.el.style[m.prop] = m.value;
+                });
+            }
+        };
 
-        // Convert canvas to blob
-        canvas.toBlob(blob => {
+        // Always use sanitization to avoid oklab errors
+        let canvas;
+        try {
+            console.log('Capturing PNG with CSS sanitization...');
+            canvas = await captureCanvas(true);  // Always sanitize
+        } catch (error) {
+            throw new Error('Canvas capture failed: ' + error.message);
+        }
+
+        // Auto-crop to remove empty space (same as HTML export)
+        const cropToContent = (baseCanvas, opts = {}) => {
+            try {
+                const pad = opts.pad ?? 20;
+                const scale = opts.scale ?? 3;
+                
+                const items = Array.from(document.querySelectorAll('#fabric-canvas .canvas-item'))
+                    .filter(el => el.offsetWidth && el.offsetHeight && 
+                           window.getComputedStyle(el).visibility !== 'hidden' && 
+                           window.getComputedStyle(el).opacity !== '0');
+                
+                if (!items.length) {
+                    console.warn('No visible items found for cropping');
+                    return baseCanvas;
+                }
+                
+                const bounds = items.map(el => {
+                    const x = parseInt(el.style.left || '0', 10);
+                    const y = parseInt(el.style.top || '0', 10);
+                    return { 
+                        x, 
+                        y, 
+                        w: el.offsetWidth, 
+                        h: el.offsetHeight, 
+                        bottom: y + el.offsetHeight, 
+                        right: x + el.offsetWidth 
+                    };
+                });
+                
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                bounds.forEach(b => {
+                    minX = Math.min(minX, b.x);
+                    minY = Math.min(minY, b.y);
+                    maxX = Math.max(maxX, b.right);
+                    maxY = Math.max(maxY, b.bottom);
+                });
+                
+                if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) {
+                    console.warn('Invalid bounds calculated, using original canvas');
+                    return baseCanvas;
+                }
+                
+                const scaledMinX = minX * scale;
+                const scaledMinY = minY * scale;
+                const scaledMaxX = maxX * scale;
+                const scaledMaxY = maxY * scale;
+                const scaledPad = pad * scale;
+                
+                const cw = (scaledMaxX - scaledMinX) + scaledPad * 2;
+                const ch = (scaledMaxY - scaledMinY) + scaledPad * 2;
+                
+                const crop = document.createElement('canvas');
+                crop.width = Math.max(50, Math.round(cw));
+                crop.height = Math.max(50, Math.round(ch));
+                const ctx = crop.getContext('2d');
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.fillStyle = '#1a1c22';
+                ctx.fillRect(0, 0, crop.width, crop.height);
+                
+                ctx.drawImage(
+                    baseCanvas,
+                    scaledMinX - scaledPad,
+                    scaledMinY - scaledPad,
+                    crop.width,
+                    crop.height,
+                    0,
+                    0,
+                    crop.width,
+                    crop.height
+                );
+                
+                return crop;
+            } catch (e) {
+                console.warn('Crop to content failed, using full canvas', e);
+                return baseCanvas;
+            }
+        };
+
+        // Crop the canvas to content
+        const croppedCanvas = cropToContent(canvas, { pad: 20, scale: 3 });
+        console.log('PNG cropped from', canvas.width, 'x', canvas.height, 'to', croppedCanvas.width, 'x', croppedCanvas.height);
+
+        // Convert canvas to blob with high quality
+        croppedCanvas.toBlob(blob => {
             // Create download link
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -7428,7 +8228,7 @@ async function exportToHTML() {
             try {
                 return await html2canvas(canvasEl, {
                     backgroundColor: '#1a1c22',
-                    scale: 1.5,
+                    scale: 3,  // Increased from 1.5 to 3 for higher quality (2x resolution boost)
                     logging: false,
                     useCORS: true,
                     foreignObjectRendering: false
@@ -7461,7 +8261,7 @@ async function exportToHTML() {
         const cropToContent = (baseCanvas, opts = {}) => {
             try {
                 const pad = opts.pad ?? 40; // padding around content
-                const scale = opts.scale ?? 1.5; // Scale factor used by html2canvas
+                const scale = opts.scale ?? 3; // Scale factor used by html2canvas (updated to 3)
                 
                 const items = Array.from(document.querySelectorAll('#fabric-canvas .canvas-item'))
                     .filter(el => el.offsetWidth && el.offsetHeight && 
@@ -7565,11 +8365,11 @@ async function exportToHTML() {
         };
 
         // Crop the canvas to content (pass the scale factor used in html2canvas)
-        const croppedCanvas = cropToContent(canvas, { pad: 20, scale: 1.5 });
+        const croppedCanvas = cropToContent(canvas, { pad: 20, scale: 3 });
         console.log('Cropped from', canvas.width, 'x', canvas.height, 'to', croppedCanvas.width, 'x', croppedCanvas.height);
 
-        // Convert cropped canvas to base64 data URL with compression
-        const imageDataUrl = croppedCanvas.toDataURL('image/jpeg', 0.95);
+        // Convert cropped canvas to base64 data URL - use PNG for lossless quality
+        const imageDataUrl = croppedCanvas.toDataURL('image/png');  // Changed from JPEG to PNG for lossless quality
         console.log('Image data URL length:', imageDataUrl.length, 'bytes');
 
         // Get metadata
@@ -7812,13 +8612,8 @@ async function exportToHTML() {
             console.log('Image loaded successfully!');
             console.log('Image dimensions:', this.naturalWidth, 'x', this.naturalHeight);
             
-            // Calculate scale to fit the diagram in the wrapper
-            const wrapperRect = wrapper.getBoundingClientRect();
-            const scaleX = wrapperRect.width / this.naturalWidth;
-            const scaleY = wrapperRect.height / this.naturalHeight;
-            
-            // Use the smaller scale to ensure the entire diagram fits
-            currentZoom = Math.min(scaleX, scaleY, 1); // Don't zoom in beyond 100%
+            // Start at 100% zoom (1:1) - this matches "Reset Zoom" behavior
+            currentZoom = 1;
             
             // Center the diagram
             panX = 0;
@@ -7935,6 +8730,538 @@ async function exportToHTML() {
         console.error('HTML export failed:', error);
         if (playground && playground.showNotification) {
             playground.showNotification('HTML export failed: ' + error.message, 'error');
+        }
+    }
+}
+
+// Export animated interactive HTML with live diagram
+async function exportAnimatedHTML() {
+    try {
+        // Prompt user for diagram name
+        const diagramName = prompt('Enter a name for this animated diagram:', 'BI Architecture Diagram');
+        if (diagramName === null) {
+            return; // User cancelled
+        }
+        
+        const finalName = diagramName.trim() || 'BI Architecture Diagram';
+        
+        if (playground && playground.showNotification) {
+            playground.showNotification('Generating animated HTML export with canvas capture...', 'info');
+        }
+        
+        // Ensure html2canvas is loaded
+        if (typeof html2canvas === 'undefined') {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+            await new Promise((resolve, reject) => {
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+        
+        // Capture the canvas as high-quality image (same as PNG export)
+        const canvasEl = document.getElementById('fabric-canvas');
+        if (!canvasEl) {
+            throw new Error('Canvas element not found');
+        }
+        
+        // Helper function to capture with CSS sanitization
+        const captureCanvas = async (sanitize = true) => {
+            let mutated = [];
+            
+            // Hide connection SVG during capture so we can redraw them animated
+            const connectionSvg = document.querySelector('#connections-svg, #connection-layer, svg[id*="connection"]');
+            let svgDisplay = null;
+            if (connectionSvg) {
+                svgDisplay = connectionSvg.style.display;
+                connectionSvg.style.display = 'none';
+            }
+            
+            if (sanitize) {
+                const disallow = /(oklab|lab\(|lch|conic-gradient|repeating-conic-gradient|color-mix)/i;
+                const all = canvasEl.querySelectorAll('*');
+                
+                all.forEach(el => {
+                    const style = window.getComputedStyle(el);
+                    const bgImg = style.backgroundImage;
+                    const bgCol = style.backgroundColor;
+                    const color = style.color;
+                    const borderColor = style.borderColor;
+                    const outlineColor = style.outlineColor;
+                    const boxShadow = style.boxShadow;
+                    const textShadow = style.textShadow;
+                    
+                    if (bgImg && disallow.test(bgImg)) {
+                        mutated.push({el, prop:'backgroundImage', value: el.style.backgroundImage});
+                        el.style.backgroundImage = 'none';
+                        mutated.push({el, prop:'backgroundColor', value: el.style.backgroundColor});
+                        el.style.backgroundColor = '#1e1f25';
+                    } else if (bgCol && disallow.test(bgCol)) {
+                        mutated.push({el, prop:'backgroundColor', value: el.style.backgroundColor});
+                        el.style.backgroundColor = '#1e1f25';
+                    }
+                    
+                    if (color && disallow.test(color)) {
+                        mutated.push({el, prop:'color', value: el.style.color});
+                        el.style.color = '#ffffff';
+                    }
+                    
+                    if (borderColor && disallow.test(borderColor)) {
+                        mutated.push({el, prop:'borderColor', value: el.style.borderColor});
+                        el.style.borderColor = '#3b82f6';
+                    }
+                    
+                    if (outlineColor && disallow.test(outlineColor)) {
+                        mutated.push({el, prop:'outlineColor', value: el.style.outlineColor});
+                        el.style.outlineColor = '#3b82f6';
+                    }
+                    
+                    if (boxShadow && disallow.test(boxShadow)) {
+                        mutated.push({el, prop:'boxShadow', value: el.style.boxShadow});
+                        el.style.boxShadow = 'none';
+                    }
+                    
+                    if (textShadow && disallow.test(textShadow)) {
+                        mutated.push({el, prop:'textShadow', value: el.style.textShadow});
+                        el.style.textShadow = 'none';
+                    }
+                });
+            }
+            
+            try {
+                return await html2canvas(canvasEl, {
+                    backgroundColor: '#1a1c22',
+                    scale: 3,
+                    logging: false,
+                    useCORS: true,
+                    foreignObjectRendering: false
+                });
+            } finally {
+                // Restore connection SVG
+                if (connectionSvg && svgDisplay !== null) {
+                    connectionSvg.style.display = svgDisplay;
+                }
+                // Restore other styles
+                mutated.forEach(m => { m.el.style[m.prop] = m.value; });
+            }
+        };
+        
+        // Capture canvas with sanitization
+        let canvas = await captureCanvas(true);
+        
+        // Auto-crop to content
+        const cropToContent = (baseCanvas, opts = {}) => {
+            try {
+                const scale = opts.scale ?? 3;
+                const pad = opts.pad ?? 20;
+                
+                const items = Array.from(document.querySelectorAll('#fabric-canvas .canvas-item'))
+                    .filter(el => el.offsetWidth && el.offsetHeight && 
+                                  window.getComputedStyle(el).visibility !== 'hidden' && 
+                                  window.getComputedStyle(el).opacity !== '0');
+                
+                if(!items.length) return baseCanvas;
+                
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                
+                items.forEach(el => {
+                    const rect = el.getBoundingClientRect();
+                    const container = document.getElementById('fabric-canvas');
+                    const containerRect = container.getBoundingClientRect();
+                    
+                    const x = rect.left - containerRect.left;
+                    const y = rect.top - containerRect.top;
+                    const w = rect.width;
+                    const h = rect.height;
+                    
+                    minX = Math.min(minX, x);
+                    minY = Math.min(minY, y);
+                    maxX = Math.max(maxX, x + w);
+                    maxY = Math.max(maxY, y + h);
+                });
+                
+                if(!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) {
+                    return baseCanvas;
+                }
+                
+                const cropX = (minX - pad) * scale;
+                const cropY = (minY - pad) * scale;
+                const cropW = (maxX - minX + pad * 2) * scale;
+                const cropH = (maxY - minY + pad * 2) * scale;
+                
+                const crop = document.createElement('canvas');
+                crop.width = Math.max(50, Math.round(cropW));
+                crop.height = Math.max(50, Math.round(cropH));
+                
+                const ctx = crop.getContext('2d');
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.fillStyle = '#1a1c22';
+                ctx.fillRect(0, 0, crop.width, crop.height);
+                
+                ctx.drawImage(
+                    baseCanvas,
+                    cropX, cropY, cropW, cropH,
+                    0, 0, crop.width, crop.height
+                );
+                
+                return crop;
+            } catch(e) { 
+                console.warn('Crop failed, using full canvas', e); 
+                return baseCanvas; 
+            }
+        };
+        
+        // Crop the canvas
+        const croppedCanvas = cropToContent(canvas, { scale: 3, pad: 20 });
+        
+        // Convert to data URL
+        const imageDataUrl = croppedCanvas.toDataURL('image/png');
+        
+        // Serialize the current diagram data
+        const data = playground.serialize();
+        
+        // Extract all CSS animations and styles needed
+        const styleElement = document.querySelector('style, link[rel="stylesheet"]');
+        
+        // Build the animated HTML with captured canvas image
+        const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${finalName} - Interactive</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            background: #0a0b0f;
+            color: #ffffff;
+            overflow: hidden;
+        }
+        
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+            padding: 12px 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 18px;
+            font-weight: 700;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .controls button {
+            background: #3b82f6;
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+        
+        .controls button:hover {
+            background: #2563eb;
+        }
+        
+        #canvas-container {
+            position: fixed;
+            top: 50px;
+            left: 0;
+            right: 0;
+            bottom: 40px;
+            background: linear-gradient(135deg, #0a0b0f 0%, #1a1c22 100%);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #diagram-wrapper {
+            position: relative;
+            transform-origin: 0 0;
+            transition: transform 0.3s ease;
+        }
+        
+        #diagram-image {
+            display: block;
+            max-width: none;
+            height: auto;
+        }
+        
+        /* Animated connection overlay */
+        #connection-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        /* Connection line (white/grey with animated dashes) */
+        .connection-line {
+            stroke: rgba(255, 255, 255, 0.6);
+            stroke-width: 2;
+            fill: none;
+            stroke-dasharray: 8 4;
+            animation: connection-flow 3s linear infinite;
+        }
+        
+        @keyframes connection-flow {
+            0% { stroke-dashoffset: 0; }
+            100% { stroke-dashoffset: -100; }
+        }
+        
+        body.no-animation .connection-line {
+            animation: none;
+        }
+        
+        .connection-arrow {
+            fill: rgba(255, 255, 255, 0.6);
+        }
+        
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(31, 41, 55, 0.95);
+            padding: 8px 20px;
+            text-align: center;
+            font-size: 11px;
+            color: #9ca3af;
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>${finalName}</h1>
+        <div class="controls">
+            <button onclick="toggleAnimation()">⏯️ Toggle Animation</button>
+            <button onclick="zoomIn()">🔍 Zoom In</button>
+            <button onclick="zoomOut()">🔍 Zoom Out</button>
+            <button onclick="fitToScreen()">↔️ Fit Screen</button>
+            <button onclick="resetView()">↺ Reset</button>
+        </div>
+    </div>
+    
+    <div id="canvas-container">
+        <div id="diagram-wrapper">
+            <img id="diagram-image" src="${imageDataUrl}" alt="${finalName}">
+            <svg id="connection-overlay"></svg>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <strong>InfiniBI Studio</strong> - Interactive Architecture Diagram | Generated ${new Date().toLocaleDateString()} | ${data.items.length} Components, ${data.connections.length} Connections
+    </div>
+    
+    <script>
+        // Embedded diagram data for connection animations
+        const diagramData = ${JSON.stringify(data, null, 2)};
+        
+        let currentZoom = 1;
+        let panX = 0;
+        let panY = 0;
+        let isPanning = false;
+        let startX = 0;
+        let startY = 0;
+        
+        const wrapper = document.getElementById('diagram-wrapper');
+        const image = document.getElementById('diagram-image');
+        const svg = document.getElementById('connection-overlay');
+        const container = document.getElementById('canvas-container');
+        
+        // Wait for image to load
+        image.onload = function() {
+            // Set SVG to match image dimensions
+            svg.setAttribute('width', image.naturalWidth);
+            svg.setAttribute('height', image.naturalHeight);
+            svg.style.width = image.width + 'px';
+            svg.style.height = image.height + 'px';
+            
+            // Fit to screen initially
+            fitToScreen();
+            
+            // Render animated connections
+            renderConnections();
+        };
+        
+        function renderConnections() {
+            svg.innerHTML = '';
+            
+            // Get the scale factor used when capturing (3x)
+            const captureScale = 3;
+            
+            diagramData.connections.forEach(conn => {
+                const fromItem = diagramData.items.find(i => i.id === conn.fromId);
+                const toItem = diagramData.items.find(i => i.id === conn.toId);
+                
+                if (!fromItem || !toItem) return;
+                
+                // Calculate positions (scaled by capture factor)
+                const fromX = ((fromItem.position?.x || 0) + (fromItem.width || 140) / 2) * captureScale;
+                const fromY = ((fromItem.position?.y || 0) + (fromItem.height || 70) / 2) * captureScale;
+                const toX = ((toItem.position?.x || 0) + (toItem.width || 140) / 2) * captureScale;
+                const toY = ((toItem.position?.y || 0) + (toItem.height || 70) / 2) * captureScale;
+                
+                // Draw animated white/grey line (dashed, flowing)
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('class', 'connection-line');
+                line.setAttribute('x1', fromX);
+                line.setAttribute('y1', fromY);
+                line.setAttribute('x2', toX);
+                line.setAttribute('y2', toY);
+                svg.appendChild(line);
+                
+                // Draw arrow (white/grey)
+                const angle = Math.atan2(toY - fromY, toX - fromX);
+                const arrowSize = 24; // Scaled up for 3x
+                const arrowDist = 60; // Scaled up for 3x
+                const arrowX = toX - Math.cos(angle) * arrowDist;
+                const arrowY = toY - Math.sin(angle) * arrowDist;
+                
+                const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                arrow.setAttribute('class', 'connection-arrow');
+                const points = [
+                    [arrowX, arrowY],
+                    [arrowX - arrowSize * Math.cos(angle - Math.PI / 6), arrowY - arrowSize * Math.sin(angle - Math.PI / 6)],
+                    [arrowX - arrowSize * Math.cos(angle + Math.PI / 6), arrowY - arrowSize * Math.sin(angle + Math.PI / 6)]
+                ];
+                arrow.setAttribute('points', points.map(p => p.join(',')).join(' '));
+                svg.appendChild(arrow);
+            });
+        }
+        
+        function applyTransform() {
+            const containerRect = container.getBoundingClientRect();
+            const imgWidth = image.naturalWidth;
+            const imgHeight = image.naturalHeight;
+            
+            // Center the diagram
+            const offsetX = (containerRect.width - imgWidth * currentZoom) / 2;
+            const offsetY = (containerRect.height - imgHeight * currentZoom) / 2;
+            
+            wrapper.style.transform = \`translate(\${panX + offsetX}px, \${panY + offsetY}px) scale(\${currentZoom})\`;
+        }
+        
+        // Pan and zoom controls
+        wrapper.addEventListener('mousedown', (e) => {
+            isPanning = true;
+            startX = e.clientX - panX;
+            startY = e.clientY - panY;
+            wrapper.style.cursor = 'grabbing';
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (isPanning) {
+                panX = e.clientX - startX;
+                panY = e.clientY - startY;
+                applyTransform();
+            }
+        });
+        
+        document.addEventListener('mouseup', () => {
+            if (isPanning) {
+                isPanning = false;
+                wrapper.style.cursor = 'grab';
+            }
+        });
+        
+        wrapper.style.cursor = 'grab';
+        
+        // Zoom controls
+        function zoomIn() {
+            currentZoom = Math.min(currentZoom + 0.2, 3);
+            applyTransform();
+        }
+        
+        function zoomOut() {
+            currentZoom = Math.max(currentZoom - 0.2, 0.3);
+            applyTransform();
+        }
+        
+        function fitToScreen() {
+            const containerRect = container.getBoundingClientRect();
+            const imgWidth = image.naturalWidth;
+            const imgHeight = image.naturalHeight;
+            
+            const scaleX = (containerRect.width * 0.9) / imgWidth;
+            const scaleY = (containerRect.height * 0.9) / imgHeight;
+            
+            currentZoom = Math.min(scaleX, scaleY);
+            panX = 0;
+            panY = 0;
+            applyTransform();
+        }
+        
+        function resetView() {
+            currentZoom = 1;
+            panX = 0;
+            panY = 0;
+            applyTransform();
+        }
+        
+        function toggleAnimation() {
+            document.body.classList.toggle('no-animation');
+        }
+        
+        // Mouse wheel zoom
+        container.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -0.1 : 0.1;
+            currentZoom = Math.max(0.3, Math.min(3, currentZoom + delta));
+            applyTransform();
+        });
+    </script>
+</body>
+</html>`;
+
+        // Create blob and download
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+        const sanitizedName = finalName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+        link.download = `${sanitizedName}-animated-${timestamp}.html`;
+        link.href = url;
+        link.click();
+
+        // Cleanup
+        URL.revokeObjectURL(url);
+
+        if (playground && playground.showNotification) {
+            playground.showNotification('Animated HTML exported successfully!', 'success');
+        }
+
+    } catch (error) {
+        console.error('Animated HTML export failed:', error);
+        if (playground && playground.showNotification) {
+            playground.showNotification('Animated HTML export failed: ' + error.message, 'error');
         }
     }
 }
