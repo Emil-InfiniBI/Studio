@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Company Databases - InfiniBI Studio</title>
+    <link rel="icon" type="image/svg+xml" href="logo.svg">
     
     <!-- Stylesheets -->
     <link rel="stylesheet" href="styles.css">
@@ -18,7 +19,7 @@
         <header class="playground-header">
             <div class="header-content">
                 <div class="app-logo">
-                    <i class="fas fa-database"></i>
+                    <img src="logo.svg" alt="InfiniBI" class="logo-img">
                     <h1>Company Databases</h1>
                 </div>
                 <nav class="header-nav">
@@ -60,6 +61,10 @@
                     </div>
                 </div>
                 <div class="filter-section">
+                    <select id="group-filter" onchange="filterDatabases()">
+                        <option value="">All Groups</option>
+                        <!-- Groups will be populated dynamically -->
+                    </select>
                     <select id="type-filter" onchange="filterDatabases()">
                         <option value="">All Types</option>
                         <option value="sql-server">SQL Server</option>
@@ -88,6 +93,9 @@
                         <option value="planned">Planned</option>
                         <option value="maintenance">Maintenance</option>
                     </select>
+                    <button class="btn btn-icon" onclick="manageGroups()" title="Manage Groups">
+                        <i class="fas fa-folder-tree"></i>
+                    </button>
                 </div>
             </div>
 
@@ -250,6 +258,84 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeAddDatabaseModal()">Cancel</button>
                 <button type="button" class="btn btn-primary" onclick="saveDatabaseForm()">Save Database</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Groups Modal -->
+    <div id="manage-groups-modal" class="modal" style="display: none;">
+        <div class="modal-content modal-content-wide">
+            <div class="modal-header">
+                <h3><i class="fas fa-folder-tree"></i> Manage Database Groups</h3>
+                <button class="btn btn-icon" onclick="closeManageGroupsModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="group-manager-layout">
+                    <!-- Left Panel: Groups -->
+                    <div class="group-manager-left">
+                        <div class="panel-header">
+                            <h4><i class="fas fa-folder"></i> Groups</h4>
+                        </div>
+                        
+                        <div class="group-add-section">
+                            <div class="form-group">
+                                <label for="new-group-name">Create New Group</label>
+                                <div class="input-with-button">
+                                    <input type="text" id="new-group-name" placeholder="e.g., Position Green, AX2012...">
+                                    <button class="btn btn-primary" onclick="addNewGroup()">
+                                        <i class="fas fa-plus"></i> Add
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="existing-groups-section">
+                            <div id="groups-list" class="groups-list">
+                                <!-- Groups will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Panel: Assign Databases -->
+                    <div class="group-manager-right">
+                        <div class="panel-header">
+                            <h4><i class="fas fa-database"></i> Assign Databases</h4>
+                        </div>
+                        
+                        <div class="assign-databases-section">
+                            <div class="assign-controls-panel">
+                                <div class="bulk-assign-wrapper">
+                                    <label style="font-weight: 600; margin-bottom: var(--spacing-xs); display: block; font-size: var(--font-size-sm);">
+                                        <i class="fas fa-layer-group"></i> Bulk Assign Selected to:
+                                    </label>
+                                    <div class="assign-controls">
+                                        <select id="bulk-assign-group" class="compact-select">
+                                            <option value="">Select group...</option>
+                                        </select>
+                                        <button class="btn btn-primary" onclick="bulkAssignToGroup()" title="Assign selected databases to group">
+                                            <i class="fas fa-check"></i> Assign
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div id="databases-assign-list" class="databases-assign-list">
+                                <!-- Database assignment list will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="modal-footer-info">
+                    <i class="fas fa-info-circle"></i> 
+                    <span>Select databases and assign them to groups. Changes are saved automatically.</span>
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="closeManageGroupsModal()">
+                    <i class="fas fa-check"></i> Done
+                </button>
             </div>
         </div>
     </div>

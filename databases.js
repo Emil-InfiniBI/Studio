@@ -516,6 +516,7 @@ class DatabaseManager {
 
     filterDatabases() {
         const searchTerm = document.getElementById('database-search').value.toLowerCase();
+        const groupFilter = document.getElementById('group-filter').value;
         const typeFilter = document.getElementById('type-filter').value;
         const environmentFilter = document.getElementById('environment-filter').value;
         const statusFilter = document.getElementById('status-filter').value;
@@ -528,11 +529,13 @@ class DatabaseManager {
                 db.purpose.toLowerCase().includes(searchTerm) ||
                 db.owner.toLowerCase().includes(searchTerm);
 
+            const dbGroup = db.group || 'Ungrouped';
+            const matchesGroup = !groupFilter || dbGroup === groupFilter;
             const matchesType = !typeFilter || db.type === typeFilter;
             const matchesEnvironment = !environmentFilter || db.environment === environmentFilter;
             const matchesStatus = !statusFilter || db.status === statusFilter;
 
-            return matchesSearch && matchesType && matchesEnvironment && matchesStatus;
+            return matchesSearch && matchesGroup && matchesType && matchesEnvironment && matchesStatus;
         });
 
         this.renderDatabases();
@@ -594,6 +597,7 @@ function saveDatabaseForm() {
         size: document.getElementById('db-size').value,
         users: document.getElementById('db-users').value,
         notes: document.getElementById('db-notes').value
+        // Group is managed separately in the group management interface
     };
 
     // Validate required fields
@@ -626,6 +630,7 @@ function editDatabase(id) {
     document.getElementById('db-size').value = database.size || '';
     document.getElementById('db-users').value = database.users || '';
     document.getElementById('db-notes').value = database.notes || '';
+    // Group is managed separately in the group management interface
 
     // Change modal title and save button
     document.querySelector('#add-database-modal .modal-header h3').innerHTML = '<i class="fas fa-edit"></i> Edit Database';
@@ -650,7 +655,8 @@ function saveEditedDatabase(id) {
         contact: document.getElementById('db-contact').value,
         size: document.getElementById('db-size').value,
         users: document.getElementById('db-users').value,
-        notes: document.getElementById('db-notes').value
+        notes: document.getElementById('db-notes').value,
+        group: document.getElementById('db-group').value
     };
 
     // Validate required fields
@@ -902,11 +908,25 @@ function toggleTheme() {
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
     
     document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
+    localStorage.setItem('playground-theme', newTheme);
     
     const themeIcon = document.getElementById('theme-icon');
     themeIcon.className = newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
 }
+
+// Initialize theme from localStorage on page load
+function initializeTheme() {
+    const savedTheme = localStorage.getItem('playground-theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    
+    const themeIcon = document.getElementById('theme-icon');
+    if (themeIcon) {
+        themeIcon.className = savedTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+    }
+}
+
+// Call initializeTheme immediately
+initializeTheme();
 
 function showNotification(message, type = 'info') {
     // Create notification element
@@ -930,8 +950,541 @@ function showNotification(message, type = 'info') {
 
 // Close modal when clicking outside
 document.addEventListener('click', (e) => {
-    const modal = document.getElementById('add-database-modal');
-    if (e.target === modal) {
+    const addDbModal = document.getElementById('add-database-modal');
+    const manageGroupsModal = document.getElementById('manage-groups-modal');
+    
+    if (e.target === addDbModal) {
         closeAddDatabaseModal();
     }
+    if (e.target === manageGroupsModal) {
+        closeManageGroupsModal();
+    }
+});
+
+// ============================================
+// DATABASE GROUP MANAGEMENT
+// ============================================
+
+// Get all groups from localStorage
+function getDatabaseGroups() {
+    const groups = localStorage.getItem('database-groups');
+    return groups ? JSON.parse(groups) : [];
+}
+
+// Save groups to localStorage
+function saveDatabaseGroups(groups) {
+    localStorage.setItem('database-groups', JSON.stringify(groups));
+}
+
+// Get count of databases in each group
+function getGroupDatabaseCounts() {
+    const databases = databaseManager.databases;
+    const counts = {};
+    
+    databases.forEach(db => {
+        const groupName = db.group || 'Ungrouped';
+        counts[groupName] = (counts[groupName] || 0) + 1;
+    });
+    
+    return counts;
+}
+
+// Populate group dropdowns
+function populateGroupDropdowns() {
+    const groups = getDatabaseGroups();
+    
+    // Populate group filter in toolbar
+    const groupFilter = document.getElementById('group-filter');
+    if (groupFilter) {
+        const currentValue = groupFilter.value;
+        groupFilter.innerHTML = '<option value="">All Groups</option>';
+        
+        groups.forEach(group => {
+            const option = document.createElement('option');
+            option.value = group;
+            option.textContent = group;
+            groupFilter.appendChild(option);
+        });
+        
+        // Add Ungrouped option
+        const ungroupedOption = document.createElement('option');
+        ungroupedOption.value = 'Ungrouped';
+        ungroupedOption.textContent = 'Ungrouped';
+        groupFilter.appendChild(ungroupedOption);
+        
+        groupFilter.value = currentValue;
+    }
+    
+    // Populate group select in database form
+    const groupSelect = document.getElementById('db-group');
+    if (groupSelect) {
+        const currentValue = groupSelect.value;
+        groupSelect.innerHTML = '<option value="">Ungrouped</option>';
+        
+        groups.forEach(group => {
+            const option = document.createElement('option');
+            option.value = group;
+            option.textContent = group;
+            groupSelect.appendChild(option);
+        });
+        
+        groupSelect.value = currentValue;
+    }
+}
+
+// Open manage groups modal
+function manageGroups() {
+    document.getElementById('manage-groups-modal').style.display = 'flex';
+    renderGroupsList();
+    renderDatabaseAssignList();
+    populateBulkAssignDropdown();
+}
+
+// Close manage groups modal
+function closeManageGroupsModal() {
+    document.getElementById('manage-groups-modal').style.display = 'none';
+}
+
+// Get group colors array
+function getGroupColors() {
+    return [
+        '#6366F1', // Indigo
+        '#8B5CF6', // Purple
+        '#EC4899', // Pink
+        '#F59E0B', // Amber
+        '#10B981', // Green
+        '#3B82F6', // Blue
+        '#EF4444', // Red
+        '#14B8A6', // Teal
+        '#F97316', // Orange
+        '#06B6D4', // Cyan
+        '#84CC16', // Lime
+        '#A855F7', // Violet
+    ];
+}
+
+// Render groups list in manage modal
+function renderGroupsList() {
+    const groups = getDatabaseGroups();
+    const counts = getGroupDatabaseCounts();
+    const groupsList = document.getElementById('groups-list');
+    const colors = getGroupColors();
+    
+    if (groups.length === 0) {
+        groupsList.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: var(--spacing-lg);">No groups created yet. Add a group above.</p>';
+        return;
+    }
+    
+    groupsList.innerHTML = '';
+    
+    groups.forEach((groupName, index) => {
+        const count = counts[groupName] || 0;
+        const color = colors[index % colors.length];
+        
+        const groupItem = document.createElement('div');
+        groupItem.className = 'group-item';
+        groupItem.style.setProperty('--group-item-color', color);
+        groupItem.innerHTML = `
+            <div class="group-item-info">
+                <i class="fas fa-folder group-item-icon"></i>
+                <div class="group-item-details">
+                    <div class="group-item-name">${groupName}</div>
+                    <div class="group-item-count">${count} database${count !== 1 ? 's' : ''}</div>
+                </div>
+            </div>
+            <div class="group-item-actions">
+                <button class="btn btn-icon" onclick="renameGroup('${groupName.replace(/'/g, "\\'")}');" title="Rename group">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-icon delete-btn" onclick="deleteGroup('${groupName.replace(/'/g, "\\'")}');" title="Delete group">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        
+        groupsList.appendChild(groupItem);
+    });
+}
+
+// Add new group
+function addNewGroup() {
+    const input = document.getElementById('new-group-name');
+    const groupName = input.value.trim();
+    
+    if (!groupName) {
+        showNotification('Please enter a group name', 'error');
+        return;
+    }
+    
+    const groups = getDatabaseGroups();
+    
+    if (groups.includes(groupName)) {
+        showNotification('Group already exists', 'error');
+        return;
+    }
+    
+    groups.push(groupName);
+    groups.sort();
+    saveDatabaseGroups(groups);
+    
+    input.value = '';
+    renderGroupsList();
+    populateGroupDropdowns();
+    renderDatabaseAssignList();
+    populateBulkAssignDropdown();
+    
+    showNotification(`Group "${groupName}" created successfully`, 'success');
+}
+
+// Add new group from database form
+function addNewGroupFromForm() {
+    const groupName = prompt('Enter new group name:');
+    
+    if (!groupName || !groupName.trim()) {
+        return;
+    }
+    
+    const trimmedName = groupName.trim();
+    const groups = getDatabaseGroups();
+    
+    if (groups.includes(trimmedName)) {
+        showNotification('Group already exists', 'error');
+        return;
+    }
+    
+    groups.push(trimmedName);
+    groups.sort();
+    saveDatabaseGroups(groups);
+    
+    populateGroupDropdowns();
+    
+    // Select the newly created group
+    document.getElementById('db-group').value = trimmedName;
+    
+    showNotification(`Group "${trimmedName}" created successfully`, 'success');
+}
+
+// Rename group
+function renameGroup(oldName) {
+    const newName = prompt('Enter new group name:', oldName);
+    
+    if (!newName || !newName.trim() || newName.trim() === oldName) {
+        return;
+    }
+    
+    const trimmedName = newName.trim();
+    const groups = getDatabaseGroups();
+    
+    if (groups.includes(trimmedName)) {
+        showNotification('Group already exists', 'error');
+        return;
+    }
+    
+    // Update group name in groups list
+    const index = groups.indexOf(oldName);
+    if (index !== -1) {
+        groups[index] = trimmedName;
+        groups.sort();
+        saveDatabaseGroups(groups);
+    }
+    
+    // Update all databases with this group
+    databaseManager.databases.forEach(db => {
+        if (db.group === oldName) {
+            db.group = trimmedName;
+        }
+    });
+    databaseManager.saveDatabases();
+    
+    renderGroupsList();
+    populateGroupDropdowns();
+    renderDatabaseAssignList();
+    populateBulkAssignDropdown();
+    databaseManager.renderDatabases();
+    
+    showNotification(`Group renamed to "${trimmedName}"`, 'success');
+}
+
+// Delete group
+function deleteGroup(groupName) {
+    const counts = getGroupDatabaseCounts();
+    const count = counts[groupName] || 0;
+    
+    let message = `Are you sure you want to delete the group "${groupName}"?`;
+    if (count > 0) {
+        message += `\n\n${count} database${count !== 1 ? 's' : ''} will be moved to "Ungrouped".`;
+    }
+    
+    if (!confirm(message)) {
+        return;
+    }
+    
+    const groups = getDatabaseGroups();
+    const index = groups.indexOf(groupName);
+    
+    if (index !== -1) {
+        groups.splice(index, 1);
+        saveDatabaseGroups(groups);
+    }
+    
+    // Move databases to Ungrouped
+    databaseManager.databases.forEach(db => {
+        if (db.group === groupName) {
+            db.group = '';
+        }
+    });
+    databaseManager.saveDatabases();
+    
+    renderGroupsList();
+    populateGroupDropdowns();
+    renderDatabaseAssignList();
+    populateBulkAssignDropdown();
+    databaseManager.renderDatabases();
+    
+    showNotification(`Group "${groupName}" deleted`, 'success');
+}
+
+// Helper function to check if any filters are active
+function hasActiveFilters() {
+    const searchTerm = document.getElementById('database-search')?.value || '';
+    const groupFilter = document.getElementById('group-filter')?.value || '';
+    const typeFilter = document.getElementById('type-filter')?.value || '';
+    const environmentFilter = document.getElementById('environment-filter')?.value || '';
+    const statusFilter = document.getElementById('status-filter')?.value || '';
+    
+    return searchTerm !== '' || groupFilter !== '' || typeFilter !== '' || 
+           environmentFilter !== '' || statusFilter !== '';
+}
+
+// Render database assignment list
+function renderDatabaseAssignList() {
+    // Use filtered databases if filters are active, otherwise use all databases
+    const databases = databaseManager.filteredDatabases.length > 0 || hasActiveFilters() 
+        ? databaseManager.filteredDatabases 
+        : databaseManager.databases;
+    const groups = getDatabaseGroups();
+    const assignList = document.getElementById('databases-assign-list');
+    
+    if (!assignList) return;
+    
+    if (databases.length === 0) {
+        assignList.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: var(--spacing-lg);">No databases match current filters.</p>';
+        return;
+    }
+    
+    assignList.innerHTML = '';
+    
+    // Add filter indicator if filters are active
+    if (hasActiveFilters()) {
+        const filterInfo = document.createElement('div');
+        filterInfo.className = 'filter-info-banner';
+        filterInfo.innerHTML = `
+            <i class="fas fa-filter"></i>
+            <span>Showing ${databases.length} of ${databaseManager.databases.length} databases (filters active)</span>
+        `;
+        assignList.appendChild(filterInfo);
+    }
+    
+    databases.forEach((db, index) => {
+        const item = document.createElement('div');
+        item.className = 'database-assign-item';
+        item.dataset.dbId = db.id;
+        
+        // Create select element with unique ID
+        const selectId = `db-select-${index}`;
+        const select = document.createElement('select');
+        select.id = selectId;
+        select.className = 'database-group-select';
+        
+        // Debug: Log the database group
+        console.log(`Rendering dropdown for ${db.name}, group: "${db.group}", type: ${typeof db.group}`);
+        
+        // Add Ungrouped option
+        const ungroupedOption = document.createElement('option');
+        ungroupedOption.value = '';
+        ungroupedOption.textContent = 'Ungrouped';
+        if (!db.group || db.group === '' || db.group === 'Ungrouped') {
+            ungroupedOption.selected = true;
+            console.log(`  -> Selected: Ungrouped`);
+        }
+        select.appendChild(ungroupedOption);
+        
+        // Add group options
+        groups.forEach(group => {
+            const option = document.createElement('option');
+            option.value = group;
+            option.textContent = group;
+            if (db.group === group) {
+                option.selected = true;
+                console.log(`  -> Selected: ${group}`);
+            }
+            select.appendChild(option);
+        });
+        
+        // Use IIFE to capture the correct database ID
+        (function(currentDb) {
+            select.addEventListener('change', function(event) {
+                const selectedValue = this.value;
+                console.log('Select changed for database:', currentDb.name, 'ID:', currentDb.id, 'New value:', selectedValue);
+                assignDatabaseToGroup(currentDb.id, selectedValue);
+            });
+        })(db);
+        
+        // Create the info section
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'database-assign-info';
+        infoDiv.innerHTML = `
+            <input type="checkbox" class="database-assign-checkbox" data-db-id="${db.id}">
+            <i class="fas fa-database database-assign-icon"></i>
+            <div class="database-assign-details">
+                <div class="database-assign-name">${db.name}</div>
+                <div class="database-assign-meta">${db.server} • ${db.type}</div>
+            </div>
+        `;
+        
+        // Create the group section
+        const groupDiv = document.createElement('div');
+        groupDiv.className = 'database-assign-group';
+        groupDiv.appendChild(select);
+        
+        // Add both sections to item
+        item.appendChild(infoDiv);
+        item.appendChild(groupDiv);
+        
+        assignList.appendChild(item);
+    });
+}
+
+// Populate bulk assign dropdown
+function populateBulkAssignDropdown() {
+    const groups = getDatabaseGroups();
+    const dropdown = document.getElementById('bulk-assign-group');
+    
+    if (!dropdown) return;
+    
+    dropdown.innerHTML = '<option value="">Select group...</option>';
+    groups.forEach(group => {
+        const option = document.createElement('option');
+        option.value = group;
+        option.textContent = group;
+        dropdown.appendChild(option);
+    });
+    
+    // Add Ungrouped option
+    const ungroupedOption = document.createElement('option');
+    ungroupedOption.value = 'Ungrouped';
+    ungroupedOption.textContent = 'Ungrouped';
+    dropdown.appendChild(ungroupedOption);
+}
+
+// Assign single database to group
+function assignDatabaseToGroup(dbId, groupName) {
+    console.log('=== assignDatabaseToGroup called ===');
+    console.log('Database ID:', dbId);
+    console.log('Group Name:', groupName);
+    
+    const database = databaseManager.databases.find(db => db.id === dbId);
+    if (!database) {
+        console.error('Database not found:', dbId);
+        console.log('Available databases:', databaseManager.databases.map(db => ({ id: db.id, name: db.name })));
+        showNotification('Database not found', 'error');
+        return;
+    }
+    
+    console.log('Database found:', database.name);
+    console.log('Current group:', database.group);
+    
+    // Set the group (empty string for Ungrouped)
+    const oldGroup = database.group;
+    database.group = (groupName === '' || groupName === 'Ungrouped') ? '' : groupName;
+    
+    console.log('New group:', database.group);
+    
+    // Save to localStorage
+    databaseManager.saveDatabases();
+    console.log('Saved to localStorage');
+    
+    // Re-apply filters to update filteredDatabases array
+    databaseManager.filterDatabases();
+    console.log('Filters re-applied');
+    
+    // Update ONLY the group list counts, NOT the assignment list
+    // This prevents the dropdown recreation issue
+    renderGroupsList();
+    databaseManager.renderDatabases();
+    
+    const displayName = groupName === '' ? 'Ungrouped' : groupName;
+    showNotification(`"${database.name}" assigned to ${displayName}`, 'success');
+    console.log('=== Assignment complete ===');
+}
+
+// Bulk assign selected databases to group
+function bulkAssignToGroup() {
+    console.log('=== bulkAssignToGroup called ===');
+    const groupName = document.getElementById('bulk-assign-group').value;
+    console.log('Selected group from dropdown:', groupName);
+    
+    if (!groupName) {
+        showNotification('Please select a group', 'error');
+        return;
+    }
+    
+    const checkboxes = document.querySelectorAll('.database-assign-checkbox:checked');
+    console.log('Number of checked boxes:', checkboxes.length);
+    
+    if (checkboxes.length === 0) {
+        showNotification('Please select at least one database', 'error');
+        return;
+    }
+    
+    let assignedCount = 0;
+    checkboxes.forEach((checkbox, index) => {
+        // Try both camelCase and kebab-case for data attribute
+        const dbId = checkbox.dataset.dbId || checkbox.getAttribute('data-db-id');
+        console.log(`Checkbox ${index + 1}: dbId = ${dbId}, dataset:`, checkbox.dataset);
+        const database = databaseManager.databases.find(db => db.id === dbId);
+        
+        if (database) {
+            const oldGroup = database.group;
+            database.group = groupName === 'Ungrouped' ? '' : groupName;
+            console.log(`  - ${database.name}: "${oldGroup}" -> "${database.group}"`);
+            assignedCount++;
+        } else {
+            console.error(`  - Database not found for ID: ${dbId}`);
+        }
+    });
+    
+    console.log(`Total assigned: ${assignedCount}`);
+    
+    databaseManager.saveDatabases();
+    console.log('Databases saved to localStorage');
+    
+    // Re-apply filters to update filteredDatabases array
+    databaseManager.filterDatabases();
+    console.log('Filters re-applied to update filteredDatabases');
+    
+    // Update UI
+    renderGroupsList();
+    console.log('Groups list updated');
+    renderDatabaseAssignList();
+    console.log('Assignment list re-rendered (databases may disappear if filters are active)');
+    databaseManager.renderDatabases();
+    console.log('Main database view updated');
+    
+    // Clear selections
+    document.querySelectorAll('.database-assign-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('bulk-assign-group').value = '';
+    
+    // Check if filters are active
+    const filtersActive = hasActiveFilters();
+    const message = `${assignedCount} database${assignedCount !== 1 ? 's' : ''} assigned to ${groupName}` +
+                   (filtersActive ? ' (databases may have moved due to active filters)' : '');
+    
+    showNotification(message, 'success');
+    console.log('=== bulkAssignToGroup complete ===');
+}
+
+// Initialize groups on page load
+document.addEventListener('DOMContentLoaded', () => {
+    populateGroupDropdowns();
 });

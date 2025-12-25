@@ -1,183 +1,114 @@
 // InfiniBI Studio - Standalone Version
-
 class ArchitecturePlayground {
     constructor() {
-        this.connections = []; // Array to store connection lines
-        this.connectionMode = false; // Toggle for connection mode
-        this.selectedSource = null; // Currently selected data source
-        this.selectedItem = null; // Currently selected canvas item
-        this.dragUpdateTimeout = null; // Add timeout management for smooth dragging
-        this.canvasItems = []; // Track canvas items
-        this.connectionSvg = null; // SVG for connections
-    this.canvasSpacer = null; // Spacer to extend scroll area
-    this.canvasMargin = 200; // extra space around content
-    this.sources = []; // Data sources rendered in the left panel
-    this.canvasSourcesWindow = null; // Draggable in-canvas sources window
-    this._isDraggingCanvasWindow = false;
-    this.editMode = false; // Toggle for edit mode
-    this.gridSize = 20; // Grid snap size in pixels
-    this.snapEnabled = true; // Snap-to-grid toggle (default: enabled)
-    
-    // Zoom controls
-    this.zoomLevel = 1; // Default zoom level (100%)
-    this.minZoom = 0.25; // Minimum zoom (25%)
-    this.maxZoom = 3; // Maximum zoom (300%)
-    this.zoomStep = 0.1; // Zoom increment/decrement step
-    
-    // Canvas panning
-    this.isPanning = false;
-    this.panStart = { x: 0, y: 0 };
-    this.canvasOffset = { x: 0, y: 0 };
-    
-    // Container types constant
-    this.containerTypes = ['api-collection', 'schema-container', 'table-group', 'process-container', 'zone-container'];
-    
-    // Undo/Redo system
-    this.undoStack = [];
-    this.redoStack = [];
-    this.maxUndoSteps = 50;
-    
-    // Multi-select system
-    this.selectedItems = new Set();
-    this.isSelecting = false;
-    this.selectionBox = null;
-    this.selectionStart = { x: 0, y: 0 };
-    
-    // Templates system
-    this.templates = this.initializeTemplates();
-    
-    // Manual connection control
-    this.manualAnchorMode = false;
-    this.anchorHighlights = new Map(); // element -> array of anchor highlight divs
-    this.connectionPreview = null;
-    this.pendingConnection = null; // Stores a pending connection (from element + anchor)
+        // Canvas + connection state
+        this.connections = [];
+        this.connectionMode = false;
+        this.selectedSource = null;
+        this.selectedItem = null;
+        this.dragUpdateTimeout = null;
+        this.canvasItems = [];
+        this.connectionSvg = null;
+        this.canvasSpacer = null;
+        this.canvasMargin = 200;
+        this.sources = [];
+        this.canvasSourcesWindow = null;
+        this._isDraggingCanvasWindow = false;
+        this.editMode = false;
+        this.gridSize = 20;
+        this.manualAnchorMode = false;
+        this.anchorHighlights = new Map();
+        this.connectionPreview = null;
+        this.pendingConnection = null;
         
+        // Drag state
+        this.isDragging = false;
+        this.dragPrimaryItem = null;
+        this.dragOffsetX = 0;
+        this.dragOffsetY = 0;
+        this.dragStartX = 0;
+        this.dragStartY = 0;
+        this.dragInitialPositions = new Map();
+        
+        // Zoom and pan state
+        this.zoomLevel = 1.0;
+        this.canvasOffset = { x: 0, y: 0 };
+        this.minZoom = 0.25;
+        this.maxZoom = 3.0;
+        this.zoomStep = 0.1;
+        this.panMode = false;
+        
+        // Container types for special handling
+        this.containerTypes = [
+            'api-collection', 'schema-container', 'table-group', 'process-container',
+            'zone-container', 'datasources-container', 'onelake-container',
+            'transformation-container', 'semantic-models-container', 'reports-container'
+        ];
+
+        // Undo/redo + selection
+        this.undoStack = [];
+        this.redoStack = [];
+        this.maxUndoSteps = 50;
+        this.selectedItems = new Set();
+        this.isSelecting = false;
+        this.selectionBox = null;
+        this.selectionStart = { x: 0, y: 0 };
+
+        // Template + persistence helpers
+        this.templates = typeof this.initializeTemplates === 'function' ? this.initializeTemplates() : [];
+        this.canvasManager = null;
+
         this.init();
     }
 
-    // Ensure an element has an ID; if missing assign deterministic prefix based id
-    ensureElementId(element, prefix = 'canvas-item') {
-        if (!element) return null;
-        if (!element.id || element.id.trim() === '') {
-            element.id = `${prefix}-${Date.now()}-${Math.floor(Math.random()*100000)}`;
-        }
-        return element.id;
-    }
-
     init() {
-        this.setupEventListeners();
-        // Data sources panel removed - databases now available via modal
-        this.setupDragAndDrop();
-        this.initializeTheme();
-        this.initializeConnectionLayer();
-        this.setupConnectionToggle();
-        this.setupEditToggle();
-        this.initializeSnapToggle();
-        this.setupDatabaseModal();
-        
-        // Setup layout change observer for connection updates
-        this.setupLayoutObserver();
-        
-        // Try to restore autosaved session
-            let canvas = null;
-        
-        this.setupMedallionTargets();
-        this.ensureCanvasSourcesWindow();
-        this.ensureModeDock();
-        this.setupMultiSelect();
-        this.setupUndoRedo();
-        this.setupTemplates();
-        // Alignment guides initialization
-        this.initAlignmentGuides();
-        this.initAlignmentGuides();
-        
-        // Restore autosaved session after all initialization is complete
-        setTimeout(() => {
-            this.restoreAutosave();
-        }, 100);
+        this.setupEventListeners?.();
+        this.setupDragAndDrop?.();
+        this.initializeTheme?.();
+        this.initializeConnectionLayer?.();
+        this.setupConnectionToggle?.();
+        this.setupEditToggle?.();
+        this.setupDatabaseModal?.();
+        this.setupMedallionTargets?.();
+        this.ensureCanvasSourcesWindow?.();
+        this.ensureModeDock?.();
+        this.setupMultiSelect?.();
+        this.setupUndoRedo?.();
+        this.setupTemplates?.();
+        // setupCanvasDragAndDrop is already called by setupDragAndDrop, removed duplicate
+        this.setupCanvasZoom?.();
+        this.loadDataSources?.();
     }
 
-    // --- Alignment Guides & Snapping ---
-    initAlignmentGuides() {
-        const canvas = document.getElementById('fabric-canvas');
-        if (!canvas) return;
-        if (this.alignmentGuides) return; // avoid duplicates
-        this.alignmentGuides = {};
-        const mk = (cls) => { const d=document.createElement('div'); d.className='align-guide '+cls; d.style.cssText='position:absolute;pointer-events:none;z-index:5000;background:#4f9cf7;opacity:0.55;display:none;'; canvas.appendChild(d); return d; };
-        this.alignmentGuides.v = mk('align-guide-v');
-        this.alignmentGuides.h = mk('align-guide-h');
-    }
-    showAlignmentGuides(x=null,y=null){
-        if (!this.alignmentGuides) return;
-        if (this.alignmentGuides.v){ if (x==null) this.alignmentGuides.v.style.display='none'; else { this.alignmentGuides.v.style.display='block'; this.alignmentGuides.v.style.left=x+'px'; this.alignmentGuides.v.style.top='0'; this.alignmentGuides.v.style.width='1px'; this.alignmentGuides.v.style.height='100%'; } }
-        if (this.alignmentGuides.h){ if (y==null) this.alignmentGuides.h.style.display='none'; else { this.alignmentGuides.h.style.display='block'; this.alignmentGuides.h.style.top=y+'px'; this.alignmentGuides.h.style.left='0'; this.alignmentGuides.h.style.height='1px'; this.alignmentGuides.h.style.width='100%'; } }
-    }
-    calcSnap(primaryEl, proposedX, proposedY){
-        // If snap is disabled, skip alignment snapping
-        if (!this.snapEnabled) {
-            this.showAlignmentGuides(null, null); // Hide guides
-            return {x: proposedX, y: proposedY};
+    toggleDatabaseGroup(groupName, table) {
+        if (!table) return;
+        const collapsedGroups = JSON.parse(localStorage.getItem('collapsed-database-groups') || '{}');
+        const isCurrentlyCollapsed = table.classList.contains('collapsed') || table.style.display === 'none';
+        const shouldCollapse = !isCurrentlyCollapsed;
+
+        if (shouldCollapse) {
+            table.classList.add('collapsed');
+            table.style.display = 'none';
+        } else {
+            table.classList.remove('collapsed');
+            table.style.display = '';
         }
-        
-        const SNAP=6;
-        const others=this.canvasItems.map(ci=>ci.element).filter(el=>el!==primaryEl);
-        const w=primaryEl.offsetWidth, h=primaryEl.offsetHeight;
-        let snapX=proposedX, snapY=proposedY; let gX=null,gY=null;
-        const pCenters=[ {type:'v', val:proposedX}, {type:'v', val:proposedX+w/2}, {type:'v', val:proposedX+w}, {type:'h', val:proposedY}, {type:'h', val:proposedY+h/2}, {type:'h', val:proposedY+h} ];
-        others.forEach(o=>{
-            const ox=parseInt(o.style.left)||0, oy=parseInt(o.style.top)||0, ow=o.offsetWidth, oh=o.offsetHeight;
-            const centers=[ {type:'v', val:ox}, {type:'v', val:ox+ow/2}, {type:'v', val:ox+ow}, {type:'h', val:oy}, {type:'h', val:oy+oh/2}, {type:'h', val:oy+oh} ];
-            centers.forEach(c=>{
-                pCenters.forEach(pc=>{
-                    if (c.type!==pc.type) return;
-                    if (Math.abs(c.val - pc.val) <= SNAP){
-                        if (c.type==='v') { const delta=c.val - pc.val; snapX += delta; gX=c.val; }
-                        else { const delta=c.val - pc.val; snapY += delta; gY=c.val; }
-                    }
-                });
-            });
+
+        collapsedGroups[groupName] = shouldCollapse;
+        localStorage.setItem('collapsed-database-groups', JSON.stringify(collapsedGroups));
+
+        const groupHeaders = document.querySelectorAll('.database-group-header');
+        groupHeaders.forEach(header => {
+            const title = header.querySelector('h4');
+            if (!title) return;
+            const text = title.textContent || '';
+            if (!text.includes(groupName)) return;
+            const toggleIcon = header.querySelector('.group-toggle-icon');
+            if (!toggleIcon) return;
+            toggleIcon.className = shouldCollapse
+                ? 'fas fa-chevron-right group-toggle-icon'
+                : 'fas fa-chevron-down group-toggle-icon';
         });
-        this.showAlignmentGuides(gX,gY);
-        return {x:snapX,y:snapY};
-    }
-    
-    getDefaultSources() {
-        return [
-            { name: 'Atlas', type: 'SQL Server', icon: 'fas fa-server', dataType: 'sql-server' },
-            { name: 'QAS', type: 'SQL Server', icon: 'fas fa-server', dataType: 'sql-server' },
-            { name: 'Procapita', type: 'Cloud', icon: 'fas fa-cloud', dataType: 'cloud' }
-        ];
-    }
-
-    // Load company databases from the databases page
-    getCompanyDatabases() {
-        try {
-            const stored = localStorage.getItem('company-databases');
-            console.log('Raw stored data:', stored);
-            
-            const databases = stored ? JSON.parse(stored) : [];
-            console.log('Parsed databases:', databases);
-            console.log('Number of company databases found:', databases.length);
-            
-            // Convert database format to playground source format
-            const converted = databases.map(db => ({
-                name: db.name,
-                type: this.getDisplayType(db.type),
-                icon: this.getDatabaseIcon(db.type),
-                dataType: db.type,
-                server: db.server,
-                environment: db.environment,
-                status: db.status,
-                purpose: db.purpose,
-                originalDb: db // Keep reference to original database object
-            }));
-            
-            console.log('Converted databases for playground:', converted);
-            return converted;
-        } catch (error) {
-            console.error('Error loading company databases:', error);
-            return [];
-        }
     }
 
     getDatabaseIcon(dbType) {
@@ -278,6 +209,19 @@ class ArchitecturePlayground {
             'other': 'Other'
         };
         return displayTypes[dbType] || dbType.toUpperCase();
+    }
+
+    getDefaultSources() {
+        return [
+            { name: 'SQL Server', type: 'SQL Server', icon: 'fas fa-database', dataType: 'sql-server' },
+            { name: 'Azure SQL', type: 'Azure SQL', icon: 'fas fa-cloud', dataType: 'azure-sql' },
+            { name: 'PostgreSQL', type: 'PostgreSQL', icon: 'fas fa-database', dataType: 'postgresql' },
+            { name: 'MySQL', type: 'MySQL', icon: 'fas fa-database', dataType: 'mysql' },
+            { name: 'REST API', type: 'REST API', icon: 'fas fa-plug', dataType: 'rest-api' },
+            { name: 'Excel', type: 'Excel', icon: 'fas fa-file-excel', dataType: 'excel' },
+            { name: 'SharePoint', type: 'SharePoint', icon: 'fab fa-microsoft', dataType: 'sharepoint' },
+            { name: 'Dataverse', type: 'Dataverse', icon: 'fas fa-cubes', dataType: 'dataverse' }
+        ];
     }
 
     loadDataSources() {
@@ -559,9 +503,59 @@ class ArchitecturePlayground {
     }
 
     setupEventListeners() {
-        // Palette items (drag or click to add) - Updated for new component palette
+        // Palette items (drag or click to add) - Using event delegation for reliability
         const palette = document.getElementById('component-palette') || document.getElementById('item-palette');
         if (palette) {
+            // Use event delegation for clicks - more reliable for dynamically shown/hidden elements
+            palette.addEventListener('click', (e) => {
+                const pi = e.target.closest('.palette-item');
+                if (!pi) return;
+                
+                e.stopPropagation(); // Prevent dropdown from closing immediately
+                
+                if (pi.dataset.type === 'database-selector') {
+                    this.showDatabaseModal();
+                    return;
+                }
+                
+                const canvas = document.getElementById('fabric-canvas');
+                const rect = canvas.getBoundingClientRect();
+                
+                // Calculate the center of the visible viewport in canvas coordinates
+                // Account for zoom and pan offset
+                const viewportCenterX = rect.width / 2;
+                const viewportCenterY = rect.height / 2;
+                
+                // Convert viewport center to canvas coordinates (accounting for zoom and pan)
+                let x = (viewportCenterX - this.canvasOffset.x) / this.zoomLevel;
+                let y = (viewportCenterY - this.canvasOffset.y) / this.zoomLevel;
+                
+                // Snap center position to grid
+                const snapped = this.snapToGrid(x, y);
+                
+                if (pi.dataset.consumptionType) {
+                    this.addConsumptionItemToCanvas({
+                        name: pi.dataset.name,
+                        category: pi.dataset.category,
+                        consumptionType: pi.dataset.consumptionType,
+                        icon: pi.dataset.icon,
+                        iconColor: pi.dataset.iconColor || '#0078D4'
+                    }, snapped.x, snapped.y);
+                } else if (pi.dataset.type === 'data-source') {
+                    this.addDataSourceToCanvas({
+                        name: pi.dataset.sourceName,
+                        sourceType: pi.dataset.sourceType,
+                        icon: pi.dataset.icon
+                    }, snapped.x, snapped.y);
+                } else {
+                    this.addCanvasItem(pi.dataset.type, snapped.x, snapped.y);
+                }
+                
+                // Close the dropdown after adding item
+                closeAllDropdowns();
+            });
+            
+            // Keep individual dragstart handlers since delegation doesn't work well for dragstart
             palette.querySelectorAll('.palette-item').forEach(pi => {
                 pi.addEventListener('dragstart', (e) => {
                     if (this.connectionMode) { e.preventDefault(); return; }
@@ -589,38 +583,6 @@ class ArchitecturePlayground {
                         }));
                     }
                 });
-                pi.addEventListener('click', () => {
-                    if (pi.dataset.type === 'database-selector') {
-                        this.showDatabaseModal();
-                        return;
-                    }
-                    
-                    const canvas = document.getElementById('fabric-canvas');
-                    const rect = canvas.getBoundingClientRect();
-                    let x = canvas.scrollLeft + rect.width / 2;
-                    let y = canvas.scrollTop + rect.height / 2;
-                    
-                    // Snap center position to grid
-                    const snapped = this.snapToGrid(x, y);
-                    
-                    if (pi.dataset.consumptionType) {
-                        this.addConsumptionItemToCanvas({
-                            name: pi.dataset.name,
-                            category: pi.dataset.category,
-                            consumptionType: pi.dataset.consumptionType,
-                            icon: pi.dataset.icon,
-                            iconColor: pi.dataset.iconColor || '#0078D4'
-                        }, snapped.x, snapped.y);
-                    } else if (pi.dataset.type === 'data-source') {
-                        this.addDataSourceToCanvas({
-                            name: pi.dataset.sourceName,
-                            sourceType: pi.dataset.sourceType,
-                            icon: pi.dataset.icon
-                        }, snapped.x, snapped.y);
-                    } else {
-                        this.addCanvasItem(pi.dataset.type, snapped.x, snapped.y);
-                    }
-                });
             });
         }
 
@@ -634,12 +596,50 @@ class ArchitecturePlayground {
                 // Clear any stuck connection anchors/previews
                 this.clearConnectionState();
             }
+            // Toggle Pan/Select mode with Space key
+            if (e.code === 'Space') {
+                const activeTag = document.activeElement ? document.activeElement.tagName : '';
+                const isEditable = document.activeElement && (
+                    document.activeElement.isContentEditable ||
+                    activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT'
+                );
+                if (!isEditable) {
+                    e.preventDefault();
+                    this.togglePanSelectMode();
+                }
+            }
+            // Fit to view shortcut
+            if (e.key === 'f' || e.key === 'F') {
+                const activeTag = document.activeElement ? document.activeElement.tagName : '';
+                const isEditable = document.activeElement && (
+                    document.activeElement.isContentEditable ||
+                    activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT'
+                );
+                if (!isEditable) {
+                    e.preventDefault();
+                    this.fitToView();
+                }
+            }
+            // Auto-arrange shortcut
+            if (e.key === 'a' || e.key === 'A') {
+                const activeTag = document.activeElement ? document.activeElement.tagName : '';
+                const isEditable = document.activeElement && (
+                    document.activeElement.isContentEditable ||
+                    activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT'
+                );
+                if (!isEditable) {
+                    e.preventDefault();
+                    this.autoArrangeCards();
+                }
+            }
             // Undo/Redo shortcuts
             if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+                console.log('[Keyboard] Ctrl+Z pressed, calling undo(), stack size:', this.undoStack.length);
                 e.preventDefault();
                 this.undo();
             }
             if (e.ctrlKey && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+                console.log('[Keyboard] Ctrl+Y/Ctrl+Shift+Z pressed, calling redo(), stack size:', this.redoStack.length);
                 e.preventDefault();
                 this.redo();
             }
@@ -662,17 +662,56 @@ class ArchitecturePlayground {
             }
         });
 
+        // Handle paste events for images
+        document.addEventListener('paste', (e) => {
+            // Don't handle paste if user is typing in an input field
+            const activeTag = document.activeElement ? document.activeElement.tagName : '';
+            const isEditable = document.activeElement && (
+                document.activeElement.isContentEditable ||
+                activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT'
+            );
+            if (isEditable) return;
+
+            // Check if clipboard contains image data
+            const items = e.clipboardData?.items;
+            if (!items) return;
+
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    e.preventDefault();
+                    const blob = items[i].getAsFile();
+                    this.addImageToCanvas(blob);
+                    break;
+                }
+            }
+        });
+
         // Canvas click handler to clear connection state when clicking empty areas
         const canvas = document.getElementById('fabric-canvas');
         if (canvas) {
             canvas.addEventListener('click', (e) => {
+                // Don't clear selection if we just finished a selection box operation
+                // The click event fires after mouseup, so we need to skip it
+                if (this.justFinishedSelection) {
+                    this.justFinishedSelection = false;
+                    return;
+                }
+                
                 // Check if we clicked on empty canvas (not on an item)
                 const clickedElement = e.target;
                 
                 // If we clicked directly on the canvas or background, clear connection state
                 if (clickedElement === canvas || 
+                    clickedElement.id === 'fabric-canvas' ||
+                    clickedElement.classList.contains('fabric-canvas') ||
                     clickedElement.classList.contains('canvas-background') || 
-                    clickedElement.classList.contains('bg-panel')) {
+                    clickedElement.classList.contains('canvas-content-wrapper') ||
+                    clickedElement.classList.contains('bg-panel') ||
+                    clickedElement.classList.contains('bg-prepare') ||
+                    clickedElement.classList.contains('bg-title')) {
+                    
+                    // Clear selection when clicking on empty canvas area
+                    this.clearSelection();
                     
                     // Clear any pending connections or stuck anchors
                     if (this.pendingConnection || this.connectionPreview || this.manualAnchorMode) {
@@ -687,7 +726,110 @@ class ArchitecturePlayground {
                     closeAllDropdowns();
                 }
             });
+            
+            // Canvas context menu (right-click on empty canvas)
+            canvas.addEventListener('contextmenu', (e) => {
+                // Only show canvas menu if clicking on empty space
+                const clickedElement = e.target;
+                if (clickedElement === canvas || 
+                    clickedElement.classList.contains('canvas-background') || 
+                    clickedElement.classList.contains('canvas-content-wrapper') ||
+                    clickedElement.classList.contains('bg-panel') ||
+                    clickedElement.classList.contains('bg-prepare')) {
+                    
+                    e.preventDefault();
+                    this.showCanvasContextMenu(e);
+                }
+            });
         }
+        
+        // Global mouse handlers for dragging (centralized to avoid memory leaks)
+        document.addEventListener('mousemove', (e) => {
+            if (!this.isDragging) return;
+            
+            // Get canvas position for proper coordinate calculation
+            const canvas = document.getElementById('fabric-canvas');
+            if (!canvas) return;
+            const canvasRect = canvas.getBoundingClientRect();
+            
+            // Calculate mouse position in canvas coordinate space
+            // The canvas content is transformed, so we need to account for zoom and pan
+            const mouseCanvasX = (e.clientX - canvasRect.left - this.canvasOffset.x) / this.zoomLevel;
+            const mouseCanvasY = (e.clientY - canvasRect.top - this.canvasOffset.y) / this.zoomLevel;
+            
+            // Calculate the new position for the primary item (accounting for click offset)
+            // The offset is already in canvas coordinates, so no need to divide by zoom
+            const newPrimaryX = mouseCanvasX - this.dragOffsetX;
+            const newPrimaryY = mouseCanvasY - this.dragOffsetY;
+            
+            // Calculate how much the primary item moved from its initial position
+            const primInit = this.dragInitialPositions.get(this.dragPrimaryItem);
+            if (!primInit) return;
+            
+            const deltaX = newPrimaryX - primInit.x;
+            const deltaY = newPrimaryY - primInit.y;
+            
+            // Move all selected items
+            // Compute snap based on primary item only (skip snap for containers)
+            let snapAdjust={dx:0,dy:0};
+            if (!this.dragPrimaryItem.classList.contains('ci-container')){
+                const candX = primInit.x + deltaX;
+                const candY = primInit.y + deltaY;
+                const snapped = this.snapToGrid(candX, candY);
+                snapAdjust.dx = snapped.x - candX;
+                snapAdjust.dy = snapped.y - candY;
+            }
+            this.selectedItems.forEach(ci => {
+                const init = this.dragInitialPositions.get(ci.element);
+                if (!init) return;
+                const nx = init.x + deltaX + snapAdjust.dx;
+                const ny = init.y + deltaY + snapAdjust.dy;
+                
+                // Skip snapping for containers - allow free movement
+                if (ci.element.classList.contains('ci-container')) {
+                    ci.element.style.left = nx + 'px';
+                    ci.element.style.top = ny + 'px';
+                } else {
+                    const g = this.snapToGrid(nx, ny);
+                    ci.element.style.left = g.x + 'px';
+                    ci.element.style.top = g.y + 'px';
+                }
+            });
+            
+            // Update connections immediately during drag for smooth following
+            if (this.dragUpdateTimeout) {
+                clearTimeout(this.dragUpdateTimeout);
+            }
+            // Force immediate update for responsive connection following
+            requestAnimationFrame(() => {
+                // Update medallion target positions when medallion items are moved
+                this.setupMedallionTargets();
+                this.updateConnections();
+                this.ensureCanvasExtents();
+            });
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (this.isDragging) {
+                this.isDragging = false;
+                
+                // State was saved BEFORE move in startDragOperation
+                // No saveState here - we want undo to restore the pre-move state
+                
+                this.selectedItems.forEach(ci => {
+                    ci.element.style.zIndex = '';
+                });
+                this.dragInitialPositions.clear();
+                
+                // Final connection update after drag complete
+                setTimeout(() => {
+                    this.setupMedallionTargets();
+                    this.updateConnections();
+                    this.ensureCanvasExtents();
+                    this.autosave();
+                }, 100);
+            }
+        });
     }
 
     setupLayoutObserver() {
@@ -911,39 +1053,90 @@ class ArchitecturePlayground {
 
             // If we have company databases, show only those
             if (companyDatabases.length > 0) {
-                console.log('Showing company databases only');
-                // Company Databases Section
-                const companyHeader = document.createElement('div');
-                companyHeader.className = 'database-section-header';
-                companyHeader.innerHTML = '<h4><i class="fas fa-building"></i> Company Databases</h4>';
-                databaseList.appendChild(companyHeader);
-
-                // Create table structure
-                const table = document.createElement('table');
-                table.className = 'database-table';
-                table.innerHTML = `
-                    <thead>
-                        <tr>
-                            <th width="40"></th>
-                            <th>Database</th>
-                            <th>Type</th>
-                            <th>Server</th>
-                            <th>Status</th>
-                            <th>Environment</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                `;
+                console.log('Showing company databases grouped');
                 
-                const tbody = table.querySelector('tbody');
+                // Group databases by their group property
+                const groupedDatabases = {};
                 companyDatabases.forEach(db => {
-                    console.log('Creating row for company database:', db);
-                    const row = this.createDatabaseTableRow(db, true);
-                    tbody.appendChild(row);
+                    const groupName = db.group || 'Ungrouped';
+                    if (!groupedDatabases[groupName]) {
+                        groupedDatabases[groupName] = [];
+                    }
+                    groupedDatabases[groupName].push(db);
                 });
                 
-                databaseList.appendChild(table);
-                console.log('Added company database table');
+                // Display each group
+                Object.keys(groupedDatabases).sort().forEach((groupName, index) => {
+                    const groupDbs = groupedDatabases[groupName];
+                    
+                    // Assign color based on group index
+                    const groupColor = this.getGroupColor(index);
+                    
+                    // Check if group is collapsed (stored in localStorage)
+                    const collapsedGroups = JSON.parse(localStorage.getItem('collapsed-database-groups') || '{}');
+                    const isCollapsed = collapsedGroups[groupName] || false;
+                    
+                    // Group header
+                    const groupHeader = document.createElement('div');
+                    groupHeader.className = 'database-group-header';
+                    groupHeader.style.setProperty('--group-color', groupColor);
+                    groupHeader.style.cursor = 'pointer';
+                    groupHeader.innerHTML = `
+                        <h4>
+                            <i class="fas fa-chevron-${isCollapsed ? 'right' : 'down'} group-toggle-icon"></i>
+                            <i class="fas fa-folder"></i> ${groupName}
+                            <span class="group-count">${groupDbs.length}</span>
+                        </h4>
+                    `;
+                    
+                    // Add click handler to toggle group
+                    groupHeader.addEventListener('click', () => {
+                        this.toggleDatabaseGroup(groupName, table);
+                    });
+                    
+                    databaseList.appendChild(groupHeader);
+                    
+                    // Create table for this group
+                    const table = document.createElement('table');
+                    table.className = 'database-table';
+                    table.style.setProperty('--group-color', groupColor);
+                    table.innerHTML = `
+                        <thead>
+                            <tr>
+                                <th width="40"></th>
+                                <th>Database</th>
+                                <th>Type</th>
+                                <th>Server</th>
+                                <th>Status</th>
+                                <th>Environment</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    `;
+                    
+                    const tbody = table.querySelector('tbody');
+                    groupDbs.forEach(db => {
+                        console.log('Creating row for database:', db.name, 'in group:', groupName);
+                        const row = this.createDatabaseTableRow(db, true);
+                        row.style.setProperty('--group-color', groupColor);
+                        tbody.appendChild(row);
+                    });
+                    
+                    // Hide table if group is collapsed
+                    if (isCollapsed) {
+                        table.classList.add('collapsed');
+                        table.style.display = 'none';
+                    }
+                    
+                    databaseList.appendChild(table);
+                    
+                    // Add spacing between groups
+                    const spacer = document.createElement('div');
+                    spacer.style.height = '20px';
+                    databaseList.appendChild(spacer);
+                });
+                
+                console.log('Added grouped database tables');
             } else {
                 console.log('No company databases found, showing default sources');
                 // No company databases - show empty state and default sources
@@ -1219,9 +1412,9 @@ class ArchitecturePlayground {
         
         const canvasRect = canvas.getBoundingClientRect();
         
-        // Place in the prepare area (left side)
-        const x = 100 + (Math.random() * 200); // Random position in left area
-        const y = 100 + (Math.random() * 300); // Random height
+        // Place in the prepare area (left side) - compact layout
+        const x = 30 + (Math.random() * 80); // Compact horizontal spacing
+        const y = 30 + (Math.random() * 100); // Compact vertical spacing
         
         console.log('Calculated position:', { x, y });
         
@@ -1514,6 +1707,9 @@ class ArchitecturePlayground {
             return;
         }
 
+        // Save state BEFORE creating connection for proper undo
+        this.saveState('before manual connection');
+
         // Create the connection with specific anchors
         const fromId = this.ensureElementId(fromElement, 'node');
         const toId = this.ensureElementId(toElement, 'node');
@@ -1535,7 +1731,6 @@ class ArchitecturePlayground {
         
         // Auto-save after creating connection
         setTimeout(() => this.autosave(), 500);
-        this.saveState('manual connection');
         this.clearPendingConnection();
     }
 
@@ -1656,30 +1851,6 @@ class ArchitecturePlayground {
             if (ci.data) ci.data.name = next;
             this.autosave();
         }
-    }
-
-    deleteCanvasItem(ci) {
-        this.saveState('delete item');
-        
-        // Remove connections involving this item
-        const involved = this.connections.filter(c => c.from === ci.element || c.to === ci.element);
-        involved.forEach(c => {
-            if (c.element && this.connectionSvg) {
-                try { this.connectionSvg.removeChild(c.element); } catch {}
-            }
-        });
-        this.connections = this.connections.filter(c => !(c.from === ci.element || c.to === ci.element));
-
-        // Remove element and list entry
-        if (ci.element && ci.element.parentNode) ci.element.parentNode.removeChild(ci.element);
-        this.canvasItems = this.canvasItems.filter(x => x !== ci);
-
-        this.updateConnections();
-        this.autosave();
-        this.showNotification('Item deleted', 'success');
-        
-        // Auto-save after deletion
-        setTimeout(() => this.autosave(), 500);
     }
 
     toggleConnectionMode() {
@@ -1918,30 +2089,52 @@ class ArchitecturePlayground {
     initializeConnectionLayer() {
         const canvas = document.getElementById('fabric-canvas');
         if (!canvas) return;
-        // Create an SVG overlay for connections
+        
+        // Create canvas content wrapper if it doesn't exist
+        let contentWrapper = canvas.querySelector('.canvas-content-wrapper');
+        if (!contentWrapper) {
+            contentWrapper = document.createElement('div');
+            contentWrapper.className = 'canvas-content-wrapper';
+            contentWrapper.style.position = 'absolute';
+            contentWrapper.style.top = '0';
+            contentWrapper.style.left = '0';
+            contentWrapper.style.width = '50000px';
+            contentWrapper.style.height = '50000px';
+            contentWrapper.style.transformOrigin = '0 0';
+            
+            // Move existing canvas-background into wrapper
+            const background = canvas.querySelector('.canvas-background');
+            if (background) {
+                canvas.removeChild(background);
+                contentWrapper.appendChild(background);
+            }
+            
+            // Insert wrapper as first child
+            canvas.insertBefore(contentWrapper, canvas.firstChild);
+            this.canvasContentWrapper = contentWrapper;
+        }
+        
+        // Create an SVG overlay for connections inside the wrapper
         const svgNS = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(svgNS, 'svg');
-        svg.setAttribute('width', '100%');
-        svg.setAttribute('height', '100%');
-        svg.setAttribute('viewBox', `0 0 ${canvas.clientWidth} ${canvas.clientHeight}`);
+        const svg = document.createElementNS(svgNS, 'svg');
+        svg.setAttribute('width', '50000');
+        svg.setAttribute('height', '50000');
+        svg.setAttribute('viewBox', '0 0 50000 50000');
         svg.setAttribute('preserveAspectRatio', 'none');
-    svg.setAttribute('class', 'connection-svg');
+        svg.setAttribute('class', 'connection-svg');
         svg.style.position = 'absolute';
         svg.style.top = '0';
         svg.style.left = '0';
-        svg.style.right = '0';
-        svg.style.bottom = '0';
         svg.style.pointerEvents = 'none';
         svg.style.zIndex = '5'; // Above containers (z-index: 1) but below components (z-index: 10)
 
         // Ensure canvas is positioned (should be already)
         canvas.style.position = canvas.style.position || 'relative';
-        canvas.appendChild(svg);
+        contentWrapper.appendChild(svg);
         this.connectionSvg = svg;
 
         // Keep connections accurate on resize
         window.addEventListener('resize', () => {
-            svg.setAttribute('viewBox', `0 0 ${canvas.clientWidth} ${canvas.clientHeight}`);
             this.updateConnections();
         });
     }
@@ -2199,7 +2392,13 @@ class ArchitecturePlayground {
         this.setupCanvasItemClick(item);
         this.setupNameEditingForItem(item);
         
-    canvas.appendChild(item);
+        // Add item to canvas content wrapper (for proper zoom/pan)
+        const wrapper = canvas.querySelector('.canvas-content-wrapper');
+        if (wrapper) {
+            wrapper.appendChild(item);
+        } else {
+            canvas.appendChild(item); // Fallback if wrapper doesn't exist yet
+        }
     
     // Add status indicator if metadata exists
     if (data.meta && data.meta.business && data.meta.business.status) {
@@ -2249,7 +2448,13 @@ class ArchitecturePlayground {
         this.setupCanvasItemClick(item);
         this.setupNameEditingForItem(item);
         
-        canvas.appendChild(item);
+        // Add item to canvas content wrapper (for proper zoom/pan)
+        const wrapper = canvas.querySelector('.canvas-content-wrapper');
+        if (wrapper) {
+            wrapper.appendChild(item);
+        } else {
+            canvas.appendChild(item); // Fallback if wrapper doesn't exist yet
+        }
         
         // Force reflow to ensure element is properly rendered
         item.offsetHeight;
@@ -2318,6 +2523,10 @@ class ArchitecturePlayground {
             
             handle.addEventListener('mousedown', (e) => {
                 e.stopPropagation(); // Prevent triggering drag
+                
+                // Save state BEFORE starting resize for proper undo
+                this.saveState('before resize container');
+                
                 isResizing = true;
                 
                 startX = e.clientX;
@@ -2381,15 +2590,33 @@ class ArchitecturePlayground {
                     containerElement.classList.remove('resizing');
                     document.body.style.cursor = '';
                     
-                    // Save state for undo
-                    this.saveState('resize container');
+                    // State was saved BEFORE resize in mousedown
+                    // No saveState here - we want undo to restore the pre-resize state
                     this.autosave();
                 }
             });
         });
     }
 
-    addCanvasItem(itemType, x, y, containerId = null) {
+    addCanvasItem(itemType, x, y, customDataOrContainerId = null) {
+        // Support both old signature (containerId) and new (customData object)
+        let containerId = null;
+        let customData = null;
+        
+        if (typeof customDataOrContainerId === 'string') {
+            // Old signature: containerId
+            containerId = customDataOrContainerId;
+        } else if (typeof customDataOrContainerId === 'object' && customDataOrContainerId !== null) {
+            // New signature: customData object
+            customData = customDataOrContainerId;
+        }
+        
+        // Ensure items are never positioned outside visible canvas bounds
+        const minX = 180;  // Large margin to account for canvas borders/padding
+        const minY = 150;  // Large margin from top edge
+        x = Math.max(minX, x);
+        y = Math.max(minY, y);
+        
         this.saveState('add ' + itemType);
         
         const canvas = document.getElementById('fabric-canvas');
@@ -2409,26 +2636,35 @@ class ArchitecturePlayground {
             item.style.setProperty('--ci-accent', '#e5e4e2');
         }
         
-    const itemId = this.ensureElementId(item, 'canvas-item');
+        const itemId = this.ensureElementId(item, 'canvas-item');
         
-        const itemConfig = this.getItemConfig(itemType);
+        const baseConfig = this.getItemConfig(itemType);
+        const itemData = this.mergeItemData(baseConfig, customData);
         const isContainer = this.containerTypes.includes(itemType);
         
-        item.innerHTML = `
-            <div class="canvas-item-header">
-                <div class="ci-icon">
-                    ${this.getIconMarkup(itemType)}
+        const displayName = itemData.name;
+        const displayType = itemData.type;
+        
+        if (itemType === 'raspberry-pi') {
+            item.classList.add('ci-raspberry-shell');
+            item.innerHTML = this.renderRaspberryPiCard({ ...itemData, typeLabel: displayType });
+        } else {
+            item.innerHTML = `
+                <div class="canvas-item-header">
+                    <div class="ci-icon">
+                        ${this.getIconMarkup(itemType)}
+                    </div>
+                    <span class="canvas-item-title">${displayName}</span>
                 </div>
-                <span class="canvas-item-title">${itemConfig.name}</span>
-            </div>
-            ${!isContainer ? `<div class="canvas-item-type">${itemConfig.type}</div>` : ''}
-            ${isContainer ? `
-                <div class="resize-handle nw" data-direction="nw"></div>
-                <div class="resize-handle ne" data-direction="ne"></div>
-                <div class="resize-handle sw" data-direction="sw"></div>
-                <div class="resize-handle se" data-direction="se"></div>
-            ` : ''}
-        `;
+                ${!isContainer ? `<div class="canvas-item-type">${displayType}</div>` : ''}
+                ${isContainer ? `
+                    <div class="resize-handle nw" data-direction="nw"></div>
+                    <div class="resize-handle ne" data-direction="ne"></div>
+                    <div class="resize-handle sw" data-direction="sw"></div>
+                    <div class="resize-handle se" data-direction="se"></div>
+                ` : ''}
+            `;
+        }
         
         // Place at exact coordinates without additional clamping
         item.style.left = x + 'px';
@@ -2439,17 +2675,27 @@ class ArchitecturePlayground {
         this.setupCanvasItemClick(item);
         this.setupNameEditingForItem(item);
 
-        canvas.appendChild(item);
+        // Append to canvas content wrapper instead of canvas directly
+        const wrapper = canvas.querySelector('.canvas-content-wrapper');
+        if (wrapper) {
+            wrapper.appendChild(item);
+        } else {
+            canvas.appendChild(item); // Fallback if wrapper doesn't exist yet
+        }
         
         // Add status indicator if metadata exists
-        if (itemConfig.meta && itemConfig.meta.business && itemConfig.meta.business.status) {
-            updateComponentStatusIndicator(item, itemConfig.meta.business.status);
-        }    if (this.editMode) this.showItemQuickActions(true);
+        if (itemData.meta && itemData.meta.business && itemData.meta.business.status) {
+            updateComponentStatusIndicator(item, itemData.meta.business.status);
+        }
+        if (itemType === 'raspberry-pi') {
+            this.decorateRaspberryPiItem(item, itemData);
+        }
+        if (this.editMode) this.showItemQuickActions(true);
         this.canvasItems.push({
             id: itemId,
             element: item,
             type: itemType,
-            data: itemConfig,
+            data: itemData,
             containerId: containerId
         });
         
@@ -2464,7 +2710,7 @@ class ArchitecturePlayground {
         }
         
         this.ensureCanvasExtents();
-        this.showNotification(`Added ${itemConfig.name} to canvas`, 'success');
+        this.showNotification(`Added ${itemData.name} to canvas`, 'success');
         
         // Show container instructions for container types
         if (this.containerTypes.includes(itemType) && !localStorage.getItem('container-tip-shown')) {
@@ -2498,6 +2744,7 @@ class ArchitecturePlayground {
             'data-lake': { icon: '�️', name: 'Data Lake', type: 'Raw Data Storage' },
             'table': { icon: '📋', name: 'Table', type: 'Storage' },
             'etl': { icon: '⚙️', name: 'ETL Process', type: 'Data Engineering' },
+            'raspberry-pi': { icon: '🍓', name: 'Raspberry Pi', type: 'Edge Compute' },
             
             // Data Sources
             'api': { icon: '🔌', name: 'API', type: 'Data Source' },
@@ -2541,7 +2788,12 @@ class ArchitecturePlayground {
             'schema-container': { icon: '📁', name: 'Schema', type: 'Container' },
             'table-group': { icon: '📋', name: 'Table Group', type: 'Container' },
             'process-container': { icon: '⚙️', name: 'Process Group', type: 'Container' },
-            'zone-container': { icon: '🏗️', name: 'Data Zone', type: 'Container' }
+            'zone-container': { icon: '🏗️', name: 'Data Zone', type: 'Container' },
+            'datasources-container': { icon: '🗄️', name: 'Datasources', type: 'Container' },
+            'onelake-container': { icon: '🏞️', name: 'One Lake', type: 'Container' },
+            'transformation-container': { icon: '🔄', name: 'Transformation', type: 'Container' },
+            'semantic-models-container': { icon: '🧱', name: 'Semantic Models', type: 'Container' },
+            'reports-container': { icon: '📊', name: 'Reports', type: 'Container' }
         };
         
         return configs[itemType] || { icon: '❓', name: 'Unknown', type: 'Unknown' };
@@ -2564,6 +2816,7 @@ class ArchitecturePlayground {
             case 'data-lake': return 'ci-data-source';
             case 'table': return 'ci-table';
             case 'etl': return 'ci-pipeline'; // Reuse pipeline styling
+            case 'raspberry-pi': return 'ci-raspberry-pi';
             
             // Data Sources
             case 'api': return 'ci-data-source';
@@ -2608,9 +2861,23 @@ class ArchitecturePlayground {
             case 'table-group': return 'ci-container ci-table-group';
             case 'process-container': return 'ci-container ci-process-container';
             case 'zone-container': return 'ci-container ci-zone-container';
+            case 'datasources-container': return 'ci-container ci-datasources-container';
+            case 'onelake-container': return 'ci-container ci-onelake-container';
+            case 'transformation-container': return 'ci-container ci-transformation-container';
+            case 'semantic-models-container': return 'ci-container ci-semantic-models-container';
+            case 'reports-container': return 'ci-container ci-reports-container';
             
             default: return 'ci-dataset'; // Default fallback
         }
+    }
+
+    // Ensure an element has an ID, generating one if necessary
+    ensureElementId(element, prefix = 'element') {
+        if (!element) return null;
+        if (!element.id) {
+            element.id = `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        }
+        return element.id;
     }
 
     getIconMarkup(itemType) {
@@ -2631,6 +2898,7 @@ class ArchitecturePlayground {
             'data-lake': '<i class="fas fa-lake"></i>',
             'table': '<i class="fas fa-table"></i>',
             'etl': '<i class="fas fa-cogs"></i>',
+            'raspberry-pi': '<i class="fab fa-raspberry-pi" style="color: #d61c4e;"></i>',
             
             // Data Sources
             'api': '<i class="fas fa-plug"></i>',
@@ -2674,9 +2942,53 @@ class ArchitecturePlayground {
             'schema-container': '<i class="fas fa-folder-open" style="color: #6c757d;"></i>',
             'table-group': '<i class="fas fa-object-group" style="color: #28a745;"></i>',
             'process-container': '<i class="fas fa-box" style="color: #ffc107;"></i>',
-            'zone-container': '<i class="fas fa-th-large" style="color: #6f42c1;"></i>'
+            'zone-container': '<i class="fas fa-th-large" style="color: #6f42c1;"></i>',
+            'datasources-container': '<i class="fas fa-database" style="color: #17a2b8;"></i>',
+            'onelake-container': '<i class="fas fa-water" style="color: #20c997;"></i>',
+            'transformation-container': '<i class="fas fa-exchange-alt" style="color: #fd7e14;"></i>',
+            'semantic-models-container': '<i class="fas fa-cubes" style="color: #6610f2;"></i>',
+            'reports-container': '<i class="fas fa-chart-bar" style="color: #e83e8c;"></i>'
         };
         return fa[itemType] || `<span class="emoji">${this.getItemConfig(itemType).icon}</span>`;
+    }
+
+    mergeItemData(baseConfig = {}, customData = null) {
+        const merged = { ...baseConfig };
+        if (customData && typeof customData === 'object') {
+            Object.entries(customData).forEach(([key, value]) => {
+                if (key === 'meta' && value) {
+                    merged.meta = merged.meta || {};
+                    merged.meta.business = { ...(merged.meta.business || {}), ...(value.business || {}) };
+                    merged.meta.technical = { ...(merged.meta.technical || {}), ...(value.technical || {}) };
+                    merged.meta.notes = { ...(merged.meta.notes || {}), ...(value.notes || {}) };
+                } else {
+                    merged[key] = value;
+                }
+            });
+        }
+        merged.meta = merged.meta || { business: {}, technical: {}, notes: {} };
+        merged.meta.business = merged.meta.business || {};
+        merged.meta.technical = merged.meta.technical || {};
+        merged.meta.notes = merged.meta.notes || {};
+        return merged;
+    }
+
+    // Simple Raspberry Pi card (edge device / data source)
+    renderRaspberryPiCard(data = {}) {
+        return `
+            <div class="canvas-item-header">
+                <div class="ci-icon">
+                    ${this.getIconMarkup('raspberry-pi')}
+                </div>
+                <span class="canvas-item-title">${data.name || 'Raspberry Pi'}</span>
+            </div>
+            <div class="canvas-item-type">${data.description || data.typeLabel || 'Edge Device'}</div>
+        `;
+    }
+
+    decorateRaspberryPiItem(element, itemData) {
+        // Simple decoration - no special behavior needed
+        if (!element) return;
     }
 
     // Snap coordinates to grid
@@ -2694,25 +3006,59 @@ class ArchitecturePlayground {
 
     // === UNDO/REDO SYSTEM ===
     saveState(actionType = 'action') {
+        console.log('[saveState] Called with action:', actionType, '| _isLoading:', this._isLoading);
+        // Skip saving state during bulk load operations
+        if (this._isLoading) {
+            console.log('[saveState] Skipped due to _isLoading flag');
+            return;
+        }
+        console.log('[saveState] Saving state, current stack size:', this.undoStack.length);
+        
         const state = {
             items: this.canvasItems.map(ci => {
                 const itemData = {
                     id: ci.id,
                     type: ci.type,
-                    data: ci.data,
+                    data: ci.data ? JSON.parse(JSON.stringify(ci.data)) : {},
                     position: {
                         x: parseInt(ci.element.style.left) || 0,
                         y: parseInt(ci.element.style.top) || 0
-                    }
+                    },
+                    width: ci.element.offsetWidth || parseInt(ci.element.style.width) || null,
+                    height: ci.element.offsetHeight || parseInt(ci.element.style.height) || null
                 };
                 
-                // For text labels, save the actual text content
+                // For text labels, save the actual text content and styles
                 if (ci.type === 'text-label' && ci.element) {
+                    // Get text content excluding resize handle
+                    const clone = ci.element.cloneNode(true);
+                    const handle = clone.querySelector('.text-label-resize-handle');
+                    if (handle) handle.remove();
+                    const text = clone.textContent || 'Double-click to edit';
+                    
                     itemData.data = {
-                        ...ci.data,
-                        name: ci.element.textContent || 'Double-click to edit',
-                        text: ci.element.textContent || 'Double-click to edit'
+                        ...itemData.data,
+                        name: text,
+                        text: text
                     };
+                    itemData.style = {
+                        background: ci.element.style.background,
+                        border: ci.element.style.border,
+                        color: ci.element.style.color,
+                        fontSize: ci.element.style.fontSize,
+                        fontWeight: ci.element.style.fontWeight,
+                        width: ci.element.style.width,
+                        height: ci.element.style.height
+                    };
+                }
+
+                // For images, save the src
+                if (ci.type === 'image' && ci.element) {
+                    const img = ci.element.querySelector('img');
+                    if (img) {
+                        itemData.data = { ...itemData.data, src: img.src };
+                    }
+                    itemData.style = { width: ci.element.style.width };
                 }
                 
                 return itemData;
@@ -2720,14 +3066,18 @@ class ArchitecturePlayground {
             connections: this.connections.map(conn => ({
                 id: conn.id,
                 type: conn.type,
-                fromId: conn.from.id || null,
-                toId: conn.to.id || null
+                fromId: conn.from?.id || conn.fromId || null,
+                toId: conn.to?.id || conn.toId || null,
+                fromAnchor: conn.fromAnchor || null,
+                toAnchor: conn.toAnchor || null,
+                color: conn.color || null
             })),
             actionType,
             timestamp: Date.now()
         };
         
         this.undoStack.push(state);
+        console.log('[saveState] State pushed, new stack size:', this.undoStack.length, '| items:', state.items.length, '| connections:', state.connections.length);
         if (this.undoStack.length > this.maxUndoSteps) {
             this.undoStack.shift();
         }
@@ -2735,27 +3085,61 @@ class ArchitecturePlayground {
     }
 
     undo() {
+        console.log('[Undo] Called. undoStack.length:', this.undoStack.length);
         if (this.undoStack.length === 0) {
+            console.log('[Undo] Stack is empty, nothing to undo');
             this.showNotification('Nothing to undo', 'warning');
             return;
         }
+        console.log('[Undo] Proceeding with undo...');
         
         // Save current state to redo stack
         const currentState = {
-            items: this.canvasItems.map(ci => ({
-                id: ci.id,
-                type: ci.type,
-                data: ci.data,
-                position: {
-                    x: parseInt(ci.element.style.left) || 0,
-                    y: parseInt(ci.element.style.top) || 0
+            items: this.canvasItems.map(ci => {
+                const itemData = {
+                    id: ci.id,
+                    type: ci.type,
+                    data: ci.data ? JSON.parse(JSON.stringify(ci.data)) : {},
+                    position: {
+                        x: parseInt(ci.element.style.left) || 0,
+                        y: parseInt(ci.element.style.top) || 0
+                    },
+                    width: ci.element.offsetWidth || parseInt(ci.element.style.width) || null,
+                    height: ci.element.offsetHeight || parseInt(ci.element.style.height) || null
+                };
+                
+                if (ci.type === 'text-label' && ci.element) {
+                    const clone = ci.element.cloneNode(true);
+                    const handle = clone.querySelector('.text-label-resize-handle');
+                    if (handle) handle.remove();
+                    const text = clone.textContent || 'Double-click to edit';
+                    itemData.data = { ...itemData.data, name: text, text: text };
+                    itemData.style = {
+                        background: ci.element.style.background,
+                        border: ci.element.style.border,
+                        color: ci.element.style.color,
+                        fontSize: ci.element.style.fontSize,
+                        fontWeight: ci.element.style.fontWeight,
+                        width: ci.element.style.width,
+                        height: ci.element.style.height
+                    };
                 }
-            })),
+                if (ci.type === 'image' && ci.element) {
+                    const img = ci.element.querySelector('img');
+                    if (img) itemData.data = { ...itemData.data, src: img.src };
+                    itemData.style = { width: ci.element.style.width };
+                }
+                
+                return itemData;
+            }),
             connections: this.connections.map(conn => ({
                 id: conn.id,
                 type: conn.type,
-                fromId: conn.from.id || null,
-                toId: conn.to.id || null
+                fromId: conn.from?.id || conn.fromId || null,
+                toId: conn.to?.id || conn.toId || null,
+                fromAnchor: conn.fromAnchor || null,
+                toAnchor: conn.toAnchor || null,
+                color: conn.color || null
             })),
             timestamp: Date.now()
         };
@@ -2763,7 +3147,14 @@ class ArchitecturePlayground {
         
         // Restore previous state
         const prevState = this.undoStack.pop();
+        
+        // Set flag to prevent loadFromData from calling saveState
+        this._isUndoRedo = true;
         this.loadFromData(prevState);
+        this._isUndoRedo = false;
+        
+        // Note: We intentionally do NOT restore viewport - user stays at current view position
+        
         this.showNotification(`Undone: ${prevState.actionType}`, 'info');
     }
 
@@ -2773,12 +3164,67 @@ class ArchitecturePlayground {
             return;
         }
         
-        // Save current state to undo stack
-        this.saveState('redo');
+        // Save current state to undo stack (without clearing redo)
+        const currentState = {
+            items: this.canvasItems.map(ci => {
+                const itemData = {
+                    id: ci.id,
+                    type: ci.type,
+                    data: ci.data ? JSON.parse(JSON.stringify(ci.data)) : {},
+                    position: {
+                        x: parseInt(ci.element.style.left) || 0,
+                        y: parseInt(ci.element.style.top) || 0
+                    },
+                    width: ci.element.offsetWidth || null,
+                    height: ci.element.offsetHeight || null
+                };
+                if (ci.type === 'text-label' && ci.element) {
+                    const clone = ci.element.cloneNode(true);
+                    const handle = clone.querySelector('.text-label-resize-handle');
+                    if (handle) handle.remove();
+                    const text = clone.textContent || 'Double-click to edit';
+                    itemData.data = { ...itemData.data, name: text, text: text };
+                    itemData.style = {
+                        background: ci.element.style.background,
+                        border: ci.element.style.border,
+                        color: ci.element.style.color,
+                        fontSize: ci.element.style.fontSize,
+                        fontWeight: ci.element.style.fontWeight,
+                        width: ci.element.style.width,
+                        height: ci.element.style.height
+                    };
+                }
+                if (ci.type === 'image' && ci.element) {
+                    const img = ci.element.querySelector('img');
+                    if (img) itemData.data = { ...itemData.data, src: img.src };
+                    itemData.style = { width: ci.element.style.width };
+                }
+                return itemData;
+            }),
+            connections: this.connections.map(conn => ({
+                id: conn.id,
+                type: conn.type,
+                fromId: conn.from?.id || conn.fromId || null,
+                toId: conn.to?.id || conn.toId || null,
+                fromAnchor: conn.fromAnchor || null,
+                toAnchor: conn.toAnchor || null,
+                color: conn.color || null
+            })),
+            actionType: 'redo',
+            timestamp: Date.now()
+        };
+        this.undoStack.push(currentState);
         
         // Restore next state
         const nextState = this.redoStack.pop();
+        
+        // Set flag to prevent loadFromData from calling saveState
+        this._isUndoRedo = true;
         this.loadFromData(nextState);
+        this._isUndoRedo = false;
+        
+        // Note: We intentionally do NOT restore viewport - user stays at current view position
+        
         this.showNotification('Redone action', 'info');
     }
 
@@ -2816,8 +3262,13 @@ class ArchitecturePlayground {
         // Setup resize functionality
         this.setupTextLabelResize(label, resizeHandle);
 
-        // Add to canvas
-        canvas.appendChild(label);
+        // Add to canvas content wrapper (for proper zoom/pan)
+        const wrapper = canvas.querySelector('.canvas-content-wrapper');
+        if (wrapper) {
+            wrapper.appendChild(label);
+        } else {
+            canvas.appendChild(label); // Fallback if wrapper doesn't exist yet
+        }
 
         // Add to canvasItems array so it can be selected, deleted, etc.
         this.canvasItems.push({
@@ -2845,6 +3296,10 @@ class ArchitecturePlayground {
         label.addEventListener('dblclick', (e) => {
             e.stopPropagation();
             e.preventDefault();
+            
+            // Save state BEFORE editing starts for proper undo
+            this.saveState('before text-edit');
+            
             label.contentEditable = 'true';
             label.classList.add('editing');
             label.style.cursor = 'text';
@@ -2880,9 +3335,15 @@ class ArchitecturePlayground {
                     name: label.textContent,
                     text: label.textContent
                 };
+                
+                // Keep the label selected and show formatting toolbar
+                this.clearSelection();
+                this.selectedItems.add(canvasItem);
+                label.classList.add('selected', 'multi-selected');
+                this.showTextFormatToolbar(label);
             }
             
-            this.saveState('text-edit');
+            // State was saved BEFORE editing in dblclick handler
             this.autosave(); // Ensure autosave after text edit
         });
 
@@ -2928,6 +3389,158 @@ class ArchitecturePlayground {
         this.showNotification('Text label added - Drag to move, double-click to edit, Delete to remove', 'success');
     }
 
+    // Add image from clipboard to canvas
+    addImageToCanvas(imageBlob, x = null, y = null) {
+        if (!imageBlob) return;
+
+        const canvas = document.getElementById('fabric-canvas');
+        if (!canvas) return;
+
+        // If no position specified, place in center of viewport
+        if (x === null || y === null) {
+            const rect = canvas.getBoundingClientRect();
+            x = (canvas.scrollLeft + rect.width / 2 - this.canvasOffset.x) / this.zoomLevel - 150;
+            y = (canvas.scrollTop + rect.height / 2 - this.canvasOffset.y) / this.zoomLevel - 150;
+        }
+
+        // Create image element
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const imageId = 'canvas-image-' + Date.now();
+            const imageContainer = document.createElement('div');
+            imageContainer.className = 'canvas-item canvas-image-item';
+            imageContainer.id = imageId;
+            imageContainer.style.position = 'absolute';
+            imageContainer.style.left = x + 'px';
+            imageContainer.style.top = y + 'px';
+            imageContainer.style.padding = '0';
+            imageContainer.style.background = 'transparent';
+            imageContainer.style.border = 'none';
+            imageContainer.style.borderRadius = '0';
+            imageContainer.style.boxShadow = 'none';
+            imageContainer.style.cursor = 'move';
+            imageContainer.style.minWidth = '100px';
+            imageContainer.style.minHeight = '100px';
+            imageContainer.style.maxWidth = '800px';
+            imageContainer.style.maxHeight = '600px';
+
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            img.style.display = 'block';
+            img.style.width = '100%';
+            img.style.height = 'auto';
+            img.style.maxWidth = '100%';
+            img.style.pointerEvents = 'none';
+            img.style.userSelect = 'none';
+
+            // Add resize handle
+            const resizeHandle = document.createElement('div');
+            resizeHandle.className = 'image-resize-handle';
+            resizeHandle.style.position = 'absolute';
+            resizeHandle.style.bottom = '2px';
+            resizeHandle.style.right = '2px';
+            resizeHandle.style.width = '16px';
+            resizeHandle.style.height = '16px';
+            resizeHandle.style.background = 'rgba(0, 120, 212, 0.8)';
+            resizeHandle.style.cursor = 'nwse-resize';
+            resizeHandle.style.borderRadius = '3px';
+            resizeHandle.style.border = '2px solid white';
+            resizeHandle.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.3)';
+            resizeHandle.style.opacity = '0';
+            resizeHandle.style.transition = 'opacity 0.2s ease';
+
+            imageContainer.appendChild(img);
+            imageContainer.appendChild(resizeHandle);
+
+            // Show resize handle on hover
+            imageContainer.addEventListener('mouseenter', () => {
+                resizeHandle.style.opacity = '1';
+            });
+            imageContainer.addEventListener('mouseleave', () => {
+                resizeHandle.style.opacity = '0';
+            });
+
+            // Add to canvas content wrapper
+            const wrapper = canvas.querySelector('.canvas-content-wrapper');
+            if (wrapper) {
+                wrapper.appendChild(imageContainer);
+            } else {
+                canvas.appendChild(imageContainer);
+            }
+
+            // Setup resize
+            this.setupImageResize(imageContainer, resizeHandle, img);
+
+            // Add to canvasItems
+            this.canvasItems.push({
+                id: imageId,
+                element: imageContainer,
+                type: 'image',
+                data: {
+                    name: 'Image',
+                    src: e.target.result,
+                    type: 'image'
+                }
+            });
+
+            // Setup drag and click
+            this.setupCanvasItemDrag(imageContainer);
+            this.setupCanvasItemClick(imageContainer);
+
+            this.saveState('add-image');
+            this.showNotification('Image added - Drag to move, resize from corner, Delete to remove', 'success');
+        };
+
+        reader.readAsDataURL(imageBlob);
+    }
+
+    // Setup resize functionality for images
+    setupImageResize(container, resizeHandle, img) {
+        const resizeState = {
+            isResizing: false,
+            startX: 0,
+            startY: 0,
+            startWidth: 0
+        };
+
+        const handleMouseDown = (e) => {
+            if (e.target !== resizeHandle) return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Save state BEFORE starting resize for proper undo
+            this.saveState('before resize-image');
+
+            resizeState.isResizing = true;
+            resizeState.startX = e.clientX;
+            resizeState.startY = e.clientY;
+            resizeState.startWidth = container.offsetWidth;
+
+            document.body.style.cursor = 'nwse-resize';
+        };
+
+        const handleMouseMove = (e) => {
+            if (!resizeState.isResizing) return;
+
+            const deltaX = (e.clientX - resizeState.startX) / this.zoomLevel;
+            const newWidth = Math.max(100, Math.min(800, resizeState.startWidth + deltaX));
+
+            container.style.width = newWidth + 'px';
+        };
+
+        const handleMouseUp = () => {
+            if (!resizeState.isResizing) return;
+            resizeState.isResizing = false;
+            document.body.style.cursor = '';
+            // State was saved BEFORE resize in mousedown
+            // No saveState here - we want undo to restore the pre-resize state
+        };
+
+        resizeHandle.addEventListener('mousedown', handleMouseDown);
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    }
+
     // Setup resize functionality for text labels
     setupTextLabelResize(label, resizeHandle) {
         // Create a unique resize state for this specific label
@@ -2946,6 +3559,9 @@ class ArchitecturePlayground {
             
             e.preventDefault();
             e.stopPropagation();
+            
+            // Save state BEFORE starting resize for proper undo
+            this.saveState('before resize-text-label');
             
             resizeState.isResizing = true;
             resizeState.startX = e.clientX;
@@ -2992,8 +3608,8 @@ class ArchitecturePlayground {
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
             
-            // Only save state once at the end of resizing
-            this.saveState('resize-text-label');
+            // State was saved BEFORE resize in mousedown
+            // No saveState here - we want undo to restore the pre-resize state
             this.autosave();
         };
         
@@ -3050,6 +3666,58 @@ class ArchitecturePlayground {
         }
     }
 
+    // Toggle between Pan and Select modes
+    togglePanSelectMode() {
+        this.panMode = !this.panMode;
+        
+        // Update button visual state
+        const modeBtn = document.getElementById('mode-toggle-btn');
+        if (modeBtn) {
+            if (this.panMode) {
+                modeBtn.innerHTML = '<i class="fas fa-hand-paper"></i><span style="margin-left: 4px; font-size: 11px;">Pan</span>';
+                modeBtn.title = 'Toggle Pan/Select Mode (Space) - Currently: Pan';
+            } else {
+                modeBtn.innerHTML = '<i class="fas fa-mouse-pointer"></i><span style="margin-left: 4px; font-size: 11px;">Select</span>';
+                modeBtn.title = 'Toggle Pan/Select Mode (Space) - Currently: Select';
+            }
+        }
+        
+        // Show notification
+        const mode = this.panMode ? 'Pan' : 'Select';
+        this.showNotification(`Mode: ${mode}`, 'info');
+        
+        // Save preference to localStorage
+        try {
+            localStorage.setItem('canvasPanMode', this.panMode.toString());
+        } catch (error) {
+            console.warn('Failed to save mode preference:', error);
+        }
+    }
+
+    // Initialize pan mode from localStorage
+    initializePanMode() {
+        try {
+            const savedMode = localStorage.getItem('canvasPanMode');
+            if (savedMode !== null) {
+                this.panMode = savedMode === 'true';
+            }
+        } catch (error) {
+            console.warn('Failed to load mode preference:', error);
+        }
+        
+        // Update button visual state
+        const modeBtn = document.getElementById('mode-toggle-btn');
+        if (modeBtn) {
+            if (this.panMode) {
+                modeBtn.innerHTML = '<i class="fas fa-hand-paper"></i><span style="margin-left: 4px; font-size: 11px;">Pan</span>';
+                modeBtn.title = 'Toggle Pan/Select Mode (Space) - Currently: Pan';
+            } else {
+                modeBtn.innerHTML = '<i class="fas fa-mouse-pointer"></i><span style="margin-left: 4px; font-size: 11px;">Select</span>';
+                modeBtn.title = 'Toggle Pan/Select Mode (Space) - Currently: Select';
+            }
+        }
+    }
+
     // === CANVAS ZOOM FUNCTIONALITY ===
     setupCanvasZoom() {
         const canvas = document.getElementById('fabric-canvas');
@@ -3061,27 +3729,83 @@ class ArchitecturePlayground {
         // Add mouse wheel event listener for zoom (no Ctrl needed)
         canvas.addEventListener('wheel', (e) => {
             e.preventDefault(); // Prevent page scroll
+            console.log('[WHEEL] Zoom event triggered, current zoom:', this.zoomLevel);
+            
+            // Get mouse position relative to canvas
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            // Calculate mouse position in canvas coordinates (before zoom)
+            const canvasMouseX = (mouseX - this.canvasOffset.x) / this.zoomLevel;
+            const canvasMouseY = (mouseY - this.canvasOffset.y) / this.zoomLevel;
             
             // Determine zoom direction
             const delta = e.deltaY > 0 ? -this.zoomStep : this.zoomStep;
             const newZoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoomLevel + delta));
             
             if (newZoom !== this.zoomLevel) {
+                console.log('[WHEEL] Applying new zoom:', newZoom);
+                // Calculate new offset to keep mouse position fixed
+                const newOffsetX = mouseX - (canvasMouseX * newZoom);
+                const newOffsetY = mouseY - (canvasMouseY * newZoom);
+                
+                this.canvasOffset = { x: newOffsetX, y: newOffsetY };
                 this.setCanvasZoom(newZoom);
+                console.log('[WHEEL] After setCanvasZoom, zoomLevel is:', this.zoomLevel);
+                
+                // Save pan offset to current page
+                if (typeof pageManager !== 'undefined' && pageManager.currentPageId && pageManager.pages[pageManager.currentPageId]) {
+                    pageManager.pages[pageManager.currentPageId].canvasOffset = { ...this.canvasOffset };
+                    pageManager.savePages();
+                }
             }
         }, { passive: false });
         
-        // Add panning with middle mouse button or space + drag
+        // Add panning with left mouse button on canvas (not on items)
         let canDrag = false;
+        let dragStartTime = 0;
+        const clickThreshold = 200; // ms - distinguish between click and drag
         
         canvas.addEventListener('mousedown', (e) => {
-            // Middle mouse button (button 1) or Space + left click for panning
-            if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
-                e.preventDefault();
-                this.isPanning = true;
-                canDrag = true;
-                this.panStart = { x: e.clientX, y: e.clientY };
-                canvas.style.cursor = 'grabbing';
+            // Left-click on empty canvas = pan OR selection box (depending on mode)
+            // Middle mouse button or Shift+left also work for pan
+            // Don't pan if clicking on canvas items, connections, or UI elements
+            const clickedOnCanvas = e.target === canvas || 
+                                   e.target.classList.contains('canvas-background') || 
+                                   e.target.classList.contains('canvas-content-wrapper') ||
+                                   e.target.classList.contains('bg-panel') ||
+                                   e.target.classList.contains('bg-prepare');
+            
+            const clickedOnItem = e.target.closest('.canvas-item, .text-label-wrapper, .canvas-connection');
+            
+            // Only handle if clicking on empty canvas (not on items or connections)
+            if (clickedOnCanvas && !clickedOnItem) {
+                // Middle mouse or Shift+left always pans
+                if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
+                    e.preventDefault();
+                    this.isPanning = true;
+                    canDrag = true;
+                    dragStartTime = Date.now();
+                    this.panStart = { x: e.clientX, y: e.clientY };
+                    canvas.style.cursor = 'grabbing';
+                }
+                // Left-click behavior depends on mode
+                else if (e.button === 0) {
+                    if (this.panMode) {
+                        // Pan mode
+                        e.preventDefault();
+                        this.isPanning = true;
+                        canDrag = true;
+                        dragStartTime = Date.now();
+                        this.panStart = { x: e.clientX, y: e.clientY };
+                        canvas.style.cursor = 'grabbing';
+                    } else {
+                        // Selection mode - start selection box
+                        e.preventDefault();
+                        this.startSelection(e);
+                    }
+                }
             }
         });
         
@@ -3104,6 +3828,12 @@ class ArchitecturePlayground {
                 this.isPanning = false;
                 canDrag = false;
                 canvas.style.cursor = '';
+                
+                // Save pan offset to current page
+                if (typeof pageManager !== 'undefined' && pageManager.currentPageId && pageManager.pages[pageManager.currentPageId]) {
+                    pageManager.pages[pageManager.currentPageId].canvasOffset = { ...this.canvasOffset };
+                    pageManager.savePages();
+                }
             }
         });
         
@@ -3115,15 +3845,7 @@ class ArchitecturePlayground {
             }
         });
 
-        // Set initial zoom (in case it was saved)
-        try {
-            const savedZoom = localStorage.getItem('canvasZoom');
-            if (savedZoom) {
-                this.setCanvasZoom(parseFloat(savedZoom));
-            }
-        } catch (error) {
-            console.warn('Failed to load zoom preference:', error);
-        }
+        // Initial zoom and pan will be loaded per-page by PageManager
     }
 
     setCanvasZoom(zoomLevel) {
@@ -3139,15 +3861,17 @@ class ArchitecturePlayground {
         // Update all connections after zoom
         this.updateAllConnections();
 
+        // Update zoom indicator
+        this.updateZoomIndicator();
+
         // Show zoom percentage notification
         const zoomPercent = Math.round(this.zoomLevel * 100);
         this.showNotification(`Zoom: ${zoomPercent}%`, 'info');
 
-        // Save zoom preference
-        try {
-            localStorage.setItem('canvasZoom', this.zoomLevel.toString());
-        } catch (error) {
-            console.warn('Failed to save zoom preference:', error);
+        // Save zoom to current page
+        if (typeof pageManager !== 'undefined' && pageManager.currentPageId && pageManager.pages[pageManager.currentPageId]) {
+            pageManager.pages[pageManager.currentPageId].zoomLevel = this.zoomLevel;
+            pageManager.savePages();
         }
     }
     
@@ -3155,15 +3879,39 @@ class ArchitecturePlayground {
         const canvas = document.getElementById('fabric-canvas');
         if (!canvas) return;
         
-        // Apply both zoom and pan transformations
-        canvas.style.transform = `translate(${this.canvasOffset.x}px, ${this.canvasOffset.y}px) scale(${this.zoomLevel})`;
-        canvas.style.transformOrigin = '0 0';
+        // Apply transform only to the content wrapper - this transforms everything at once
+        const wrapper = canvas.querySelector('.canvas-content-wrapper');
+        if (wrapper) {
+            wrapper.style.transform = `translate(${this.canvasOffset.x}px, ${this.canvasOffset.y}px) scale(${this.zoomLevel})`;
+            wrapper.style.transformOrigin = '0 0';
+        }
+        
+        // Update connections after transform
+        this.updateConnections();
     }
 
-    // Reset zoom to 100%
+    // Reset zoom to 100% and center the view
     resetCanvasZoom() {
-        this.canvasOffset = { x: 0, y: 0 }; // Also reset pan
+        this.centerCanvasView();
         this.setCanvasZoom(1);
+    }
+    
+    // Center the canvas view on a specific point (defaults to center of content area)
+    centerCanvasView(targetX = 1000, targetY = 800) {
+        const canvas = document.getElementById('fabric-canvas');
+        if (!canvas) return;
+        
+        const rect = canvas.getBoundingClientRect();
+        const viewportCenterX = rect.width / 2;
+        const viewportCenterY = rect.height / 2;
+        
+        // Calculate offset so that targetX, targetY is at the center of the viewport
+        this.canvasOffset = {
+            x: viewportCenterX - (targetX * this.zoomLevel),
+            y: viewportCenterY - (targetY * this.zoomLevel)
+        };
+        
+        this.applyCanvasTransform();
     }
 
     // Zoom in
@@ -3178,13 +3926,200 @@ class ArchitecturePlayground {
         this.setCanvasZoom(newZoom);
     }
 
+    // Fit all items to view
+    fitToView(padding = 80) {
+        const canvas = document.getElementById('fabric-canvas');
+        const canvasContainer = canvas?.parentElement;
+        if (!canvas || !canvasContainer) return;
+
+        // Get all canvas items
+        const allItems = canvas.querySelectorAll('.canvas-item, .data-source-card, .medallion-target');
+        if (allItems.length === 0) return;
+
+        // Calculate bounding box of all items
+        let minX = Infinity, minY = Infinity;
+        let maxX = -Infinity, maxY = -Infinity;
+
+        allItems.forEach(item => {
+            const rect = item.getBoundingClientRect();
+            const canvasRect = canvas.getBoundingClientRect();
+            
+            // Get item position relative to canvas (accounting for current transform)
+            const x = parseFloat(item.style.left) || 0;
+            const y = parseFloat(item.style.top) || 0;
+            const width = rect.width / this.zoomLevel;
+            const height = rect.height / this.zoomLevel;
+
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x + width);
+            maxY = Math.max(maxY, y + height);
+        });
+
+        // Calculate content dimensions
+        const contentWidth = maxX - minX;
+        const contentHeight = maxY - minY;
+        const contentCenterX = minX + contentWidth / 2;
+        const contentCenterY = minY + contentHeight / 2;
+
+        // Get container dimensions
+        const containerWidth = canvasContainer.clientWidth;
+        const containerHeight = canvasContainer.clientHeight;
+
+        // Calculate zoom to fit with padding
+        const scaleX = (containerWidth - padding * 2) / contentWidth;
+        const scaleY = (containerHeight - padding * 2) / contentHeight;
+        
+        // Allow zooming out to fit all content (minimum 20% zoom)
+        const minZoomToFit = 0.2;
+        const newZoom = Math.max(minZoomToFit, Math.min(this.maxZoom, Math.min(scaleX, scaleY)));
+
+        // Calculate pan offset to center content
+        const offsetX = (containerWidth / 2) - (contentCenterX * newZoom);
+        const offsetY = (containerHeight / 2) - (contentCenterY * newZoom);
+
+        // Apply zoom and pan
+        this.zoomLevel = newZoom;
+        this.canvasOffset = { x: offsetX, y: offsetY };
+        this.applyCanvasTransform();
+        // updateConnections is called inside applyCanvasTransform
+
+        // Update zoom indicator
+        this.updateZoomIndicator();
+
+        // Show notification
+        const zoomPercent = Math.round(this.zoomLevel * 100);
+        this.showNotification(`Fit to view - Zoom: ${zoomPercent}%`, 'success');
+
+        // Save zoom and pan to current page
+        if (typeof pageManager !== 'undefined' && pageManager.currentPageId && pageManager.pages[pageManager.currentPageId]) {
+            pageManager.pages[pageManager.currentPageId].zoomLevel = this.zoomLevel;
+            pageManager.pages[pageManager.currentPageId].canvasOffset = { ...this.canvasOffset };
+            pageManager.savePages();
+        }
+    }
+
+    // Update the zoom level indicator display
+    updateZoomIndicator() {
+        const zoomPercent = Math.round(this.zoomLevel * 100);
+        const zoomIndicator = document.getElementById('zoom-level-text');
+        if (zoomIndicator) {
+            zoomIndicator.textContent = `${zoomPercent}%`;
+        }
+    }
+
+    // Auto-arrange cards in left-to-right hierarchical flow
+    autoArrangeCards() {
+        const canvas = document.getElementById('fabric-canvas');
+        if (!canvas) return;
+
+        const allItems = Array.from(canvas.querySelectorAll('.canvas-item, .data-source-card, .medallion-target'));
+        if (allItems.length === 0) return;
+
+        // Count connections for each item
+        const connections = this.connections || [];
+        const connectionCount = new Map();
+        
+        allItems.forEach(item => connectionCount.set(item, 0));
+        
+        connections.forEach(conn => {
+            if (conn.from) {
+                connectionCount.set(conn.from, (connectionCount.get(conn.from) || 0) + 1);
+            }
+            if (conn.to) {
+                connectionCount.set(conn.to, (connectionCount.get(conn.to) || 0) + 1);
+            }
+        });
+
+        // Separate connected and unconnected items
+        const connectedItems = allItems.filter(item => (connectionCount.get(item) || 0) > 0);
+        const unconnectedItems = allItems.filter(item => (connectionCount.get(item) || 0) === 0);
+
+        // Sort connected items by connection count (most connected first)
+        connectedItems.sort((a, b) => {
+            const countA = connectionCount.get(a) || 0;
+            const countB = connectionCount.get(b) || 0;
+            return countB - countA; // Descending order
+        });
+
+        // Layout parameters
+        const connectedItemsPerColumn = 5; // Max connected items per vertical column
+        const unconnectedItemsPerColumn = 8; // More unconnected items per column (compact)
+        const connectedColumnSpacing = 220; // More space for connected items
+        const connectedRowSpacing = 130;    // More vertical space for connected items
+        const unconnectedColumnSpacing = 150; // Less space for unconnected items
+        const unconnectedRowSpacing = 100;   // Tighter vertical spacing for unconnected items
+
+        // Calculate total width and height needed
+        const connectedColumns = Math.ceil(connectedItems.length / connectedItemsPerColumn);
+        const unconnectedColumns = Math.ceil(unconnectedItems.length / unconnectedItemsPerColumn);
+        const totalWidth = (connectedColumns * connectedColumnSpacing) + 50 + (unconnectedColumns * unconnectedColumnSpacing);
+        const maxConnectedRows = Math.min(connectedItemsPerColumn, connectedItems.length);
+        const maxUnconnectedRows = Math.min(unconnectedItemsPerColumn, unconnectedItems.length);
+        const totalHeight = Math.max(maxConnectedRows * connectedRowSpacing, maxUnconnectedRows * unconnectedRowSpacing);
+
+        // Center the layout on visible viewport with proper margins
+        const canvasContainer = canvas.parentElement;
+        const viewportWidth = canvasContainer ? canvasContainer.clientWidth : 1600;
+        const viewportHeight = canvasContainer ? canvasContainer.clientHeight : 900;
+        
+        // Calculate centered start position with minimum margins to keep items in bounds
+        const minMargin = 50; // Minimum margin from edges
+        const startX = Math.max(minMargin, (viewportWidth - totalWidth) / 2);
+        const startY = Math.max(minMargin, (viewportHeight - totalHeight) / 2);
+
+        // Arrange connected items first
+        connectedItems.forEach((item, index) => {
+            const columnIndex = Math.floor(index / connectedItemsPerColumn);
+            const rowIndex = index % connectedItemsPerColumn;
+            
+            const x = startX + (columnIndex * connectedColumnSpacing);
+            const y = startY + (rowIndex * connectedRowSpacing);
+            
+            // Apply position with snap to grid
+            const snapped = this.snapToGrid(x, y);
+            item.style.left = snapped.x + 'px';
+            item.style.top = snapped.y + 'px';
+        });
+
+        // Calculate where unconnected items should start
+        const unconnectedStartX = startX + (connectedColumns * connectedColumnSpacing) + 50; // Small gap after connected items
+
+        // Arrange unconnected items compactly after connected items
+        unconnectedItems.forEach((item, index) => {
+            const columnIndex = Math.floor(index / unconnectedItemsPerColumn);
+            const rowIndex = index % unconnectedItemsPerColumn;
+            
+            const x = unconnectedStartX + (columnIndex * unconnectedColumnSpacing);
+            const y = startY + (rowIndex * unconnectedRowSpacing);
+            
+            // Apply position with snap to grid
+            const snapped = this.snapToGrid(x, y);
+            item.style.left = snapped.x + 'px';
+            item.style.top = snapped.y + 'px';
+        });
+
+        // Update all connections
+        this.updateAllConnections();
+        
+        // Show notification
+        this.showNotification(`Auto-arranged: ${connectedItems.length} connected, ${unconnectedItems.length} unconnected (compact)`, 'success');
+        
+        // Fit to view after arranging
+        setTimeout(() => this.fitToView(), 100);
+    }
+
     // === TEXT FORMATTING FUNCTIONS ===
     showTextFormatToolbar(textLabel) {
         const toolbar = document.getElementById('text-format-toolbar');
-        if (!toolbar) return;
+        if (!toolbar) {
+            console.warn('Text format toolbar not found');
+            return;
+        }
         
         toolbar.style.display = 'flex';
         this.selectedTextLabel = textLabel;
+        console.log('Text label selected for formatting:', textLabel);
         
         // Update toolbar to reflect current text label styles
         const computedStyle = window.getComputedStyle(textLabel);
@@ -3224,17 +4159,22 @@ class ArchitecturePlayground {
     }
 
     setTextSize(size) {
-        if (!this.selectedTextLabel) return;
+        if (!this.selectedTextLabel) {
+            console.warn('No text label selected');
+            this.showNotification('Please select a text label first', 'warning');
+            return;
+        }
         
         const sizes = {
-            small: '12px',
-            medium: '16px',
-            large: '24px'
+            small: '14px',
+            medium: '18px',
+            large: '28px'
         };
         
+        this.saveState('before text-format');
         this.selectedTextLabel.style.fontSize = sizes[size] || sizes.medium;
-        this.saveState('text-format');
-        this.showNotification(`Text size: ${size}`, 'info');
+        this.selectedTextLabel.style.lineHeight = '1.4';
+        this.showNotification(`Text size changed to ${size}`, 'success');
     }
 
     toggleBold() {
@@ -3243,21 +4183,20 @@ class ArchitecturePlayground {
         const currentWeight = window.getComputedStyle(this.selectedTextLabel).fontWeight;
         const isBold = currentWeight === 'bold' || parseInt(currentWeight) >= 600;
         
+        this.saveState('before text-format');
         this.selectedTextLabel.style.fontWeight = isBold ? 'normal' : 'bold';
         
         const boldBtn = document.getElementById('bold-btn');
         if (boldBtn) {
             boldBtn.classList.toggle('active', !isBold);
         }
-        
-        this.saveState('text-format');
     }
 
     setTextColor(color) {
         if (!this.selectedTextLabel) return;
         
+        this.saveState('before text-format');
         this.selectedTextLabel.style.color = color;
-        this.saveState('text-format');
     }
 
     setBackgroundColor(color) {
@@ -3266,9 +4205,9 @@ class ArchitecturePlayground {
         // Store the color for toggling back from transparent
         this.selectedTextLabel.dataset.lastBgColor = color;
         
+        this.saveState('before text-format');
         this.selectedTextLabel.style.background = color;
         this.selectedTextLabel.style.border = '1px solid ' + color;
-        this.saveState('text-format');
     }
 
     toggleBackgroundTransparent() {
@@ -3277,6 +4216,7 @@ class ArchitecturePlayground {
         const currentBg = window.getComputedStyle(this.selectedTextLabel).backgroundColor;
         const isTransparent = currentBg === 'rgba(0, 0, 0, 0)' || currentBg === 'transparent';
         
+        this.saveState('before text-format');
         if (isTransparent) {
             // Restore last color or use default
             const lastColor = this.selectedTextLabel.dataset.lastBgColor || '#1a1a2e';
@@ -3296,8 +4236,6 @@ class ArchitecturePlayground {
             this.selectedTextLabel.style.border = '1px dashed #666';
             this.showNotification('Background set to transparent', 'info');
         }
-        
-        this.saveState('text-format');
     }
 
     toggleBorder() {
@@ -3306,6 +4244,7 @@ class ArchitecturePlayground {
         const currentBorder = window.getComputedStyle(this.selectedTextLabel).borderStyle;
         const hasBorder = currentBorder !== 'none';
         
+        this.saveState('before text-format');
         if (hasBorder) {
             // Save current border and remove it
             this.selectedTextLabel.dataset.lastBorder = this.selectedTextLabel.style.border;
@@ -3317,8 +4256,6 @@ class ArchitecturePlayground {
             this.selectedTextLabel.style.border = lastBorder;
             this.showNotification('Border shown', 'info');
         }
-        
-        this.saveState('text-format');
     }
 
     setBackgroundTransparent() {
@@ -3351,40 +4288,41 @@ class ArchitecturePlayground {
         const canvas = document.getElementById('fabric-canvas');
         if (!canvas) return;
 
-        canvas.addEventListener('mousedown', (e) => {
-            // Allow drag selection only when NOT in edit mode and NOT in connection mode
-            if (this.connectionMode) return;
-            
-            // Check if clicking on empty canvas (not on an item)
-            if (e.target === canvas || e.target.classList.contains('canvas-background')) {
-                this.startSelection(e);
-            }
-        });
-
-        canvas.addEventListener('mousemove', (e) => {
+        // Selection is now handled in setupCanvasZoom based on panMode
+        // Mouse move and mouseup are attached to document to handle selection even when mouse leaves canvas
+        
+        // Bound handlers so we can remove them later
+        this._selectionMoveHandler = (e) => {
             if (this.isSelecting) {
                 this.updateSelection(e);
             }
-        });
-
-        canvas.addEventListener('mouseup', (e) => {
+        };
+        
+        this._selectionUpHandler = (e) => {
             if (this.isSelecting) {
                 this.endSelection(e);
             }
-        });
+        };
+        
+        // Attach to document so selection works even when mouse leaves canvas
+        document.addEventListener('mousemove', this._selectionMoveHandler);
+        document.addEventListener('mouseup', this._selectionUpHandler);
     }
 
     startSelection(e) {
         this.isSelecting = true;
         const canvas = document.getElementById('fabric-canvas');
+        const wrapper = canvas.querySelector('.canvas-content-wrapper');
         const rect = canvas.getBoundingClientRect();
         
-        this.selectionStart = {
-            x: e.clientX - rect.left + canvas.scrollLeft,
-            y: e.clientY - rect.top + canvas.scrollTop
-        };
+        // Calculate position accounting for canvas transform
+        const canvasX = (e.clientX - rect.left - this.canvasOffset.x) / this.zoomLevel;
+        const canvasY = (e.clientY - rect.top - this.canvasOffset.y) / this.zoomLevel;
+        
+        this.selectionStart = { x: canvasX, y: canvasY };
+        this.selectionClientStart = { x: e.clientX, y: e.clientY };
 
-        // Create selection box
+        // Create selection box in the wrapper
         this.selectionBox = document.createElement('div');
         this.selectionBox.className = 'selection-box';
         this.selectionBox.style.cssText = `
@@ -3393,12 +4331,17 @@ class ArchitecturePlayground {
             background: rgba(0, 120, 212, 0.1);
             pointer-events: none;
             z-index: 1000;
-            left: ${this.selectionStart.x}px;
-            top: ${this.selectionStart.y}px;
+            left: ${canvasX}px;
+            top: ${canvasY}px;
             width: 0px;
             height: 0px;
         `;
-        canvas.appendChild(this.selectionBox);
+        
+        if (wrapper) {
+            wrapper.appendChild(this.selectionBox);
+        } else {
+            canvas.appendChild(this.selectionBox);
+        }
 
         // Clear previous selection if not holding Ctrl
         if (!e.ctrlKey) {
@@ -3410,9 +4353,20 @@ class ArchitecturePlayground {
         if (!this.selectionBox) return;
         
         const canvas = document.getElementById('fabric-canvas');
+        if (!canvas) return;
         const rect = canvas.getBoundingClientRect();
-        const currentX = e.clientX - rect.left + canvas.scrollLeft;
-        const currentY = e.clientY - rect.top + canvas.scrollTop;
+        
+        // Calculate position accounting for canvas transform
+        // Clamp coordinates to canvas bounds to prevent selection box from going outside
+        let clientX = e.clientX;
+        let clientY = e.clientY;
+        
+        // Allow some overflow but clamp to reasonable bounds
+        clientX = Math.max(rect.left - 50, Math.min(rect.right + 50, clientX));
+        clientY = Math.max(rect.top - 50, Math.min(rect.bottom + 50, clientY));
+        
+        const currentX = (clientX - rect.left - this.canvasOffset.x) / this.zoomLevel;
+        const currentY = (clientY - rect.top - this.canvasOffset.y) / this.zoomLevel;
 
         const left = Math.min(this.selectionStart.x, currentX);
         const top = Math.min(this.selectionStart.y, currentY);
@@ -3432,9 +4386,26 @@ class ArchitecturePlayground {
         if (this.selectionBox) {
             // Get final selection area
             const canvas = document.getElementById('fabric-canvas');
+            if (!canvas) {
+                // Cleanup if canvas not found
+                if (this.selectionBox.parentNode) {
+                    this.selectionBox.remove();
+                }
+                this.selectionBox = null;
+                this.isSelecting = false;
+                return;
+            }
             const rect = canvas.getBoundingClientRect();
-            const currentX = e.clientX - rect.left + canvas.scrollLeft;
-            const currentY = e.clientY - rect.top + canvas.scrollTop;
+            
+            // Calculate position accounting for canvas transform
+            // Clamp coordinates to canvas bounds
+            let clientX = e.clientX;
+            let clientY = e.clientY;
+            clientX = Math.max(rect.left - 50, Math.min(rect.right + 50, clientX));
+            clientY = Math.max(rect.top - 50, Math.min(rect.bottom + 50, clientY));
+            
+            const currentX = (clientX - rect.left - this.canvasOffset.x) / this.zoomLevel;
+            const currentY = (clientY - rect.top - this.canvasOffset.y) / this.zoomLevel;
 
             const left = Math.min(this.selectionStart.x, currentX);
             const top = Math.min(this.selectionStart.y, currentY);
@@ -3452,12 +4423,15 @@ class ArchitecturePlayground {
             this.selectionBox.remove();
             this.selectionBox = null;
         }
+        
         this.isSelecting = false;
+        
+        // Set flag to prevent the click event from clearing the selection we just made
+        this.justFinishedSelection = true;
     }
 
     highlightItemsInSelection(left, top, width, height) {
-        // During drag selection, we temporarily highlight items
-        // but only add them to selectedItems on endSelection
+        // During drag selection, highlight and select items that overlap with selection box
         this.canvasItems.forEach(ci => {
             const element = ci.element;
             if (!element) return;
@@ -3486,8 +4460,12 @@ class ArchitecturePlayground {
 
     clearSelection() {
         this.selectedItems.clear();
-        document.querySelectorAll('.canvas-item.multi-selected').forEach(el => {
-            el.classList.remove('multi-selected');
+        document.querySelectorAll('.canvas-item.multi-selected, .canvas-item.selected').forEach(el => {
+            el.classList.remove('multi-selected', 'selected');
+        });
+        // Also clear any text-label selections
+        document.querySelectorAll('.text-label.multi-selected, .text-label.selected').forEach(el => {
+            el.classList.remove('multi-selected', 'selected');
         });
     }
 
@@ -3503,16 +4481,42 @@ class ArchitecturePlayground {
     deleteSelectedItems() {
         if (this.selectedItems.size === 0) return;
         
-        this.saveState('delete selected');
+        this.saveState('before delete selected');
         
         const itemsToDelete = Array.from(this.selectedItems);
         
+        // Use internal delete that doesn't save state (since we already saved it)
         itemsToDelete.forEach(ci => {
-            this.deleteCanvasItem(ci);
+            this._deleteCanvasItemInternal(ci);
         });
         
         this.clearSelection();
         this.showNotification(`Deleted ${itemsToDelete.length} items`, 'success');
+    }
+
+    // Internal delete without saving state (for batch operations)
+    _deleteCanvasItemInternal(ci) {
+        // Remove connections involving this item
+        const involved = this.connections.filter(c => c.from === ci.element || c.to === ci.element);
+        involved.forEach(c => {
+            if (c.element && this.connectionSvg) {
+                try { this.connectionSvg.removeChild(c.element); } catch {}
+            }
+        });
+        this.connections = this.connections.filter(c => !(c.from === ci.element || c.to === ci.element));
+
+        // Remove element and list entry
+        if (ci.element && ci.element.parentNode) ci.element.parentNode.removeChild(ci.element);
+        this.canvasItems = this.canvasItems.filter(x => x !== ci);
+
+        this.updateConnections();
+        this.autosave();
+    }
+
+    deleteCanvasItem(ci) {
+        this.saveState('before delete item');
+        this._deleteCanvasItemInternal(ci);
+        this.showNotification('Item deleted', 'success');
     }
 
     // === TEMPLATES SYSTEM ===
@@ -3751,7 +4755,7 @@ class ArchitecturePlayground {
     }
 
     setupTemplates() {
-        // Template dropdown will be added to toolbar
+        // Create template dropdown in toolbar
         this.createTemplateDropdown();
     }
 
@@ -3767,24 +4771,34 @@ class ArchitecturePlayground {
                 <span>Templates</span>
                 <i class="fas fa-chevron-down"></i>
             </button>
-            <div class="template-menu" id="template-menu">
-                ${Object.entries(this.templates).map(([key, template]) => `
-                    <div class="template-item" data-template="${key}">
-                        <div class="template-name">${template.name}</div>
-                        <div class="template-desc">${template.description}</div>
-                    </div>
-                `).join('')}
-            </div>
         `;
 
         toolbar.appendChild(templateContainer);
 
+        // Create menu as a separate element appended to body for proper z-index layering
+        const templateMenu = document.createElement('div');
+        templateMenu.className = 'template-menu';
+        templateMenu.id = 'template-menu';
+        templateMenu.innerHTML = Object.entries(this.templates).map(([key, template]) => `
+            <div class="template-item" data-template="${key}">
+                <div class="template-name">${template.name}</div>
+                <div class="template-desc">${template.description}</div>
+            </div>
+        `).join('');
+        document.body.appendChild(templateMenu);
+
         // Toggle dropdown
         const templateBtn = templateContainer.querySelector('#template-btn');
-        const templateMenu = templateContainer.querySelector('#template-menu');
         
         templateBtn.addEventListener('click', (e) => {
             e.stopPropagation();
+            
+            // Position the menu below the button
+            const btnRect = templateBtn.getBoundingClientRect();
+            templateMenu.style.position = 'fixed';
+            templateMenu.style.top = (btnRect.bottom + 4) + 'px';
+            templateMenu.style.left = btnRect.left + 'px';
+            
             templateMenu.classList.toggle('show');
         });
 
@@ -3808,8 +4822,11 @@ class ArchitecturePlayground {
         const template = this.templates[templateKey];
         if (!template) return;
 
-        // Save state before loading template
-        this.saveState('load template: ' + template.name);
+        // Save state before loading template (so user can undo back to previous state)
+        this.saveState('before load template: ' + template.name);
+        
+        // Set loading flag to prevent inner functions from creating additional undo states
+        this._isLoading = true;
 
         // Clear current canvas
         this.clearCanvas();
@@ -3834,9 +4851,15 @@ class ArchitecturePlayground {
             const lastItem = this.canvasItems[this.canvasItems.length - 1];
             createdItems[index] = lastItem;
         });
+        
+        // Clear loading flag after items are created
+        this._isLoading = false;
 
         // Create connections after all items are created and rendered
         setTimeout(() => {
+            // Set loading flag again for connections
+            this._isLoading = true;
+            
             // Force a reflow to ensure all elements are properly positioned
             this.canvasItems.forEach(item => {
                 if (item.element) {
@@ -3871,8 +4894,9 @@ class ArchitecturePlayground {
                 }
             });
             
-            // Re-enable notifications
+            // Re-enable notifications and clear loading flag
             this._suppressNotifications = false;
+            this._isLoading = false;
             
             console.log(`Template loaded: ${connectionsCreated} connections created, total connections: ${this.connections.length}`);
             this.showNotification(`Loaded template: ${template.name} (${connectionsCreated} connections)`, 'success');
@@ -3902,10 +4926,9 @@ class ArchitecturePlayground {
     }
 
     setupCanvasItemDrag(item) {
-        let isDragging = false;
-        let startX, startY, initialPositions = new Map();
-        let primaryItem = item;
-
+        // Drag state is now managed at the class level, not per-item
+        // This prevents memory leaks from adding multiple document listeners
+        
         item.addEventListener('mousedown', (e) => {
             if (this.connectionMode) return;
             
@@ -3917,15 +4940,27 @@ class ArchitecturePlayground {
                 return;
             }
             
-            // Handle multi-select
+            // Find the canvas item for this element
+            const canvasItem = this.canvasItems.find(ci => ci.element === item);
+            
+            // Check if this item is already in the selection (by element reference or by checking the Set)
+            const isItemSelected = canvasItem && (
+                this.selectedItems.has(canvasItem) || 
+                Array.from(this.selectedItems).some(ci => ci.element === item)
+            );
+            
+            // Handle multi-select with Ctrl key
             if (e.ctrlKey) {
-                if (this.selectedItems.has(this.canvasItems.find(ci => ci.element === item))) {
+                if (isItemSelected) {
                     // Remove from selection
-                    this.selectedItems.delete(this.canvasItems.find(ci => ci.element === item));
+                    this.selectedItems.forEach(ci => {
+                        if (ci.element === item) {
+                            this.selectedItems.delete(ci);
+                        }
+                    });
                     item.classList.remove('multi-selected');
                 } else {
                     // Add to selection
-                    const canvasItem = this.canvasItems.find(ci => ci.element === item);
                     if (canvasItem) {
                         this.selectedItems.add(canvasItem);
                         item.classList.add('multi-selected');
@@ -3935,8 +4970,7 @@ class ArchitecturePlayground {
             }
             
             // If item is not in selection, clear selection and select just this item
-            const canvasItem = this.canvasItems.find(ci => ci.element === item);
-            if (canvasItem && !this.selectedItems.has(canvasItem)) {
+            if (canvasItem && !isItemSelected) {
                 this.clearSelection();
                 this.selectedItems.add(canvasItem);
                 item.classList.add('multi-selected');
@@ -3947,97 +4981,53 @@ class ArchitecturePlayground {
                 }
             }
             
-            isDragging = true;
-            startX = e.clientX;
-            startY = e.clientY;
-            
-            // Store initial positions for all selected items (excluding locked items)
-            this.selectedItems.forEach(ci => {
-                // Skip locked items in multi-selection drag
-                if (ci.element.dataset.locked === 'true') {
-                    return;
-                }
-                
-                initialPositions.set(ci.element, {
-                    x: parseInt(ci.element.style.left) || 0,
-                    y: parseInt(ci.element.style.top) || 0
-                });
-                ci.element.style.zIndex = '1000';
-            });
+            // Start drag operation (will move all selected items)
+            this.startDragOperation(item, e);
             
             e.preventDefault();
             e.stopPropagation();
         });
+    }
 
-    document.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
-            
-            const deltaX = e.clientX - startX;
-            const deltaY = e.clientY - startY;
-            
-            // Move all selected items
-            // Compute snap based on primary item only (skip snap for containers)
-            let snapAdjust={dx:0,dy:0};
-            const primInit = initialPositions.get(primaryItem);
-            if (primInit && !primaryItem.classList.contains('ci-container')){
-                const candX = primInit.x + deltaX;
-                const candY = primInit.y + deltaY;
-                const grid = this.snapToGrid(candX, candY);
-                const snapped = this.calcSnap(primaryItem, grid.x, grid.y);
-                snapAdjust.dx = snapped.x - (primInit.x + deltaX);
-                snapAdjust.dy = snapped.y - (primInit.y + deltaY);
+    startDragOperation(primaryItem, e) {
+        // Save state BEFORE starting the drag for proper undo
+        this.saveState('before move');
+        
+        this.isDragging = true;
+        this.dragPrimaryItem = primaryItem;
+        
+        // Get canvas for coordinate calculations
+        const canvas = document.getElementById('fabric-canvas');
+        const canvasRect = canvas.getBoundingClientRect();
+        
+        // Calculate mouse position in canvas coordinate space (accounting for zoom and pan)
+        const mouseCanvasX = (e.clientX - canvasRect.left - this.canvasOffset.x) / this.zoomLevel;
+        const mouseCanvasY = (e.clientY - canvasRect.top - this.canvasOffset.y) / this.zoomLevel;
+        
+        // Get the item's current position in canvas coordinates
+        const itemX = parseInt(primaryItem.style.left) || 0;
+        const itemY = parseInt(primaryItem.style.top) || 0;
+        
+        // Store the offset in canvas coordinates
+        this.dragOffsetX = mouseCanvasX - itemX;
+        this.dragOffsetY = mouseCanvasY - itemY;
+        
+        this.dragStartX = e.clientX;
+        this.dragStartY = e.clientY;
+        
+        // Store initial positions for all selected items (excluding locked items)
+        this.dragInitialPositions = new Map();
+        this.selectedItems.forEach(ci => {
+            // Skip locked items in multi-selection drag
+            if (ci.element.dataset.locked === 'true') {
+                return;
             }
-            this.selectedItems.forEach(ci => {
-                const init = initialPositions.get(ci.element);
-                if (!init) return;
-                const nx = init.x + deltaX + snapAdjust.dx;
-                const ny = init.y + deltaY + snapAdjust.dy;
-                
-                // Skip snapping for containers - allow free movement
-                if (ci.element.classList.contains('ci-container')) {
-                    ci.element.style.left = nx + 'px';
-                    ci.element.style.top = ny + 'px';
-                } else {
-                    const g = this.snapToGrid(nx, ny);
-                    ci.element.style.left = g.x + 'px';
-                    ci.element.style.top = g.y + 'px';
-                }
+            
+            this.dragInitialPositions.set(ci.element, {
+                x: parseInt(ci.element.style.left) || 0,
+                y: parseInt(ci.element.style.top) || 0
             });
-            
-            // Update connections immediately during drag for smooth following
-            if (this.dragUpdateTimeout) {
-                clearTimeout(this.dragUpdateTimeout);
-            }
-            // Force immediate update for responsive connection following
-            requestAnimationFrame(() => {
-                // Update medallion target positions when medallion items are moved
-                this.setupMedallionTargets();
-                this.updateConnections();
-                this.ensureCanvasExtents();
-            });
-        });
-
-    document.addEventListener('mouseup', () => {
-            if (isDragging) {
-                isDragging = false;
-                this.showAlignmentGuides();
-                
-                // Save state for undo after moving items
-                this.saveState('move items');
-                
-                this.selectedItems.forEach(ci => {
-                    ci.element.style.zIndex = '';
-                });
-                initialPositions.clear();
-                
-                // Final connection update after drag complete
-                setTimeout(() => {
-                    this.setupMedallionTargets();
-                    this.updateConnections();
-                    this.ensureCanvasExtents();
-                    this.autosave();
-                }, 0);
-            }
+            ci.element.style.zIndex = '1000';
         });
     }
 
@@ -4153,14 +5143,20 @@ class ArchitecturePlayground {
                 e.preventDefault();
                 this.handleCanvasItemClick(item);
             } else {
-                // Just select the item, don't open metadata panel
-                this.clearSelections();
-                item.classList.add('selected');
+                // Check if this item is part of a multi-selection - don't clear if so
+                const isMultiSelected = item.classList.contains('multi-selected');
+                const hasMultipleSelected = this.selectedItems.size > 1;
                 
-                // Show helpful tip on first selection
-                if (!localStorage.getItem('properties-tip-shown')) {
-                    this.showNotification('💡 Double-click or right-click for Properties', 'info', 4000);
-                    localStorage.setItem('properties-tip-shown', 'true');
+                // Only clear and re-select if not part of existing multi-selection
+                if (!isMultiSelected || !hasMultipleSelected) {
+                    this.clearSelections();
+                    item.classList.add('selected');
+                    
+                    // Show helpful tip on first selection
+                    if (!localStorage.getItem('properties-tip-shown')) {
+                        this.showNotification('💡 Double-click or right-click for Properties', 'info', 4000);
+                        localStorage.setItem('properties-tip-shown', 'true');
+                    }
                 }
             }
         });
@@ -4274,9 +5270,101 @@ class ArchitecturePlayground {
         setTimeout(() => document.addEventListener('click', closeMenu), 0);
     }
     
+    showCanvasContextMenu(e) {
+        // Remove any existing context menu
+        const existing = document.querySelector('.item-context-menu');
+        if (existing) existing.remove();
+        
+        // Create context menu
+        const menu = document.createElement('div');
+        menu.className = 'item-context-menu';
+        menu.style.position = 'fixed';
+        menu.style.left = e.clientX + 'px';
+        menu.style.top = e.clientY + 'px';
+        menu.style.zIndex = '10000';
+        
+        const editModeActive = this.editMode || this.connectionMode;
+        const snapEnabled = this.snapToGridEnabled;
+        const isPanMode = this.panMode;
+        
+        menu.innerHTML = `
+            <div class="context-menu-item" data-action="toggle-pan-select">
+                <i class="fas fa-${isPanMode ? 'mouse-pointer' : 'hand-paper'}"></i> Switch to ${isPanMode ? 'Select' : 'Pan'} Mode
+            </div>
+            <div class="context-menu-separator"></div>
+            ${editModeActive ? `
+                <div class="context-menu-item" data-action="cancel-edit">
+                    <i class="fas fa-times"></i> Cancel Edit Mode
+                </div>
+                <div class="context-menu-separator"></div>
+            ` : ''}
+            <div class="context-menu-item" data-action="toggle-edit">
+                <i class="fas fa-${editModeActive ? 'mouse-pointer' : 'pen'}"></i> ${editModeActive ? 'Exit Edit Mode' : 'Edit Mode'}
+            </div>
+            <div class="context-menu-separator"></div>
+            <div class="context-menu-item" data-action="toggle-snap">
+                <i class="fas fa-grip"></i> ${snapEnabled ? '✓ Snap to Grid' : 'Snap to Grid'}
+            </div>
+            <div class="context-menu-item" data-action="add-text">
+                <i class="fas fa-font"></i> Add Text Label
+            </div>
+            <div class="context-menu-separator"></div>
+            <div class="context-menu-item" data-action="canvas-settings">
+                <i class="fas fa-sliders-h"></i> Canvas Settings
+            </div>
+            <div class="context-menu-separator"></div>
+            <div class="context-menu-item" data-action="select-all">
+                <i class="fas fa-object-group"></i> Select All
+            </div>
+        `;
+        
+        // Add click handlers
+        menu.addEventListener('click', (e) => {
+            const action = e.target.closest('.context-menu-item')?.dataset.action;
+            if (action === 'toggle-pan-select') {
+                this.togglePanSelectMode();
+            } else if (action === 'cancel-edit') {
+                // Cancel edit mode without completing the action
+                this.editMode = false;
+                this.connectionMode = false;
+                this.selectedItem = null;
+                this.selectedSource = null;
+                document.body.style.cursor = 'default';
+                this.showNotification('Edit mode cancelled', 'info');
+            } else if (action === 'toggle-edit') {
+                this.toggleUnifiedMode();
+            } else if (action === 'toggle-snap') {
+                this.toggleSnapToGrid();
+            } else if (action === 'add-text') {
+                this.addTextLabel();
+            } else if (action === 'canvas-settings') {
+                // Open canvas settings modal
+                const settingsBtn = document.getElementById('settings-btn');
+                if (settingsBtn) {
+                    settingsBtn.click();
+                }
+            } else if (action === 'select-all') {
+                this.selectAllItems();
+            }
+            menu.remove();
+        });
+        
+        document.body.appendChild(menu);
+        
+        // Close menu when clicking outside
+        const closeMenu = (e) => {
+            if (!menu.contains(e.target)) {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', closeMenu), 0);
+    }
+    
     duplicateItem(item) {
         try {
-            this.saveState('duplicate item');
+            // Note: saveState is called by the underlying add functions (addConsumptionItemToCanvas, etc.)
+            // so we don't save state here to avoid double-saving
             
             const canvasItem = this.canvasItems.find(ci => ci.element === item);
             if (!canvasItem) {
@@ -4321,7 +5409,7 @@ class ArchitecturePlayground {
     deleteItem(item) {
         if (confirm('Are you sure you want to delete this item?')) {
             try {
-                this.saveState('delete item');
+                this.saveState('before delete item');
                 
                 // Find and remove from canvasItems array
                 const index = this.canvasItems.findIndex(ci => ci.element === item);
@@ -4362,12 +5450,13 @@ class ArchitecturePlayground {
 
     lockItem(item) {
         try {
+            this.saveState('before lock item');
+            
             item.dataset.locked = 'true';
             item.classList.add('locked-item');
             
             // No lock icon overlay - just silent locking
             
-            this.saveState('lock item');
             this.showNotification('Item locked', 'info');
             
         } catch (error) {
@@ -4378,6 +5467,8 @@ class ArchitecturePlayground {
 
     unlockItem(item) {
         try {
+            this.saveState('before unlock item');
+            
             item.dataset.locked = 'false';
             item.classList.remove('locked-item');
             
@@ -4387,7 +5478,6 @@ class ArchitecturePlayground {
                 lockIcon.remove();
             }
             
-            this.saveState('unlock item');
             this.showNotification('Item unlocked', 'info');
             
         } catch (error) {
@@ -4494,11 +5584,14 @@ class ArchitecturePlayground {
     }
 
     createConnection(fromElement, toElement, connectionType) {
-        this.saveState('create connection');
         if (fromElement === toElement) {
             this.showNotification('Ignored: cannot connect an item to itself', 'warning');
             return;
         }
+        
+        // Save state BEFORE creating connection for proper undo
+        this.saveState('before create connection');
+        
         // Guarantee both elements have IDs before creating connection
         const fromId = this.ensureElementId(fromElement, 'node');
         const toId = this.ensureElementId(toElement, 'node');
@@ -4535,12 +5628,140 @@ class ArchitecturePlayground {
         return 'Unknown';
     }
 
-    drawConnection(connection) {
+    drawConnection(connection, overrideColor = null) {
+        // Store the override color on the connection object for future redraws
+        if (overrideColor) {
+            connection.color = overrideColor;
+        }
+        
         // If this connection has manual anchors, use the manual drawing method
         if (connection.fromAnchor && connection.toAnchor) {
             return this.drawManualConnection(connection);
         }
         
+        if (!this.connectionSvg) return;
+        
+        // Use the playground's connection style (per-page)
+        const connectionStyle = this.connectionStyle || 'orthogonal';
+        
+        console.log('[DrawConnection] Drawing', connection.id, 'with style:', connectionStyle, 'color:', connection.color);
+        
+        if (connectionStyle === 'curved') {
+            return this.drawCurvedConnection(connection);
+        } else {
+            return this.drawOrthogonalConnection(connection);
+        }
+    }
+
+    drawCurvedConnection(connection) {
+        if (!this.connectionSvg) return;
+        const svg = this.connectionSvg;
+        const canvas = document.getElementById('fabric-canvas');
+        const fromRect = connection.from.getBoundingClientRect();
+        const toRect = connection.to.getBoundingClientRect();
+        const canvasRect = canvas.getBoundingClientRect();
+
+        const toSvgPoint = (clientX, clientY) => {
+            const pt = svg.createSVGPoint();
+            pt.x = clientX; pt.y = clientY;
+            const ctm = svg.getScreenCTM();
+            if (!ctm) return { x: clientX - canvasRect.left, y: clientY - canvasRect.top };
+            const inv = ctm.inverse();
+            const sp = pt.matrixTransform(inv);
+            return { x: sp.x, y: sp.y };
+        };
+
+        // Get centers
+        const fromCenter = toSvgPoint(
+            fromRect.left + fromRect.width / 2,
+            fromRect.top + fromRect.height / 2
+        );
+        const toCenter = toSvgPoint(
+            toRect.left + toRect.width / 2,
+            toRect.top + toRect.height / 2
+        );
+
+        // Create curved path using cubic bezier
+        const dx = toCenter.x - fromCenter.x;
+        const dy = toCenter.y - fromCenter.y;
+        
+        // Control points for smooth curve
+        const curve = Math.abs(dx) * 0.5; // Curve intensity
+        const cp1x = fromCenter.x + curve;
+        const cp1y = fromCenter.y;
+        const cp2x = toCenter.x - curve;
+        const cp2y = toCenter.y;
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const pathData = `M ${fromCenter.x} ${fromCenter.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${toCenter.x} ${toCenter.y}`;
+        
+        path.setAttribute('d', pathData);
+        path.setAttribute('fill', 'none');
+        path.setAttribute('class', 'connection-path');
+        
+        // Use connection-specific color if provided, otherwise fall back to CSS variable
+        const lineColor = connection.color || 'var(--connection-base-color)';
+        path.setAttribute('stroke', lineColor);
+        path.setAttribute('stroke-width', '2');
+        
+        // Create arrowhead at the end point
+        const arrowHead = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        
+        // Calculate angle at the end of the curve
+        // For bezier curve, the tangent at the end is in the direction from cp2 to end
+        const angle = Math.atan2(toCenter.y - cp2y, toCenter.x - cp2x);
+        const arrowLength = 12;
+        
+        const arrowX1 = toCenter.x - arrowLength * Math.cos(angle - Math.PI / 6);
+        const arrowY1 = toCenter.y - arrowLength * Math.sin(angle - Math.PI / 6);
+        const arrowX2 = toCenter.x - arrowLength * Math.cos(angle + Math.PI / 6);
+        const arrowY2 = toCenter.y - arrowLength * Math.sin(angle + Math.PI / 6);
+        
+        arrowHead.setAttribute('points', `${toCenter.x},${toCenter.y} ${arrowX1},${arrowY1} ${arrowX2},${arrowY2}`);
+        arrowHead.setAttribute('fill', connection.color || '#60a5fa');
+        arrowHead.setAttribute('stroke', '#ffffff');
+        arrowHead.setAttribute('stroke-width', '1');
+        arrowHead.style.opacity = '0.9';
+        arrowHead.setAttribute('pointer-events', 'none');
+        console.log('[DrawCurvedConnection] Created arrowhead at', toCenter.x, toCenter.y, 'color: #60a5fa');
+        
+        // Create group and add elements (same structure as orthogonal)
+        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        group.appendChild(path);
+        
+        // Add animated flow overlay
+        const flow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        flow.setAttribute('d', pathData);
+        flow.setAttribute('class', 'connection-flow');
+        group.appendChild(flow);
+        
+        // Add arrowhead
+        group.appendChild(arrowHead);
+        
+        connection.element = group;
+        this.connectionSvg.appendChild(group);
+
+        // Make line clickable for deletion in edit mode (same as orthogonal)
+        group.dataset.connectionId = connection.id;
+        path.setAttribute('pointer-events', 'stroke');
+        group.setAttribute('pointer-events', 'visible');
+        group.style.cursor = this.editMode ? 'pointer' : 'default';
+        group.addEventListener('click', (e) => {
+            if (!this.editMode) return;
+            e.stopPropagation();
+            this.deleteConnectionById(connection.id);
+        });
+        
+        // Add hover highlighting
+        group.addEventListener('mouseenter', () => {
+            group.classList.add('connection-highlighted');
+        });
+        group.addEventListener('mouseleave', () => {
+            group.classList.remove('connection-highlighted');
+        });
+    }
+
+    drawOrthogonalConnection(connection) {
         if (!this.connectionSvg) return;
         const svg = this.connectionSvg;
         const canvas = document.getElementById('fabric-canvas');
@@ -4666,6 +5887,12 @@ class ArchitecturePlayground {
 
         path.setAttribute('d', pathData);
         path.setAttribute('class', 'connection-path');
+        
+        // Use connection-specific color if provided
+        if (connection.color) {
+            path.setAttribute('stroke', connection.color);
+        }
+        
         // Mid-line arrow (direction indicator)
         const createMidArrow = (polyPts) => {
             // Flatten into segments and compute total length
@@ -4711,8 +5938,8 @@ class ArchitecturePlayground {
     const arrowHead = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
     const prev = pts[pts.length - 2];
     const angle = Math.atan2(toY - prev[1], toX - prev[0]);
-        const arrowLength = 8;
-        const arrowWidth = 6;
+        const arrowLength = 12;  // Increased from 8 for better visibility
+        const arrowWidth = 8;    // Increased from 6
         
         const arrowX1 = toX - arrowLength * Math.cos(angle - Math.PI / 6);
         const arrowY1 = toY - arrowLength * Math.sin(angle - Math.PI / 6);
@@ -4720,7 +5947,12 @@ class ArchitecturePlayground {
         const arrowY2 = toY - arrowLength * Math.sin(angle + Math.PI / 6);
         
         arrowHead.setAttribute('points', `${toX},${toY} ${arrowX1},${arrowY1} ${arrowX2},${arrowY2}`);
-    arrowHead.setAttribute('fill', '#ffffff');
+    arrowHead.setAttribute('fill', connection.color || '#60a5fa');  // Use connection color or default
+    arrowHead.setAttribute('stroke', '#ffffff');  // White outline
+    arrowHead.setAttribute('stroke-width', '1');
+    arrowHead.style.opacity = '0.9';
+    arrowHead.setAttribute('pointer-events', 'none');  // Don't block clicks
+    console.log('[DrawOrthogonalConnection] Created arrowhead at', toX, toY, 'color:', connection.color || '#60a5fa');
         
     const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     group.appendChild(path);
@@ -4738,8 +5970,9 @@ class ArchitecturePlayground {
 
         // Make line clickable for deletion in edit mode
         group.dataset.connectionId = connection.id;
-        // Easier hit: clicks on the stroke
+        // Make both the path and the group clickable
         path.setAttribute('pointer-events', 'stroke');
+        group.setAttribute('pointer-events', 'visible');
         group.style.cursor = this.editMode ? 'pointer' : 'default';
         group.addEventListener('click', (e) => {
             if (!this.editMode) return;
@@ -4750,6 +5983,16 @@ class ArchitecturePlayground {
 
     drawManualConnection(connection) {
         if (!this.connectionSvg) return;
+        
+        // Use the playground's connection style (per-page)
+        const connectionStyle = this.connectionStyle || 'orthogonal';
+        
+        // If curved style is selected, use curved drawing instead
+        if (connectionStyle === 'curved') {
+            return this.drawCurvedConnection(connection);
+        }
+        
+        // Otherwise proceed with orthogonal (original manual connection logic)
         const svg = this.connectionSvg;
         const canvas = document.getElementById('fabric-canvas');
         const fromRect = connection.from.getBoundingClientRect();
@@ -4908,7 +6151,7 @@ class ArchitecturePlayground {
         
         // Calculate angle for arrow direction
         const angle = Math.atan2(endPoint[1] - prevPoint[1], endPoint[0] - prevPoint[0]);
-        const arrowLength = 8;
+        const arrowLength = 12;  // Increased from 8 for better visibility
         
         const arrowX1 = endPoint[0] - arrowLength * Math.cos(angle - Math.PI / 6);
         const arrowY1 = endPoint[1] - arrowLength * Math.sin(angle - Math.PI / 6);
@@ -4916,7 +6159,11 @@ class ArchitecturePlayground {
         const arrowY2 = endPoint[1] - arrowLength * Math.sin(angle + Math.PI / 6);
         
         arrowHead.setAttribute('points', `${endPoint[0]},${endPoint[1]} ${arrowX1},${arrowY1} ${arrowX2},${arrowY2}`);
-        arrowHead.setAttribute('fill', '#ffffff');
+        arrowHead.setAttribute('fill', '#60a5fa');  // Blue color for better visibility
+        arrowHead.setAttribute('stroke', '#ffffff');  // White outline
+        arrowHead.setAttribute('stroke-width', '1');
+        arrowHead.style.opacity = '0.9';
+        arrowHead.setAttribute('pointer-events', 'none');  // Don't block clicks
 
         // Create group and add visual indicator for manual connection
         const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -4952,11 +6199,20 @@ class ArchitecturePlayground {
         // Make line clickable for deletion in edit mode
         group.dataset.connectionId = connection.id;
         path.setAttribute('pointer-events', 'stroke');
+        group.setAttribute('pointer-events', 'visible');
         group.style.cursor = this.editMode ? 'pointer' : 'default';
         group.addEventListener('click', (e) => {
             if (!this.editMode) return;
             e.stopPropagation();
             this.deleteConnectionById(connection.id);
+        });
+        
+        // Add hover highlighting
+        group.addEventListener('mouseenter', () => {
+            group.classList.add('connection-highlighted');
+        });
+        group.addEventListener('mouseleave', () => {
+            group.classList.remove('connection-highlighted');
         });
     }
 
@@ -4983,7 +6239,9 @@ class ArchitecturePlayground {
     }
 
     updateConnections() {
-        if (!this.connectionSvg) return;
+        if (!this.connectionSvg) {
+            return;
+        }
         
         // Force layout recalculation to ensure accurate element positions
         const canvas = document.getElementById('fabric-canvas');
@@ -5001,6 +6259,84 @@ class ArchitecturePlayground {
             connection.element = null; // Reset element reference
             this.drawConnection(connection);
         });
+    }
+
+    // Alias for updating connections (used by settings panel)
+    redrawAllConnections() {
+        this.updateConnections();
+    }
+
+    setupConnectionHighlighting() {
+        // Add hover event listeners to all canvas items
+        const canvas = document.getElementById('fabric-canvas');
+        if (!canvas) return;
+
+        // Track currently highlighted item to avoid duplicate processing
+        let currentHighlightedItem = null;
+
+        // Use mouseover for better event bubbling
+        canvas.addEventListener('mouseover', (e) => {
+            const item = e.target.closest('.canvas-item, .data-source-card, .medallion-target');
+            
+            // If we're hovering over the same item, don't reprocess
+            if (!item || item === currentHighlightedItem) return;
+            
+            // Clear previous highlights
+            if (currentHighlightedItem) {
+                this.clearConnectionHighlights();
+            }
+            
+            currentHighlightedItem = item;
+
+            // Find all connections involving this item
+            const connectedItems = new Set();
+            const highlightedConnections = [];
+
+            this.connections.forEach(connection => {
+                if (connection.from === item || connection.to === item) {
+                    highlightedConnections.push(connection);
+                    connectedItems.add(connection.from);
+                    connectedItems.add(connection.to);
+                }
+            });
+
+            // Add highlight class to connected items
+            connectedItems.forEach(connectedItem => {
+                connectedItem.classList.add('connection-highlighted');
+            });
+
+            // Highlight the connection paths
+            highlightedConnections.forEach(connection => {
+                if (connection.element) {
+                    connection.element.classList.add('connection-highlighted');
+                }
+            });
+        });
+
+        canvas.addEventListener('mouseout', (e) => {
+            const item = e.target.closest('.canvas-item, .data-source-card, .medallion-target');
+            if (!item) return;
+            
+            // Check if we're leaving the item (not just moving between children)
+            const relatedTarget = e.relatedTarget;
+            if (relatedTarget && item.contains(relatedTarget)) return;
+            
+            currentHighlightedItem = null;
+            this.clearConnectionHighlights();
+        });
+    }
+
+    clearConnectionHighlights() {
+        const canvas = document.getElementById('fabric-canvas');
+        if (!canvas) return;
+        
+        // Remove all highlights from canvas items
+        const highlightedItems = canvas.querySelectorAll('.connection-highlighted');
+        highlightedItems.forEach(el => el.classList.remove('connection-highlighted'));
+
+        // Remove all highlights from connection paths
+        const highlightedPaths = this.connectionSvg.querySelectorAll('.connection-highlighted');
+        highlightedPaths.forEach(el => el.classList.remove('connection-highlighted'));
     }
 
     showNotification(message, type = 'info') {
@@ -5036,8 +6372,6 @@ class ArchitecturePlayground {
 
     // --- Persistence ---
     serialize() {
-        console.log('Serializing connections:', this.connections.length);
-
         // Remove self and duplicate connections before serializing
         this.sanitizeConnections();
         
@@ -5052,7 +6386,6 @@ class ArchitecturePlayground {
             if (!toId && conn.to) toId = this.ensureElementId(conn.to, 'node');
             conn.fromId = fromId;
             conn.toId = toId;
-            console.log('Serializing connection:', conn.id, 'from', fromId, 'to', toId);
             return {
                 id: conn.id || `conn-${Date.now()}-${Math.random()}`,
                 type: conn.type || 'item-to-item',
@@ -5068,8 +6401,6 @@ class ArchitecturePlayground {
             }
             return isValid;
         });
-        
-        console.log('Serialized connections:', serializedConnections.length);
         
         return {
             theme: document.documentElement.getAttribute('data-theme') || 'dark',
@@ -5130,6 +6461,21 @@ class ArchitecturePlayground {
                     }
                 }
                 
+                // Special handling for images - save the image data
+                if (ci.type === 'image' && ci.element) {
+                    const img = ci.element.querySelector('img');
+                    if (img) {
+                        itemData.data = {
+                            ...itemData.data,
+                            src: img.src,
+                            name: 'Image'
+                        };
+                        itemData.style = {
+                            width: ci.element.style.width || ''
+                        };
+                    }
+                }
+                
                 return itemData;
             }),
             connections: serializedConnections,
@@ -5161,7 +6507,7 @@ class ArchitecturePlayground {
 
     autosave() {
         // Don't autosave if there's no content or during loading
-        if (this._suppressNotifications || this.canvasItems.length === 0) return;
+        if (this._suppressNotifications || this._isLoading || this.canvasItems.length === 0) return;
         
         try {
             const data = this.serialize();
@@ -5169,17 +6515,6 @@ class ArchitecturePlayground {
             // Only autosave if we have meaningful content
             if (data.items && data.items.length > 0) {
                 localStorage.setItem('playground-autosave', JSON.stringify(data));
-                console.log('Autosaved:', data.items.length, 'items');
-                
-                // Debug: Log text labels being saved
-                const textLabels = data.items.filter(item => item.type === 'text-label');
-                if (textLabels.length > 0) {
-                    console.log('Text labels saved:', textLabels.map(tl => ({
-                        id: tl.id,
-                        text: tl.data?.text,
-                        name: tl.data?.name
-                    })));
-                }
             }
         } catch (e) {
             console.warn('Autosave failed:', e);
@@ -5272,17 +6607,23 @@ class ArchitecturePlayground {
     }
 
     loadFromData(data) {
+        console.log('[loadFromData] START');
         const canvas = document.getElementById('fabric-canvas');
         if (!canvas || !data) {
             this.showNotification('Invalid data or canvas not found', 'error');
             return;
         }
 
+        // Set loading flag to prevent saveState from being called for each item
+        this._isLoading = true;
+        console.log('[loadFromData] _isLoading set to true');
+
         // Clear existing
         canvas.querySelectorAll('.canvas-item').forEach(el => el.remove());
         this.canvasItems = [];
         this.connections = [];
         if (this.connectionSvg) this.connectionSvg.innerHTML = '';
+        console.log('[loadFromData] Canvas cleared');
 
         // Suppress notifications during bulk load
         this._suppressNotifications = true;
@@ -5291,7 +6632,11 @@ class ArchitecturePlayground {
         const loadedItems = new Map();
 
         // Recreate items using creation helpers to preserve classes, accents and structure
+        console.log('[loadFromData] Starting items loop, count:', (data.items || []).length);
+        let itemIndex = 0;
         (data.items || []).forEach(item => {
+            console.log('[loadFromData] Processing item', itemIndex, item.type, item.id);
+            itemIndex++;
             let px = item.position?.x || 0;
             let py = item.position?.y || 0;
             
@@ -5304,6 +6649,91 @@ class ArchitecturePlayground {
             const savedId = item.id || ('canvas-item-' + Date.now() + '-' + Math.random());
 
             try {
+                // Images - restore from saved data
+                if (item.type === 'image') {
+                    const canvas = document.getElementById('fabric-canvas');
+                    if (canvas && item.data?.src) {
+                        const imageContainer = document.createElement('div');
+                        imageContainer.className = 'canvas-item canvas-image-item';
+                        imageContainer.id = savedId;
+                        imageContainer.style.position = 'absolute';
+                        imageContainer.style.left = (px || 100) + 'px';
+                        imageContainer.style.top = (py || 100) + 'px';
+                        imageContainer.style.padding = '0';
+                        imageContainer.style.background = 'transparent';
+                        imageContainer.style.border = 'none';
+                        imageContainer.style.borderRadius = '0';
+                        imageContainer.style.boxShadow = 'none';
+                        imageContainer.style.cursor = 'move';
+                        imageContainer.style.minWidth = '100px';
+                        imageContainer.style.minHeight = '100px';
+
+                        // Restore saved width if available
+                        if (item.style?.width) {
+                            imageContainer.style.width = item.style.width;
+                        }
+
+                        const img = document.createElement('img');
+                        img.src = item.data.src;
+                        img.style.display = 'block';
+                        img.style.width = '100%';
+                        img.style.height = 'auto';
+                        img.style.maxWidth = '100%';
+                        img.style.pointerEvents = 'none';
+                        img.style.userSelect = 'none';
+
+                        const resizeHandle = document.createElement('div');
+                        resizeHandle.className = 'image-resize-handle';
+                        resizeHandle.style.position = 'absolute';
+                        resizeHandle.style.bottom = '2px';
+                        resizeHandle.style.right = '2px';
+                        resizeHandle.style.width = '16px';
+                        resizeHandle.style.height = '16px';
+                        resizeHandle.style.background = 'rgba(0, 120, 212, 0.8)';
+                        resizeHandle.style.cursor = 'nwse-resize';
+                        resizeHandle.style.borderRadius = '3px';
+                        resizeHandle.style.border = '2px solid white';
+                        resizeHandle.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.3)';
+                        resizeHandle.style.opacity = '0';
+                        resizeHandle.style.transition = 'opacity 0.2s ease';
+
+                        imageContainer.appendChild(img);
+                        imageContainer.appendChild(resizeHandle);
+
+                        // Show resize handle on hover
+                        imageContainer.addEventListener('mouseenter', () => {
+                            resizeHandle.style.opacity = '1';
+                        });
+                        imageContainer.addEventListener('mouseleave', () => {
+                            resizeHandle.style.opacity = '0';
+                        });
+
+                        // Add to canvas content wrapper
+                        const wrapper = canvas.querySelector('.canvas-content-wrapper');
+                        if (wrapper) {
+                            wrapper.appendChild(imageContainer);
+                        } else {
+                            canvas.appendChild(imageContainer);
+                        }
+
+                        // Setup resize and drag
+                        this.setupImageResize(imageContainer, resizeHandle, img);
+                        this.setupCanvasItemDrag(imageContainer);
+                        this.setupCanvasItemClick(imageContainer);
+
+                        // Add to canvasItems
+                        this.canvasItems.push({
+                            id: savedId,
+                            element: imageContainer,
+                            type: 'image',
+                            data: item.data
+                        });
+
+                        loadedItems.set(savedId, imageContainer);
+                    }
+                    return; // Skip to next item (this is inside forEach, not a loop)
+                }
+                
                 // Text labels - restore as simple text, not canvas items
                 if (item.type === 'text-label') {
                     const canvas = document.getElementById('fabric-canvas');
@@ -5346,7 +6776,13 @@ class ArchitecturePlayground {
                         resizeHandle.className = 'text-label-resize-handle';
                         label.appendChild(resizeHandle);
                         
-                        canvas.appendChild(label);
+                        // Add to canvas content wrapper (for proper zoom/pan)
+                        const wrapper = canvas.querySelector('.canvas-content-wrapper');
+                        if (wrapper) {
+                            wrapper.appendChild(label);
+                        } else {
+                            canvas.appendChild(label); // Fallback if wrapper doesn't exist yet
+                        }
                         
                         // Setup resize functionality
                         this.setupTextLabelResize(label, resizeHandle);
@@ -5377,6 +6813,10 @@ class ArchitecturePlayground {
                         label.addEventListener('dblclick', (e) => {
                             e.stopPropagation();
                             e.preventDefault();
+                            
+                            // Save state BEFORE editing starts for proper undo
+                            this.saveState('before text-edit');
+                            
                             label.contentEditable = 'true';
                             label.classList.add('editing');
                             label.style.cursor = 'text';
@@ -5410,9 +6850,15 @@ class ArchitecturePlayground {
                                     name: label.textContent,
                                     text: label.textContent
                                 };
+                                
+                                // Keep the label selected and show formatting toolbar
+                                this.clearSelection();
+                                this.selectedItems.add(canvasItem);
+                                label.classList.add('selected', 'multi-selected');
+                                this.showTextFormatToolbar(label);
                             }
                             
-                            this.saveState('text-edit');
+                            // State was saved BEFORE editing in dblclick handler
                             this.autosave(); // Ensure autosave after text edit
                         });
                         
@@ -5494,7 +6940,7 @@ class ArchitecturePlayground {
 
                 // Canvas core items including medallions
                 if (item.type) {
-                    this.addCanvasItem(item.type, px, py);
+                    this.addCanvasItem(item.type, px, py, item.data || null);
                     const lastItem = this.canvasItems[this.canvasItems.length - 1];
                     if (lastItem && lastItem.element) {
                         lastItem.id = savedId;
@@ -5505,7 +6951,7 @@ class ArchitecturePlayground {
                 }
 
                 // Fallback for unknown items
-                this.addCanvasItem('dataset', px, py);
+                this.addCanvasItem('dataset', px, py, item.data || null);
                 const lastItem = this.canvasItems[this.canvasItems.length - 1];
                 if (lastItem && lastItem.element) {
                     lastItem.id = savedId;
@@ -5555,11 +7001,12 @@ class ArchitecturePlayground {
                         type: conn.type || 'item-to-item',
                         fromAnchor: conn.fromAnchor || null,
                         toAnchor: conn.toAnchor || null,
+                        color: conn.color || null,
                         element: null
                     };
                     
                     this.connections.push(connection);
-                    this.drawConnection(connection);
+                    this.drawConnection(connection, conn.color);
                     connectionsCreated++;
                     console.log('Created connection:', connectionId, 'from', conn.fromId, 'to', conn.toId);
                 } else {
@@ -5682,8 +7129,14 @@ class ArchitecturePlayground {
             console.log('Connections after load:', this.connections.length);
         }, 100);
 
-        // Re-enable notifications after load
+        // Re-enable notifications and clear loading flag
         this._suppressNotifications = false;
+        this._isLoading = false;
+        
+        // Save initial state for undo after load is complete (but NOT during undo/redo operations)
+        if (!this._isUndoRedo) {
+            this.saveState('load');
+        }
         
         // Show success message
         const itemCount = data.items ? data.items.length : 0;
@@ -6038,34 +7491,83 @@ function clearCanvas() {
 
 function exportCanvas() {
     try {
-        console.log('[Export] Starting export...');
-        const data = playground.serialize();
-        console.log('[Export] Serialized', {
-            items: data.items?.length || 0,
-            connections: data.connections?.length || 0
-        });
+        console.log('[Export] Starting multi-page export...');
         
-        if (!data.items || data.items.length === 0) {
-            playground.showNotification('No items to export', 'warning');
-            return;
+        // Save current page to page manager
+        if (typeof pageManager !== 'undefined' && pageManager.saveCurrentPage) {
+            pageManager.saveCurrentPage();
         }
         
-        // Add metadata to export
-        const exportData = {
-            ...data,
-            metadata: {
-                exportDate: new Date().toISOString(),
-                version: '1.0',
-                itemCount: data.items.length,
-                connectionCount: data.connections.length
+        // Get all pages data
+        const pagesData = localStorage.getItem('canvas-pages');
+        const isMultiPage = pagesData && JSON.parse(pagesData).pages;
+        
+        let exportData;
+        
+        if (isMultiPage) {
+            // Export all pages
+            const multiPageData = JSON.parse(pagesData);
+            const pageCount = Object.keys(multiPageData.pages).length;
+            
+            exportData = {
+                format: 'multi-page',
+                version: '2.0',
+                metadata: {
+                    exportDate: new Date().toISOString(),
+                    pageCount: pageCount,
+                    currentPageId: multiPageData.currentPageId,
+                    totalItems: 0,
+                    totalConnections: 0
+                },
+                pages: multiPageData.pages,
+                pageCounter: multiPageData.pageCounter
+            };
+            
+            // Calculate totals
+            Object.values(multiPageData.pages).forEach(page => {
+                if (page.data) {
+                    exportData.metadata.totalItems += page.data.items?.length || 0;
+                    exportData.metadata.totalConnections += page.data.connections?.length || 0;
+                }
+            });
+            
+            console.log('[Export] Multi-page data:', {
+                pages: pageCount,
+                totalItems: exportData.metadata.totalItems,
+                totalConnections: exportData.metadata.totalConnections
+            });
+        } else {
+            // Fallback to single page export
+            const data = playground.serialize();
+            console.log('[Export] Single page data:', {
+                items: data.items?.length || 0,
+                connections: data.connections?.length || 0
+            });
+            
+            if (!data.items || data.items.length === 0) {
+                playground.showNotification('No items to export', 'warning');
+                return;
             }
-        };
+            
+            exportData = {
+                format: 'single-page',
+                version: '1.0',
+                metadata: {
+                    exportDate: new Date().toISOString(),
+                    itemCount: data.items.length,
+                    connectionCount: data.connections.length
+                },
+                ...data
+            };
+        }
         
         const jsonStr = JSON.stringify(exportData, null, 2);
 
         // Prompt user for filename (optional). Provide sensible default.
         const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-        const defaultName = `bi-architecture-${timestamp}`;
+        const defaultName = isMultiPage ? 
+            `bi-architecture-multipage-${timestamp}` : 
+            `bi-architecture-${timestamp}`;
         let userName = (typeof window !== 'undefined') ? window.prompt('Export filename (without extension):', defaultName) : defaultName;
 
         if (userName === null) {
@@ -6098,16 +7600,54 @@ function exportCanvas() {
         setTimeout(() => URL.revokeObjectURL(url), 2500);
         console.log('[Export] Download triggered:', filename);
         
-        playground.showNotification(`Architecture exported (${data.items.length} items)`, 'success');
+        if (isMultiPage) {
+            playground.showNotification(
+                `Multi-page architecture exported (${exportData.metadata.pageCount} pages, ${exportData.metadata.totalItems} items)`, 
+                'success'
+            );
+        } else {
+            playground.showNotification(`Architecture exported (${exportData.items.length} items)`, 'success');
+        }
     } catch (e) {
         console.error('Export failed:', e);
         playground.showNotification('Export failed: ' + e.message, 'error');
     }
 }
 
-function importCanvas(input) {
+function importCanvas(inputElement) {
+    // If no input element provided, create one and trigger file picker
+    if (!inputElement || !inputElement.files) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.style.display = 'none';
+        
+        // Add to DOM (required for some browsers)
+        document.body.appendChild(input);
+        
+        input.addEventListener('change', function handleFileSelect(e) {
+            // Remove the input from DOM
+            document.body.removeChild(input);
+            
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            // Process the file with a delay
+            setTimeout(function() {
+                processImportFile(e.target);
+            }, 200);
+        });
+        
+        input.click();
+        return;
+    }
+    
+    processImportFile(inputElement);
+}
+
+function processImportFile(inputElement) {
     try {
-        const file = input.files[0];
+        const file = inputElement.files[0];
         if (!file) {
             playground.showNotification('No file selected', 'warning');
             return;
@@ -6118,55 +7658,122 @@ function importCanvas(input) {
             return;
         }
         
+        playground.showNotification('Reading file...', 'info');
+        
         const reader = new FileReader();
+        
         reader.onload = function(e) {
-            try {
-                const importData = JSON.parse(e.target.result);
-                console.log('[Import] Loaded data:', {
-                    items: importData.items?.length || 0,
-                    connections: importData.connections?.length || 0,
-                    metadata: importData.metadata
-                });
-                
-                // Validate the imported data structure
-                if (!importData.items || !Array.isArray(importData.items)) {
-                    throw new Error('Invalid file format: missing items array');
+            setTimeout(function() {
+                try {
+                    const importData = JSON.parse(e.target.result);
+                    
+                    if (importData.format === 'multi-page' && importData.pages) {
+                        handleMultiPageImport(importData);
+                    } else if (importData.format === 'single-page' || importData.items) {
+                        handleSinglePageImport(importData);
+                    } else {
+                        throw new Error('Invalid file format: unrecognized structure');
+                    }
+                    
+                } catch (parseError) {
+                    console.error('[Import] Parse error:', parseError);
+                    playground.showNotification('Failed to parse JSON file: ' + parseError.message, 'error');
                 }
-                
-                // Clear current canvas
-                playground.clearCanvas();
-                
-                // Load the imported data
-                playground.deserialize(importData);
-                
-                const itemCount = importData.items.length;
-                const connectionCount = (importData.connections || []).length;
-                
-                playground.showNotification(
-                    `Architecture imported (${itemCount} items, ${connectionCount} connections)`, 
-                    'success'
-                );
-                
-                console.log('[Import] Successfully imported architecture');
-                
-            } catch (parseError) {
-                console.error('[Import] Parse error:', parseError);
-                playground.showNotification('Failed to parse JSON file: ' + parseError.message, 'error');
-            }
+            }, 50);
         };
         
-        reader.onerror = function() {
+        reader.onerror = function(e) {
+            console.error('[Import] FileReader error:', e);
             playground.showNotification('Failed to read file', 'error');
         };
         
         reader.readAsText(file);
-        
-        // Reset the file input so the same file can be imported again if needed
-        input.value = '';
+        inputElement.value = '';
         
     } catch (error) {
-        console.error('[Import] Import error:', error);
+        console.error('[Import] Error:', error);
         playground.showNotification('Import failed: ' + error.message, 'error');
+    }
+}
+
+function handleMultiPageImport(importData) {
+    console.log('[Import] Importing multi-page data:', {
+        pages: Object.keys(importData.pages).length,
+        totalItems: importData.metadata?.totalItems || 0
+    });
+    
+    const pageCount = Object.keys(importData.pages).length;
+    const confirmReplace = confirm(
+        `This will replace all current pages with ${pageCount} imported page(s). Continue?`
+    );
+    
+    if (!confirmReplace) {
+        playground.showNotification('Import cancelled', 'info');
+        return;
+    }
+    
+    // Save the multi-page data
+    const multiPageData = {
+        pages: importData.pages,
+        currentPageId: importData.currentPageId || Object.keys(importData.pages)[0],
+        pageCounter: importData.pageCounter || Object.keys(importData.pages).length
+    };
+    
+    localStorage.setItem('canvas-pages', JSON.stringify(multiPageData));
+    
+    // Reinitialize page manager
+    if (typeof pageManager !== 'undefined' && pageManager.init) {
+        pageManager.init();
+    }
+    
+    playground.showNotification(
+        `Multi-page architecture imported (${pageCount} pages)`,
+        'success'
+    );
+}
+
+function handleSinglePageImport(importData) {
+    console.log('[Import] Starting single page import...');
+    console.log('[Import] Items:', importData.items?.length || 0);
+    console.log('[Import] Connections:', importData.connections?.length || 0);
+    
+    // Validate the imported data structure
+    if (!importData.items || !Array.isArray(importData.items)) {
+        throw new Error('Invalid file format: missing items array');
+    }
+    
+    // Set loading flag BEFORE clearing canvas
+    playground._isLoading = true;
+    playground._suppressNotifications = true;
+    
+    try {
+        // Clear current canvas using the method (not the global function)
+        console.log('[Import] Clearing canvas...');
+        const canvas = document.getElementById('fabric-canvas');
+        canvas.querySelectorAll('.canvas-item').forEach(el => el.remove());
+        playground.canvasItems = [];
+        playground.connections = [];
+        if (playground.connectionSvg) playground.connectionSvg.innerHTML = '';
+        
+        console.log('[Import] Loading data...');
+        // Load the imported data
+        playground.loadFromData(importData);
+        
+        const itemCount = importData.items.length;
+        const connectionCount = (importData.connections || []).length;
+        
+        console.log('[Import] Complete!');
+        playground.showNotification(
+            `Architecture imported (${itemCount} items, ${connectionCount} connections)`,
+            'success'
+        );
+    } catch (error) {
+        console.error('[Import] Error during import:', error);
+        playground.showNotification('Import failed: ' + error.message, 'error');
+    } finally {
+        // Always clear the loading flags
+        playground._isLoading = false;
+        playground._suppressNotifications = false;
     }
 }
 
@@ -7219,34 +8826,24 @@ async function exportPDF(options={}) {
 
 function saveCanvas() {
     try {
-        const data = playground.serialize();
+        // Save current page first
+        pageManager.saveCurrentPage();
         
-        // Validate data before saving
-        if (!data || !data.items) {
-            playground.showNotification('No data to save', 'warning');
-            return;
-        }
+        // Save all pages to localStorage
+        pageManager.savePages();
         
-        const jsonString = JSON.stringify(data);
-        
-        // Check if localStorage has enough space
-        try {
-            localStorage.setItem('playground-save', jsonString);
-            
-            // Create a backup with timestamp
-            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-            localStorage.setItem(`playground-backup-${timestamp}`, jsonString);
-            
-            playground.showNotification(`Canvas saved (${data.items.length} items, ${data.connections.length} connections)`, 'success');
-        } catch (quotaError) {
-            // If localStorage is full, try to save without backup
-            try {
-                localStorage.setItem('playground-save', jsonString);
-                playground.showNotification('Canvas saved (storage nearly full)', 'warning');
-            } catch (e) {
-                playground.showNotification('Save failed: Storage quota exceeded', 'error');
+        // Count total items across all pages
+        let totalItems = 0;
+        let totalConnections = 0;
+        Object.values(pageManager.pages).forEach(page => {
+            if (page.data && page.data.items) {
+                totalItems += page.data.items.length;
+                totalConnections += (page.data.connections || []).length;
             }
-        }
+        });
+        
+        const pageCount = Object.keys(pageManager.pages).length;
+        playground.showNotification(`All ${pageCount} pages saved (${totalItems} items, ${totalConnections} connections)`, 'success');
         
     } catch (e) {
         console.error('Save failed:', e);
@@ -7256,57 +8853,26 @@ function saveCanvas() {
 
 function loadCanvas() {
     try {
-        const raw = localStorage.getItem('playground-save');
-        if (!raw) {
-            // Check for backup saves
-            const backupKeys = Object.keys(localStorage).filter(key => key.startsWith('playground-backup-'));
-            if (backupKeys.length > 0) {
-                const latestBackup = backupKeys.sort().pop();
-                const backupData = localStorage.getItem(latestBackup);
-                if (backupData) {
-                    const data = JSON.parse(backupData);
-                    playground.loadFromData(data);
-                    playground.showNotification('Loaded from latest backup', 'info');
-                    return;
-                }
-            }
-            playground.showNotification('No saved canvas found', 'warning');
-            return;
+        // Reload pages from localStorage
+        pageManager.init();
+        
+        // Load the current page
+        if (pageManager.currentPageId && pageManager.pages[pageManager.currentPageId]) {
+            pageManager.loadPage(pageManager.currentPageId);
+            
+            const pageCount = Object.keys(pageManager.pages).length;
+            playground.showNotification(`Loaded ${pageCount} pages`, 'success');
+        } else {
+            playground.showNotification('No saved pages found', 'warning');
         }
-        
-        const data = JSON.parse(raw);
-        
-        // Validate data structure
-        if (!data || typeof data !== 'object') {
-            playground.showNotification('Invalid save data format', 'error');
-            return;
-        }
-        
-        playground.loadFromData(data);
         
     } catch (e) {
         console.error('Load failed:', e);
         playground.showNotification('Load failed: ' + e.message, 'error');
-        
-        // Try to recover from backup
-        try {
-            const backupKeys = Object.keys(localStorage).filter(key => key.startsWith('playground-backup-'));
-            if (backupKeys.length > 0) {
-                const latestBackup = backupKeys.sort().pop();
-                const backupData = localStorage.getItem(latestBackup);
-                if (backupData) {
-                    const data = JSON.parse(backupData);
-                    playground.loadFromData(data);
-                    playground.showNotification('Recovered from backup due to corrupted save', 'warning');
-                    return;
-                }
-            }
-        } catch (backupError) {
-            console.error('Backup recovery also failed:', backupError);
-        }
     }
-
 }
+
+
 
 // ================= Template Management =================
 function saveAsTemplate() {
@@ -7410,6 +8976,677 @@ function loadTemplate() {
     }
 }
 
+// ================= Page Management =================
+const pageManager = {
+    pages: {},
+    currentPageId: 'page-1',
+    pageCounter: 1,
+    pageOrder: ['page-1'], // Track the order of pages
+    draggedPageId: null,
+    
+    init() {
+        // Load pages from localStorage or create default page
+        const saved = localStorage.getItem('canvas-pages');
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                this.pages = data.pages;
+                this.currentPageId = data.currentPageId;
+                this.pageCounter = data.pageCounter;
+                this.pageOrder = data.pageOrder || Object.keys(data.pages);
+            } catch (e) {
+                console.error('Failed to load pages:', e);
+                this.createDefaultPage();
+            }
+        } else {
+            this.createDefaultPage();
+        }
+        
+        this.renderTabs();
+        this.loadPage(this.currentPageId);
+    },
+    
+    createDefaultPage() {
+        this.pages['page-1'] = {
+            id: 'page-1',
+            name: 'Page 1',
+            data: { items: [], connections: [] },
+            canvasSettings: typeof CanvasSettings !== 'undefined' ? CanvasSettings.getDefaults() : null,
+            zoomLevel: 1.0,
+            canvasOffset: null, // null means center on load
+            connectionStyle: 'orthogonal'
+        };
+    },
+    
+    addPage() {
+        this.pageCounter++;
+        const newPageId = `page-${this.pageCounter}`;
+        this.pages[newPageId] = {
+            id: newPageId,
+            name: `Page ${this.pageCounter}`,
+            data: { items: [], connections: [] },
+            canvasSettings: typeof CanvasSettings !== 'undefined' ? CanvasSettings.getAppliedSettings() : null,
+            zoomLevel: 1.0,
+            canvasOffset: null, // null means center on load
+            connectionStyle: playground.connectionStyle || 'orthogonal'
+        };
+        this.pageOrder.push(newPageId); // Add to order
+        this.saveCurrentPage();
+        this.currentPageId = newPageId;
+        this.savePages();
+        this.renderTabs();
+        this.loadPage(newPageId);
+        playground.showNotification(`New page created: Page ${this.pageCounter}`, 'success');
+    },
+    
+    duplicatePage(pageId) {
+        const sourcePage = this.pages[pageId];
+        if (!sourcePage) return;
+        
+        this.pageCounter++;
+        const newPageId = `page-${this.pageCounter}`;
+        
+        // Deep copy the source page data
+        const duplicatedData = JSON.parse(JSON.stringify(sourcePage.data || { items: [], connections: [] }));
+        
+        // Deep copy canvas settings if they exist
+        const duplicatedSettings = sourcePage.canvasSettings ? 
+            JSON.parse(JSON.stringify(sourcePage.canvasSettings)) : null;
+        
+        this.pages[newPageId] = {
+            id: newPageId,
+            name: `${sourcePage.name} (Copy)`,
+            data: duplicatedData,
+            canvasSettings: duplicatedSettings,
+            zoomLevel: sourcePage.zoomLevel !== undefined ? sourcePage.zoomLevel : 1.0,
+            canvasOffset: sourcePage.canvasOffset ? { ...sourcePage.canvasOffset } : { x: 0, y: 0 },
+            connectionStyle: sourcePage.connectionStyle || 'orthogonal'
+        };
+        
+        // Add after the source page
+        const sourceIndex = this.pageOrder.indexOf(pageId);
+        this.pageOrder.splice(sourceIndex + 1, 0, newPageId);
+        
+        this.saveCurrentPage();
+        this.currentPageId = newPageId;
+        this.savePages();
+        this.renderTabs();
+        this.loadPage(newPageId);
+        playground.showNotification(`Page duplicated: ${this.pages[newPageId].name}`, 'success');
+    },
+    
+    deletePage(pageId) {
+        const pageKeys = Object.keys(this.pages);
+        if (pageKeys.length <= 1) {
+            playground.showNotification('Cannot delete the last page', 'warning');
+            return;
+        }
+        
+        const pageName = this.pages[pageId]?.name || pageId;
+        if (!confirm(`Delete "${pageName}"?\n\nThis action cannot be undone.`)) {
+            return;
+        }
+        
+        delete this.pages[pageId];
+        
+        // Remove from order
+        this.pageOrder = this.pageOrder.filter(id => id !== pageId);
+        
+        // Switch to another page if we deleted the current one
+        if (pageId === this.currentPageId) {
+            this.currentPageId = pageKeys.find(id => id !== pageId);
+            this.loadPage(this.currentPageId);
+        }
+        
+        this.savePages();
+        this.renderTabs();
+        playground.showNotification(`Page "${pageName}" deleted`, 'info');
+    },
+    
+    switchPage(pageId) {
+        if (pageId === this.currentPageId) return;
+        
+        // Save current page data before switching
+        this.saveCurrentPage();
+        
+        this.currentPageId = pageId;
+        this.loadPage(pageId);
+        this.savePages();
+        this.renderTabs();
+    },
+    
+    renamePage(pageId) {
+        const page = this.pages[pageId];
+        if (!page) return;
+        
+        const newName = prompt('Enter new page name:', page.name);
+        if (!newName || newName === page.name) return;
+        
+        page.name = newName;
+        this.savePages();
+        this.renderTabs();
+        playground.showNotification(`Page renamed to "${newName}"`, 'success');
+    },
+    
+    saveCurrentPage() {
+        if (!this.currentPageId || !this.pages[this.currentPageId]) return;
+        
+        const currentData = playground.serialize();
+        this.pages[this.currentPageId].data = currentData;
+        
+        // Save canvas settings with the page
+        if (typeof CanvasSettings !== 'undefined' && CanvasSettings.getAppliedSettings) {
+            this.pages[this.currentPageId].canvasSettings = CanvasSettings.getAppliedSettings();
+        }
+        
+        // Save zoom and pan state with the page
+        this.pages[this.currentPageId].zoomLevel = playground.zoomLevel;
+        this.pages[this.currentPageId].canvasOffset = { ...playground.canvasOffset };
+        
+        // Save connection style with the page
+        this.pages[this.currentPageId].connectionStyle = playground.connectionStyle || 'orthogonal';
+    },
+    
+    saveCurrentPageSettings() {
+        if (!this.currentPageId || !this.pages[this.currentPageId]) return;
+        
+        // Save only canvas settings
+        if (typeof CanvasSettings !== 'undefined' && CanvasSettings.getAppliedSettings) {
+            this.pages[this.currentPageId].canvasSettings = CanvasSettings.getAppliedSettings();
+            this.savePages();
+        }
+    },
+    
+    loadPage(pageId) {
+        const page = this.pages[pageId];
+        if (!page) return;
+        
+        // Check if playground is initialized
+        if (typeof playground === 'undefined' || !playground) {
+            console.warn('loadPage: playground not initialized yet, deferring load');
+            // Defer loading until playground is ready
+            setTimeout(() => this.loadPage(pageId), 100);
+            return;
+        }
+        
+        // Clear current canvas
+        const canvas = document.getElementById('fabric-canvas');
+        const items = canvas.querySelectorAll('.canvas-item, .text-label');
+        items.forEach(item => item.remove());
+        
+        playground.canvasItems = [];
+        playground.connections = [];
+        
+        if (playground.connectionSvg) {
+            playground.connectionSvg.innerHTML = '';
+        }
+        
+        // Restore zoom and pan state for this page
+        if (page.zoomLevel !== undefined) {
+            playground.zoomLevel = page.zoomLevel;
+        } else {
+            playground.zoomLevel = 1.0; // Default zoom
+        }
+        
+        if (page.canvasOffset) {
+            playground.canvasOffset = { ...page.canvasOffset };
+        } else {
+            // For new pages, center the view instead of starting at top-left corner
+            playground.centerCanvasView(1000, 800);
+        }
+        
+        // Apply the transform
+        playground.applyCanvasTransform();
+        playground.updateZoomIndicator();
+        
+        // Restore connection style for this page
+        if (page.connectionStyle !== undefined) {
+            playground.connectionStyle = page.connectionStyle;
+        } else {
+            playground.connectionStyle = 'orthogonal'; // Default style
+        }
+        
+        // Update the UI dropdown for connection style
+        const connectionStyleDropdown = document.getElementById('set-connection-style');
+        if (connectionStyleDropdown) {
+            connectionStyleDropdown.value = playground.connectionStyle;
+        }
+        
+        // Load canvas settings if available
+        if (page.canvasSettings && typeof CanvasSettings !== 'undefined') {
+            CanvasSettings.apply(page.canvasSettings);
+            CanvasSettings.syncUI(page.canvasSettings);
+        }
+        
+        // Load page data
+        if (page.data && (page.data.items?.length > 0 || page.data.connections?.length > 0)) {
+            playground.loadFromData(page.data);
+        }
+    },
+    
+    savePages() {
+        const data = {
+            pages: this.pages,
+            currentPageId: this.currentPageId,
+            pageCounter: this.pageCounter,
+            pageOrder: this.pageOrder
+        };
+        localStorage.setItem('canvas-pages', JSON.stringify(data));
+    },
+    
+    renderTabs() {
+        const tabsContainer = document.getElementById('page-tabs');
+        if (!tabsContainer) return;
+        
+        tabsContainer.innerHTML = '';
+        
+        // Render in order
+        this.pageOrder.forEach(pageId => {
+            const page = this.pages[pageId];
+            if (!page) return;
+            
+            const tab = document.createElement('div');
+            tab.className = 'page-tab';
+            if (page.id === this.currentPageId) {
+                tab.classList.add('active');
+            }
+            tab.dataset.pageId = page.id;
+            tab.draggable = true;
+            
+            tab.innerHTML = `
+                <span class="page-tab-name" title="Double-click to rename, drag to reorder">${page.name}</span>
+            `;
+            
+            // Track mouse down position to differentiate click from drag
+            let mouseDownX = 0;
+            let mouseDownY = 0;
+            let isDragging = false;
+            
+            tab.addEventListener('mousedown', (e) => {
+                mouseDownX = e.clientX;
+                mouseDownY = e.clientY;
+                isDragging = false;
+            });
+            
+            // Click to switch pages (only if not dragging)
+            tab.addEventListener('click', (e) => {
+                if (!isDragging) {
+                    this.switchPage(page.id);
+                }
+            });
+            
+            // Drag events
+            tab.addEventListener('dragstart', (e) => {
+                isDragging = true;
+                this.draggedPageId = page.id;
+                tab.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+            
+            tab.addEventListener('dragend', (e) => {
+                tab.classList.remove('dragging');
+                this.draggedPageId = null;
+                // Reset isDragging after a short delay to prevent click from firing
+                setTimeout(() => { isDragging = false; }, 100);
+            });
+            
+            tab.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                
+                if (this.draggedPageId && this.draggedPageId !== page.id) {
+                    const rect = tab.getBoundingClientRect();
+                    const midpoint = rect.left + rect.width / 2;
+                    
+                    if (e.clientX < midpoint) {
+                        tab.classList.add('drag-before');
+                        tab.classList.remove('drag-after');
+                    } else {
+                        tab.classList.add('drag-after');
+                        tab.classList.remove('drag-before');
+                    }
+                }
+            });
+            
+            tab.addEventListener('dragleave', (e) => {
+                tab.classList.remove('drag-before', 'drag-after');
+            });
+            
+            tab.addEventListener('drop', (e) => {
+                e.preventDefault();
+                tab.classList.remove('drag-before', 'drag-after');
+                
+                if (this.draggedPageId && this.draggedPageId !== page.id) {
+                    this.reorderPages(this.draggedPageId, page.id, e.clientX < (tab.getBoundingClientRect().left + tab.getBoundingClientRect().width / 2));
+                }
+            });
+            
+            // Double-click to rename
+            tab.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                this.renamePage(page.id);
+            });
+            
+            // Right-click for context menu
+            tab.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                this.showPageContextMenu(page.id, e);
+            });
+            
+            tabsContainer.appendChild(tab);
+        });
+    },
+    
+    reorderPages(draggedId, targetId, insertBefore) {
+        const draggedIndex = this.pageOrder.indexOf(draggedId);
+        const targetIndex = this.pageOrder.indexOf(targetId);
+        
+        if (draggedIndex === -1 || targetIndex === -1) return;
+        
+        // Remove dragged page from its current position
+        this.pageOrder.splice(draggedIndex, 1);
+        
+        // Find new target index (it might have shifted)
+        const newTargetIndex = this.pageOrder.indexOf(targetId);
+        
+        // Insert at the new position
+        if (insertBefore) {
+            this.pageOrder.splice(newTargetIndex, 0, draggedId);
+        } else {
+            this.pageOrder.splice(newTargetIndex + 1, 0, draggedId);
+        }
+        
+        this.savePages();
+        this.renderTabs();
+    },
+    
+    showPageContextMenu(pageId, event) {
+        // Remove any existing menu
+        const existingMenu = document.querySelector('.page-context-menu');
+        if (existingMenu) {
+            existingMenu.remove();
+        }
+        
+        const menu = document.createElement('div');
+        menu.className = 'page-context-menu';
+        menu.style.left = event.pageX + 'px';
+        menu.style.top = event.pageY + 'px';
+        
+        const pageCount = Object.keys(this.pages).length;
+        
+        menu.innerHTML = `
+            <div class="context-menu-item" onclick="pageManager.renamePage('${pageId}')">
+                <i class="fas fa-edit"></i> Rename Page
+            </div>
+            <div class="context-menu-item" onclick="pageManager.duplicatePage('${pageId}')">
+                <i class="fas fa-copy"></i> Duplicate Page
+            </div>
+            <div class="context-menu-separator"></div>
+            <div class="context-menu-item ${pageCount <= 1 ? 'disabled' : ''}" 
+                 onclick="${pageCount > 1 ? `pageManager.deletePage('${pageId}')` : ''}">
+                <i class="fas fa-trash"></i> Delete Page
+            </div>
+        `;
+        
+        document.body.appendChild(menu);
+        
+        // Close menu on click outside
+        const closeMenu = (e) => {
+            if (!menu.contains(e.target)) {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+        
+        setTimeout(() => {
+            document.addEventListener('click', closeMenu);
+        }, 10);
+    }
+};
+
+// Global functions for page management
+function addNewPage() {
+    pageManager.addPage();
+}
+
+function deletePage(pageId) {
+    pageManager.deletePage(pageId);
+}
+
+// Initialize page manager when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    pageManager.init();
+});
+
+// ============================================
+// WELCOME MODAL
+// ============================================
+
+function showWelcomeModal() {
+    const modal = document.getElementById('welcome-modal');
+    if (modal) {
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeWelcomeModal() {
+    const modal = document.getElementById('welcome-modal');
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+}
+
+function toggleWelcomePreference() {
+    const checkbox = document.getElementById('welcome-dont-show');
+    if (checkbox) {
+        localStorage.setItem('infinibi-hide-welcome', checkbox.checked ? 'true' : 'false');
+    }
+}
+
+function loadDemoProject() {
+    closeWelcomeModal();
+    
+    // Check if playground is initialized
+    if (!playground) {
+        console.error('[loadDemoProject] playground is not initialized!');
+        alert('Error: Application not fully initialized. Please refresh the page.');
+        return;
+    }
+    
+    // Get current canvas view center to position demo content there
+    const canvas = document.getElementById('fabric-canvas');
+    const canvasRect = canvas.getBoundingClientRect();
+    const zoom = playground.canvasZoom || 1;
+    const offset = playground.canvasOffset || { x: 0, y: 0 };
+    
+    // Calculate the center of the visible canvas area in canvas coordinates
+    const viewCenterX = (canvasRect.width / 2 - offset.x) / zoom;
+    const viewCenterY = (canvasRect.height / 2 - offset.y) / zoom;
+    
+    // Demo content dimensions
+    const demoWidth = 2800;
+    const demoHeight = 1400;
+    
+    // Calculate offset to center the demo content in current view
+    const baseX = Math.round(viewCenterX - demoWidth / 2);
+    const baseY = Math.round(viewCenterY - demoHeight / 2);
+    
+    // Realistic Medallion Architecture Demo
+    const demoData = {
+        format: 'single-page',
+        exportedAt: new Date().toISOString(),
+        items: [
+            // ========== DATA SOURCES (Column 1) ==========
+            { id: 'src-erp', type: 'data-source', position: { x: baseX + 0, y: baseY + 200 }, data: { name: 'ERP System', sourceType: 'SQL Server', icon: 'fas fa-database' } },
+            { id: 'src-crm', type: 'data-source', position: { x: baseX + 0, y: baseY + 450 }, data: { name: 'CRM System', sourceType: 'Dynamics 365', icon: 'fas fa-users' } },
+            { id: 'src-excel', type: 'data-source', position: { x: baseX + 0, y: baseY + 700 }, data: { name: 'Excel Files', sourceType: 'SharePoint', icon: 'fas fa-file-excel' } },
+            { id: 'src-api', type: 'data-source', position: { x: baseX + 0, y: baseY + 950 }, data: { name: 'External API', sourceType: 'REST API', icon: 'fas fa-plug' } },
+            
+            // ========== BRONZE LAYER - Raw Tables (Column 2) ==========
+            // From ERP
+            { id: 'brz-sales-orders', type: 'bronze', position: { x: baseX + 350, y: baseY + 100 }, data: { name: 'Raw_SalesOrders' } },
+            { id: 'brz-order-lines', type: 'bronze', position: { x: baseX + 350, y: baseY + 200 }, data: { name: 'Raw_OrderLines' } },
+            { id: 'brz-products', type: 'bronze', position: { x: baseX + 350, y: baseY + 300 }, data: { name: 'Raw_Products' } },
+            // From CRM
+            { id: 'brz-customers', type: 'bronze', position: { x: baseX + 350, y: baseY + 450 }, data: { name: 'Raw_Customers' } },
+            { id: 'brz-contacts', type: 'bronze', position: { x: baseX + 350, y: baseY + 550 }, data: { name: 'Raw_Contacts' } },
+            // From Excel
+            { id: 'brz-factories', type: 'bronze', position: { x: baseX + 350, y: baseY + 700 }, data: { name: 'Raw_Factories' } },
+            { id: 'brz-regions', type: 'bronze', position: { x: baseX + 350, y: baseY + 800 }, data: { name: 'Raw_Regions' } },
+            // From API
+            { id: 'brz-exchange', type: 'bronze', position: { x: baseX + 350, y: baseY + 950 }, data: { name: 'Raw_ExchangeRates' } },
+            { id: 'brz-weather', type: 'bronze', position: { x: baseX + 350, y: baseY + 1050 }, data: { name: 'Raw_WeatherData' } },
+            
+            // ========== SILVER LAYER - Cleaned & Merged (Column 3) ==========
+            { id: 'slv-customer', type: 'silver', position: { x: baseX + 750, y: baseY + 150 }, data: { name: 'Dim_Customer' } },
+            { id: 'slv-product', type: 'silver', position: { x: baseX + 750, y: baseY + 300 }, data: { name: 'Dim_Product' } },
+            { id: 'slv-factory', type: 'silver', position: { x: baseX + 750, y: baseY + 450 }, data: { name: 'Dim_Factory' } },
+            { id: 'slv-geography', type: 'silver', position: { x: baseX + 750, y: baseY + 600 }, data: { name: 'Dim_Geography' } },
+            { id: 'slv-date', type: 'silver', position: { x: baseX + 750, y: baseY + 750 }, data: { name: 'Dim_Date' } },
+            { id: 'slv-sales', type: 'silver', position: { x: baseX + 750, y: baseY + 900 }, data: { name: 'Fact_Sales' } },
+            { id: 'slv-currency', type: 'silver', position: { x: baseX + 750, y: baseY + 1050 }, data: { name: 'Dim_Currency' } },
+            
+            // ========== GOLD LAYER - Star Schema Model (Column 4) ==========
+            { id: 'gld-dim-customer', type: 'gold', position: { x: baseX + 1150, y: baseY + 200 }, data: { name: 'Customer' } },
+            { id: 'gld-dim-product', type: 'gold', position: { x: baseX + 1150, y: baseY + 350 }, data: { name: 'Product' } },
+            { id: 'gld-dim-factory', type: 'gold', position: { x: baseX + 1150, y: baseY + 500 }, data: { name: 'Factory' } },
+            { id: 'gld-dim-date', type: 'gold', position: { x: baseX + 1150, y: baseY + 650 }, data: { name: 'Date' } },
+            { id: 'gld-fact-sales', type: 'gold', position: { x: baseX + 1150, y: baseY + 850 }, data: { name: 'Sales' } },
+            { id: 'gld-dim-geo', type: 'gold', position: { x: baseX + 1150, y: baseY + 1000 }, data: { name: 'Geography' } },
+            
+            // ========== SEMANTIC MODEL (Column 5) ==========
+            { id: 'semantic-model', type: 'semantic-model', position: { x: baseX + 1550, y: baseY + 550 }, data: { name: 'Sales Analytics Model' } },
+            
+            // ========== REPORTS (Column 6) ==========
+            { id: 'rpt-exec', type: 'report', position: { x: baseX + 1950, y: baseY + 300 }, data: { name: 'Executive Dashboard' } },
+            { id: 'rpt-sales', type: 'report', position: { x: baseX + 1950, y: baseY + 500 }, data: { name: 'Sales Performance' } },
+            { id: 'rpt-factory', type: 'report', position: { x: baseX + 1950, y: baseY + 700 }, data: { name: 'Factory Analysis' } },
+            { id: 'rpt-customer', type: 'report', position: { x: baseX + 1950, y: baseY + 900 }, data: { name: 'Customer 360' } },
+            
+            // ========== LAYER LABELS ==========
+            { id: 'lbl-sources', type: 'text-label', position: { x: baseX - 30, y: baseY + 50 }, data: { text: '📥 Data Sources', name: '📥 Data Sources', fontSize: 22, fontWeight: 'bold', color: '#64748b' } },
+            { id: 'lbl-bronze', type: 'text-label', position: { x: baseX + 320, y: baseY + 0 }, data: { text: '🥉 Bronze Layer', name: '🥉 Bronze Layer', fontSize: 22, fontWeight: 'bold', color: '#CD7F32' } },
+            { id: 'lbl-bronze-sub', type: 'text-label', position: { x: baseX + 320, y: baseY + 30 }, data: { text: 'Raw Data (1:1 copy)', name: 'Raw Data (1:1 copy)', fontSize: 14, fontWeight: 'normal', color: '#94a3b8' } },
+            { id: 'lbl-silver', type: 'text-label', position: { x: baseX + 720, y: baseY + 0 }, data: { text: '🥈 Silver Layer', name: '🥈 Silver Layer', fontSize: 22, fontWeight: 'bold', color: '#A0A0A0' } },
+            { id: 'lbl-silver-sub', type: 'text-label', position: { x: baseX + 720, y: baseY + 30 }, data: { text: 'Cleaned & Merged', name: 'Cleaned & Merged', fontSize: 14, fontWeight: 'normal', color: '#94a3b8' } },
+            { id: 'lbl-gold', type: 'text-label', position: { x: baseX + 1130, y: baseY + 50 }, data: { text: '🥇 Gold Layer', name: '🥇 Gold Layer', fontSize: 22, fontWeight: 'bold', color: '#DAA520' } },
+            { id: 'lbl-gold-sub', type: 'text-label', position: { x: baseX + 1130, y: baseY + 80 }, data: { text: 'Star Schema', name: 'Star Schema', fontSize: 14, fontWeight: 'normal', color: '#94a3b8' } },
+            { id: 'lbl-semantic', type: 'text-label', position: { x: baseX + 1500, y: baseY + 450 }, data: { text: '🧱 Semantic Model', name: '🧱 Semantic Model', fontSize: 20, fontWeight: 'bold', color: '#F2C811' } },
+            { id: 'lbl-reports', type: 'text-label', position: { x: baseX + 1920, y: baseY + 180 }, data: { text: '📊 Reports', name: '📊 Reports', fontSize: 22, fontWeight: 'bold', color: '#64748b' } }
+        ],
+        connections: [
+            // === Sources to Bronze ===
+            // ERP -> Bronze
+            { fromId: 'src-erp', toId: 'brz-sales-orders', color: '#CD7F32' },
+            { fromId: 'src-erp', toId: 'brz-order-lines', color: '#CD7F32' },
+            { fromId: 'src-erp', toId: 'brz-products', color: '#CD7F32' },
+            // CRM -> Bronze
+            { fromId: 'src-crm', toId: 'brz-customers', color: '#CD7F32' },
+            { fromId: 'src-crm', toId: 'brz-contacts', color: '#CD7F32' },
+            // Excel -> Bronze
+            { fromId: 'src-excel', toId: 'brz-factories', color: '#CD7F32' },
+            { fromId: 'src-excel', toId: 'brz-regions', color: '#CD7F32' },
+            // API -> Bronze
+            { fromId: 'src-api', toId: 'brz-exchange', color: '#CD7F32' },
+            { fromId: 'src-api', toId: 'brz-weather', color: '#CD7F32' },
+            
+            // === Bronze to Silver (many-to-one merges) ===
+            // Customer dimension from CRM
+            { fromId: 'brz-customers', toId: 'slv-customer', color: '#A0A0A0' },
+            { fromId: 'brz-contacts', toId: 'slv-customer', color: '#A0A0A0' },
+            // Product dimension from ERP
+            { fromId: 'brz-products', toId: 'slv-product', color: '#A0A0A0' },
+            // Factory dimension from Excel
+            { fromId: 'brz-factories', toId: 'slv-factory', color: '#A0A0A0' },
+            // Geography dimension from regions
+            { fromId: 'brz-regions', toId: 'slv-geography', color: '#A0A0A0' },
+            // Sales fact from orders
+            { fromId: 'brz-sales-orders', toId: 'slv-sales', color: '#A0A0A0' },
+            { fromId: 'brz-order-lines', toId: 'slv-sales', color: '#A0A0A0' },
+            // Currency from exchange rates
+            { fromId: 'brz-exchange', toId: 'slv-currency', color: '#A0A0A0' },
+            
+            // === Silver to Gold (final model tables) ===
+            { fromId: 'slv-customer', toId: 'gld-dim-customer', color: '#DAA520' },
+            { fromId: 'slv-product', toId: 'gld-dim-product', color: '#DAA520' },
+            { fromId: 'slv-factory', toId: 'gld-dim-factory', color: '#DAA520' },
+            { fromId: 'slv-date', toId: 'gld-dim-date', color: '#DAA520' },
+            { fromId: 'slv-geography', toId: 'gld-dim-geo', color: '#DAA520' },
+            { fromId: 'slv-sales', toId: 'gld-fact-sales', color: '#DAA520' },
+            { fromId: 'slv-currency', toId: 'gld-fact-sales', color: '#DAA520' },
+            
+            // === Gold to Semantic Model ===
+            { fromId: 'gld-dim-customer', toId: 'semantic-model', color: '#F2C811' },
+            { fromId: 'gld-dim-product', toId: 'semantic-model', color: '#F2C811' },
+            { fromId: 'gld-dim-factory', toId: 'semantic-model', color: '#F2C811' },
+            { fromId: 'gld-dim-date', toId: 'semantic-model', color: '#F2C811' },
+            { fromId: 'gld-fact-sales', toId: 'semantic-model', color: '#F2C811' },
+            { fromId: 'gld-dim-geo', toId: 'semantic-model', color: '#F2C811' },
+            
+            // === Semantic Model to Reports ===
+            { fromId: 'semantic-model', toId: 'rpt-exec', color: '#00D4FF' },
+            { fromId: 'semantic-model', toId: 'rpt-sales', color: '#00D4FF' },
+            { fromId: 'semantic-model', toId: 'rpt-factory', color: '#00D4FF' },
+            { fromId: 'semantic-model', toId: 'rpt-customer', color: '#00D4FF' }
+        ]
+    };
+    
+    // Load the demo project
+    setTimeout(() => {
+        // Clear undo stack when loading demo - fresh start
+        playground.undoStack = [];
+        playground.redoStack = [];
+        
+        playground.loadFromData(demoData);
+        
+        // Fit view to show all demo items with padding
+        setTimeout(() => {
+            playground.fitToView(80);
+            playground.showNotification('Medallion Architecture demo loaded!', 'success');
+        }, 200);
+    }, 100);
+}
+
+// Check if we should show welcome modal on page load
+document.addEventListener('DOMContentLoaded', () => {
+    // Check if user has dismissed welcome before
+    const hideWelcome = localStorage.getItem('infinibi-hide-welcome') === 'true';
+    
+    // Show welcome only if not dismissed (regardless of saved work - let users see demo option)
+    if (!hideWelcome) {
+        // Small delay to let the app initialize first
+        setTimeout(() => {
+            showWelcomeModal();
+        }, 500);
+    }
+});
+
+// Close welcome modal with Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        const welcomeModal = document.getElementById('welcome-modal');
+        if (welcomeModal && welcomeModal.classList.contains('active')) {
+            closeWelcomeModal();
+        }
+    }
+});
+
+// Close welcome modal when clicking outside
+document.addEventListener('click', (e) => {
+    const welcomeModal = document.getElementById('welcome-modal');
+    if (welcomeModal && welcomeModal.classList.contains('active')) {
+        if (e.target === welcomeModal) {
+            closeWelcomeModal();
+        }
+    }
+});
+
+// ============================================
+// END WELCOME MODAL
+// ============================================
+
 function handleItemTypeSelection() {
     playground.handleItemTypeSelection();
 }
@@ -7440,43 +9677,6 @@ function addDataSource() {
     playground.showNotification('Data source added to sidebar', 'success');
 }
 
-function importCanvas() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const data = JSON.parse(e.target.result);
-                
-                // Validate imported data
-                if (!data || typeof data !== 'object') {
-                    playground.showNotification('Invalid file format', 'error');
-                    return;
-                }
-                
-                if (!data.items && !data.metadata) {
-                    playground.showNotification('No valid data found in file', 'error');
-                    return;
-                }
-                
-                playground.loadFromData(data);
-                playground.showNotification(`Imported architecture from ${file.name}`, 'success');
-                
-            } catch (error) {
-                console.error('Import failed:', error);
-                playground.showNotification('Failed to import file: ' + error.message, 'error');
-            }
-        };
-        reader.readAsText(file);
-    };
-    input.click();
-}
-
 function clearSaveData() {
     if (confirm('Clear all saved data? This cannot be undone.')) {
         try {
@@ -7498,86 +9698,89 @@ function clearSaveData() {
 }
 
 // Global function for palette category toggling
-function togglePaletteCategory(categoryId) {
-    const categoryItems = document.getElementById(categoryId);
+function togglePaletteCategory(categoryId, event) {
+    console.log('[togglePaletteCategory] Called with:', categoryId);
     
-    if (!categoryItems) {
-        console.error('Category items not found for ID:', categoryId);
+    if (!categoryId) {
+        console.warn('[togglePaletteCategory] No categoryId provided');
         return;
     }
-    
-    const categoryHeader = categoryItems.previousElementSibling;
-    
-    if (categoryItems.classList.contains('expanded')) {
-        // Collapsing category
-        categoryItems.classList.remove('expanded');
-        categoryHeader.classList.remove('expanded');
-    } else {
-        // Expanding category
-        // Close all other categories first (accordion behavior)
-        document.querySelectorAll('.category-items.expanded').forEach(items => {
-            items.classList.remove('expanded');
-            items.previousElementSibling.classList.remove('expanded');
-        });
-        
-        // Calculate position relative to the header button
-        const headerRect = categoryHeader.getBoundingClientRect();
-        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-        const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-        
-        // Position dropdown below the header
-        const top = headerRect.bottom + scrollTop;
-        const left = headerRect.left + scrollLeft;
-        
-        // Apply positioning
-        categoryItems.style.top = top + 'px';
-        categoryItems.style.left = left + 'px';
-        
-        // Open the clicked category
-        categoryItems.classList.add('expanded');
-        categoryHeader.classList.add('expanded');
+
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
     }
+
+    const categoryItems = document.getElementById(categoryId);
+    console.log('[togglePaletteCategory] Found element:', categoryItems);
+    
+    if (!categoryItems) {
+        console.error('[togglePaletteCategory] Element not found for ID:', categoryId);
+        return;
+    }
+
+    const categoryHeader = categoryItems.previousElementSibling;
+    const isExpanded = categoryItems.classList.contains('expanded');
+    
+    console.log('[togglePaletteCategory] Current state - isExpanded:', isExpanded);
+    console.log('[togglePaletteCategory] Current classes:', categoryItems.className);
+    console.log('[togglePaletteCategory] Computed display:', window.getComputedStyle(categoryItems).display);
+
+    // Close any other open categories for an accordion-style experience
+    document.querySelectorAll('.category-items.expanded').forEach(items => {
+        if (items !== categoryItems) {
+            items.classList.remove('expanded');
+            items.previousElementSibling?.classList.remove('expanded');
+        }
+    });
+
+    if (isExpanded) {
+        console.log('[togglePaletteCategory] Closing dropdown');
+        categoryItems.classList.remove('expanded');
+        categoryHeader?.classList.remove('expanded');
+    } else {
+        console.log('[togglePaletteCategory] Opening dropdown');
+        categoryItems.classList.add('expanded');
+        categoryHeader?.classList.add('expanded');
+        
+        // Force reflow to ensure display changes are applied
+        void categoryItems.offsetHeight;
+    }
+    
+    console.log('[togglePaletteCategory] New classes:', categoryItems.className);
+    console.log('[togglePaletteCategory] New display:', window.getComputedStyle(categoryItems).display);
 }
 
-// Function to close all open dropdowns
 function closeAllDropdowns() {
     document.querySelectorAll('.category-items.expanded').forEach(items => {
         items.classList.remove('expanded');
-        items.previousElementSibling.classList.remove('expanded');
+        items.previousElementSibling?.classList.remove('expanded');
     });
 }
 
-// Also make it available on window object for debugging
+// Close dropdowns when clicking outside
+document.addEventListener('click', (e) => {
+    const isClickInsidePalette = e.target.closest('.palette-category');
+    if (!isClickInsidePalette) {
+        closeAllDropdowns();
+    }
+});
+
 window.togglePaletteCategory = togglePaletteCategory;
+window.closeAllDropdowns = closeAllDropdowns;
 
 // Setup event listeners for palette category toggles
 function setupPaletteCategoryToggles() {
-    // Find all category headers and set up click listeners
-    document.querySelectorAll('.category-header').forEach((header) => {
-        // Get the corresponding category items element
-        const categoryItems = header.nextElementSibling;
-        if (categoryItems && categoryItems.classList.contains('category-items')) {
-            const categoryId = categoryItems.id;
-            
-            // Remove any existing onclick and add event listener
-            header.removeAttribute('onclick');
-            header.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                togglePaletteCategory(categoryId);
+    document.querySelectorAll('.category-header').forEach(header => header.classList.remove('expanded'));
+    document.querySelectorAll('.category-items').forEach(items => items.classList.remove('expanded'));
+
+    // Close open categories when clicking outside the palette
+    document.addEventListener('click', (event) => {
+        if (!event.target.closest('.palette-category')) {
+            document.querySelectorAll('.category-items.expanded').forEach(items => {
+                items.classList.remove('expanded');
+                items.previousElementSibling?.classList.remove('expanded');
             });
-        }
-    });
-    
-    // Global click listener to close dropdowns when clicking outside
-    document.addEventListener('click', (e) => {
-        // Check if the click is outside the palette area
-        const paletteArea = e.target.closest('.component-palette');
-        const isDropdownOpen = document.querySelector('.category-items.expanded');
-        
-        // If we clicked outside the palette and there's an open dropdown, close it
-        if (!paletteArea && isDropdownOpen) {
-            closeAllDropdowns();
         }
     });
 }
@@ -7603,6 +9806,11 @@ function updateComponentStatusIndicator(element, status) {
 let playground;
 document.addEventListener('DOMContentLoaded', () => {
     playground = new ArchitecturePlayground();
+    
+    // Center the canvas view on startup so user doesn't see edges
+    setTimeout(() => {
+        playground.centerCanvasView(2500, 2000); // Start near center of infinite canvas
+    }, 100);
     
     // Sync any database changes from the databases page
     setTimeout(() => {
@@ -7644,6 +9852,9 @@ const CanvasSettings = {
         lineColor: document.getElementById('set-line-color'),
         baseColor: document.getElementById('set-base-color'),
         arrowColor: document.getElementById('set-arrow-color'),
+        
+        // Dropdown/select inputs
+        connectionStyle: document.getElementById('set-connection-style'),
         
         // Range inputs
         glow: document.getElementById('set-glow'),
@@ -7766,6 +9977,23 @@ const CanvasSettings = {
         if (this.elements.dashBValue) this.elements.dashBValue.textContent = settings.dashB;
         if (this.elements.speedValue) this.elements.speedValue.textContent = settings.speed.toFixed(1);
         if (this.elements.itemSizeValue) this.elements.itemSizeValue.textContent = settings.itemSize.toFixed(1);
+        
+        // Update color hex displays
+        this.updateColorHex(this.elements.lineColor, settings.lineColor);
+        this.updateColorHex(this.elements.baseColor, settings.baseColor);
+        this.updateColorHex(this.elements.arrowColor, settings.arrowColor);
+    },
+    
+    // Update color hex display next to color input
+    updateColorHex(colorInput, value) {
+        if (!colorInput) return;
+        const wrapper = colorInput.closest('.color-preview-wrapper');
+        if (wrapper) {
+            const hexSpan = wrapper.querySelector('.color-hex');
+            if (hexSpan) {
+                hexSpan.textContent = value.toUpperCase();
+            }
+        }
     },
 
     // Get current settings from UI
@@ -7784,6 +10012,23 @@ const CanvasSettings = {
             showArrows: !!this.elements.showArrows?.checked
         };
     },
+    
+    // Get currently applied settings (from CSS variables and body classes)
+    getAppliedSettings() {
+        return {
+            lineColor: this.getVar('--connection-flow-color') || '#f59e0b',
+            baseColor: this.getVar('--connection-base-color') || '#ffffff',
+            arrowColor: this.getVar('--connection-arrow-color') || '#ffffff',
+            glow: this.parseAlpha(this.getVar('--connection-flow-glow')),
+            width: Number(this.getVar('--connection-flow-width') || 3),
+            dashA: Number((this.getVar('--connection-dash') || '14 10').split(/\s+/)[0] || 14),
+            dashB: Number((this.getVar('--connection-dash') || '14 10').split(/\s+/)[1] || 10),
+            speed: Number((this.getVar('--connection-speed') || '1.1s').replace('s', '')) || 1.1,
+            itemSize: Number(this.getVar('--canvas-item-size') || 1.0),
+            animate: !document.body.classList.contains('no-connection-animation'),
+            showArrows: !document.body.classList.contains('hide-mid-arrows')
+        };
+    },
 
     // Handle live updates
     handleChange() {
@@ -7791,6 +10036,18 @@ const CanvasSettings = {
         this.apply(settings);
         this.updateValueDisplays(settings);
         this.save(settings);
+        // Save to current page if pageManager exists
+        if (typeof pageManager !== 'undefined' && pageManager.saveCurrentPageSettings) {
+            pageManager.saveCurrentPageSettings();
+        }
+    },
+    
+    // Handle color input change specifically (for hex display)
+    handleColorChange(colorInput) {
+        if (colorInput) {
+            this.updateColorHex(colorInput, colorInput.value);
+        }
+        this.handleChange();
     },
 
     // Modal controls
@@ -7852,18 +10109,59 @@ const CanvasSettings = {
             });
         }
 
-        // Live update event listeners
-        const allInputs = [
-            this.elements.lineColor, this.elements.baseColor, this.elements.arrowColor,
+        // Color input event listeners (special handler for hex display)
+        const colorInputs = [
+            this.elements.lineColor, this.elements.baseColor, this.elements.arrowColor
+        ].filter(Boolean);
+        
+        colorInputs.forEach(input => {
+            ['input', 'change'].forEach(eventType => {
+                input.addEventListener(eventType, () => this.handleColorChange(input));
+            });
+        });
+
+        // Non-color input event listeners
+        const otherInputs = [
             this.elements.glow, this.elements.width, this.elements.dashA, this.elements.dashB,
             this.elements.speed, this.elements.itemSize, this.elements.animate, this.elements.showArrows
         ].filter(Boolean);
 
-        allInputs.forEach(input => {
+        otherInputs.forEach(input => {
             ['input', 'change'].forEach(eventType => {
                 input.addEventListener(eventType, () => this.handleChange());
             });
         });
+        
+        // Connection style change requires redrawing all connections
+        if (this.elements.connectionStyle) {
+            this.elements.connectionStyle.addEventListener('change', () => {
+                const style = this.elements.connectionStyle.value;
+                console.log('[CanvasSettings] Connection style changed to:', style);
+                
+                // Update playground's connection style (per-page)
+                if (playground) {
+                    playground.connectionStyle = style;
+                }
+                
+                // Save to current page
+                if (typeof pageManager !== 'undefined' && pageManager.currentPageId && pageManager.pages[pageManager.currentPageId]) {
+                    pageManager.pages[pageManager.currentPageId].connectionStyle = style;
+                    pageManager.savePages();
+                }
+                
+                // Force redraw of all connections
+                if (playground && playground.connections) {
+                    console.log('[CanvasSettings] Redrawing', playground.connections.length, 'connections');
+                    playground.redrawAllConnections();
+                }
+                
+                if (playground && playground.showNotification) {
+                    playground.showNotification(`Connection style changed to ${style}`, 'success');
+                }
+            });
+            
+            // Connection style will be loaded per-page by PageManager
+        }
     }
 };
 

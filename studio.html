@@ -5,7 +5,7 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src * 'unsafe-inline'; img-src * data: blob: 'unsafe-inline'; frame-src *; style-src * 'unsafe-inline';">
 	<title>InfiniBI Studio</title>
-	<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🅱️</text></svg>">
+	<link rel="icon" type="image/svg+xml" href="logo.svg">
     
 	<!-- Stylesheets -->
 	<link rel="stylesheet" href="styles.css">
@@ -13,34 +13,93 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-	<!-- Authentication System -->
-	<script src="auth.js"></script>
-    
-	<!-- Microsoft Authentication Library (primary CDN + fallback) -->
-	<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js" crossorigin="anonymous"></script>
-	<script>
-	// Fallback to Microsoft CDN if jsDelivr fails (msal still undefined)
-	(function ensureMsalLoaded(){
-		if (typeof window.msal === 'undefined') {
-			var s = document.createElement('script');
-			s.src = 'https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js';
-			s.crossOrigin = 'anonymous';
-			document.head.appendChild(s);
-		}
-	})();
-	</script>
 </head>
 <body>
+	<!-- Welcome Modal -->
+	<div id="welcome-modal" class="welcome-modal">
+		<div class="welcome-modal-content">
+			<div class="welcome-header">
+				<div class="welcome-logo">
+					<img src="logo.svg" alt="InfiniBI" class="welcome-logo-img">
+					<span class="welcome-brand">InfiniBI Studio</span>
+				</div>
+				<button class="welcome-close" onclick="closeWelcomeModal()" title="Close">
+					<i class="fas fa-times"></i>
+				</button>
+			</div>
+			
+			<div class="welcome-body">
+				<h2>Welcome to InfiniBI Studio</h2>
+				<p class="welcome-subtitle">Design professional BI architectures with ease</p>
+				
+				<div class="welcome-features">
+					<div class="welcome-feature">
+						<div class="feature-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
+							<i class="fas fa-layer-group"></i>
+						</div>
+						<div class="feature-text">
+							<h4>Drag & Drop Components</h4>
+							<p>50+ pre-built data sources, warehouses, and BI tools</p>
+						</div>
+					</div>
+					<div class="welcome-feature">
+						<div class="feature-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+							<i class="fas fa-bezier-curve"></i>
+						</div>
+						<div class="feature-text">
+							<h4>Smart Connections</h4>
+							<p>Create data flow diagrams with intelligent routing</p>
+						</div>
+					</div>
+					<div class="welcome-feature">
+						<div class="feature-icon" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">
+							<i class="fas fa-file-export"></i>
+						</div>
+						<div class="feature-text">
+							<h4>Export Anywhere</h4>
+							<p>PNG, PDF, HTML - share your designs professionally</p>
+						</div>
+					</div>
+					<div class="welcome-feature">
+						<div class="feature-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+							<i class="fas fa-copy"></i>
+						</div>
+						<div class="feature-text">
+							<h4>Multi-Page Projects</h4>
+							<p>Organize complex architectures across multiple pages</p>
+						</div>
+					</div>
+				</div>
+			</div>
+			
+			<div class="welcome-footer">
+				<div class="welcome-actions">
+					<button class="welcome-btn welcome-btn-secondary" onclick="loadDemoProject()">
+						<i class="fas fa-play-circle"></i>
+						Load Demo Project
+					</button>
+					<button class="welcome-btn welcome-btn-primary" onclick="closeWelcomeModal()">
+						<i class="fas fa-plus-circle"></i>
+						Start Fresh
+					</button>
+				</div>
+				<label class="welcome-checkbox">
+					<input type="checkbox" id="welcome-dont-show" onchange="toggleWelcomePreference()">
+					<span>Don't show this again</span>
+				</label>
+			</div>
+		</div>
+	</div>
+
 	<div class="playground-container">
 		<!-- Header -->
 		<header class="playground-header">
 			<div class="header-content">
-				<div class="app-logo">
-					<i class="fas fa-project-diagram"></i>
-					<h1>InfiniBI Studio</h1>
-				</div>
 				<nav class="header-nav">
+					<div class="app-logo">
+						<img src="logo.svg" alt="InfiniBI" class="logo-img">
+						<h1>InfiniBI Studio</h1>
+					</div>
 					<a href="studio.html" class="nav-link active">
 						<i class="fas fa-project-diagram"></i> Architecture
 					</a>
@@ -50,6 +109,9 @@
 				</nav>
 				<div class="header-actions">
 					<!-- Utility Buttons -->
+					<button class="btn btn-icon" onclick="showWelcomeModal()" title="Welcome & Getting Started">
+						<i class="fas fa-question-circle"></i>
+					</button>
 					<button class="btn btn-icon theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">
 						<i class="fas fa-moon" id="theme-icon"></i>
 					</button>
@@ -64,12 +126,12 @@
 					</button>
 					
 					<!-- File Management Dropdown -->
-					<div class="palette-category" style="display: inline-block; margin-left: 10px; position: relative;">
-						<button class="category-header" onclick="togglePaletteCategory('file-menu-header')" style="background: #0078d4; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-							<i class="fas fa-folder"></i>
-							<span>File</span>
-							<i class="fas fa-chevron-down toggle-icon"></i>
-						</button>
+			<div class="palette-category" style="display: inline-block; margin-left: 10px; position: relative; z-index: 999998;">
+				<button class="category-header" onclick="togglePaletteCategory('file-menu-header', event)" style="background: #0078d4; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+					<i class="fas fa-folder"></i>
+					<span>File</span>
+					<i class="fas fa-chevron-right toggle-icon"></i>
+				</button>
 						<div class="category-items" id="file-menu-header" style="min-width: 200px;">
 							<div class="palette-item" onclick="saveCanvas(); togglePaletteCategory('file-menu-header')" title="Save current work">
 								<i class="fas fa-save" style="color: #0078d4;"></i><span>Save Canvas</span>
@@ -85,13 +147,6 @@
 								<i class="fas fa-file-import" style="color: #6b7280;"></i><span>Import JSON</span>
 							</div>
 							<hr style="margin: 4px 0; border: none; border-top: 1px solid #e1e5e9;">
-							<div class="palette-item" onclick="saveAsTemplate(); togglePaletteCategory('file-menu-header')" title="Save as reusable template">
-								<i class="fas fa-layer-group" style="color: #f59e0b;"></i><span>Save as Template</span>
-							</div>
-							<div class="palette-item" onclick="loadTemplate(); togglePaletteCategory('file-menu-header')" title="Load a template">
-								<i class="fas fa-file-download" style="color: #f59e0b;"></i><span>Load Template</span>
-							</div>
-							<hr style="margin: 4px 0; border: none; border-top: 1px solid #e1e5e9;">
 							<div class="palette-item" onclick="document.getElementById('settings-btn').click(); togglePaletteCategory('file-menu-header')" title="Configure canvas settings">
 								<i class="fas fa-sliders-h" style="color: #6b7280;"></i><span>Canvas Settings</span>
 							</div>
@@ -103,12 +158,12 @@
 					</div>
 					
 					<!-- Export Dropdown -->
-					<div class="palette-category" style="display: inline-block; margin-left: 10px; position: relative;">
-						<button class="category-header" onclick="togglePaletteCategory('export-menu-header')" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-							<i class="fas fa-download"></i>
-							<span>Export</span>
-							<i class="fas fa-chevron-down toggle-icon"></i>
-						</button>
+			<div class="palette-category" style="display: inline-block; margin-left: 10px; position: relative; z-index: 999998;">
+				<button class="category-header" onclick="togglePaletteCategory('export-menu-header', event)" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+					<i class="fas fa-download"></i>
+					<span>Export</span>
+					<i class="fas fa-chevron-right toggle-icon"></i>
+				</button>
 						<div class="category-items" id="export-menu-header" style="min-width: 220px;">
 							<div class="palette-item" onclick="exportToPNG(); togglePaletteCategory('export-menu-header')" title="Export as PNG image">
 								<i class="fas fa-image" style="color: #10b981;"></i><span>Export PNG Image</span>
@@ -147,29 +202,34 @@
 			<!-- Fabric Toolbar -->
 			<div class="fabric-toolbar">
 				<div class="toolbar-left">
-					<button class="connection-toggle" id="edit-toggle-btn">
-						<i class="fas fa-pen"></i>
-						<span>Edit Mode</span>
-					</button>
-					<button class="toolbar-btn" id="snap-toggle-btn" onclick="playground.toggleSnapToGrid()" title="Toggle Snap to Grid">
-						<i class="fas fa-grip"></i>
-						<span>Snap to Grid</span>
-					</button>
-					<button class="toolbar-btn" onclick="playground.addTextLabel()" title="Add Text Label">
-						<i class="fas fa-font"></i>
-						<span>Add Text</span>
-					</button>
-					
-					<button class="toolbar-btn" onclick="playground.undo()" title="Undo (Ctrl+Z)">
-						<i class="fas fa-undo"></i>
-						<span>Undo</span>
-					</button>
-					<button class="toolbar-btn" onclick="playground.redo()" title="Redo (Ctrl+Y)">
-						<i class="fas fa-redo"></i>
-						<span>Redo</span>
-					</button>
+					<!-- Page Tabs in Toolbar -->
+					<div class="page-tabs-container">
+						<div class="page-tabs" id="page-tabs">
+							<div class="page-tab active" data-page-id="page-1">
+								<span class="page-tab-name">Page 1</span>
+								<button class="page-tab-close" onclick="deletePage('page-1')" title="Delete page">
+									<i class="fas fa-times"></i>
+								</button>
+							</div>
+						</div>
+						<button class="page-tab-add" onclick="addNewPage()" title="Add new page">
+							<i class="fas fa-plus"></i>
+						</button>
+					</div>
 				</div>
-				<div class="toolbar-right"><!-- empty on purpose --></div>
+				<div class="toolbar-right">
+					<button class="toolbar-btn" id="mode-toggle-btn" onclick="playground.togglePanSelectMode()" title="Toggle Pan/Select Mode (Space)">
+						<i class="fas fa-hand-paper"></i>
+						<span style="margin-left: 4px; font-size: 11px;">Pan</span>
+					</button>
+					<button class="toolbar-btn" onclick="playground.autoArrangeCards()" title="Auto-Arrange Cards (A)">
+						<i class="fas fa-project-diagram"></i>
+					</button>
+					<button class="toolbar-btn" onclick="playground.fitToView()" title="Fit to View (F)">
+						<i class="fas fa-compress-arrows-alt"></i>
+					</button>
+					<!-- Tools moved to right-click context menu -->
+				</div>
 			</div>
 
 			<!-- Text Formatting Toolbar (shows when text label is selected) -->
@@ -218,16 +278,19 @@
 			<div class="component-palette" id="component-palette">
 				<div class="palette-categories">
 					<!-- Data Sources Category -->
-					<div class="palette-category">
-						<button class="category-header" onclick="togglePaletteCategory('data-sources')">
-							<i class="fas fa-database"></i>
-							<span>Data Sources</span>
-							<i class="fas fa-chevron-down toggle-icon"></i>
-						</button>
+			<div class="palette-category">
+				<button class="category-header" onclick="togglePaletteCategory('data-sources', event)">
+					<i class="fas fa-database"></i>
+					<span>Data Sources</span>
+					<i class="fas fa-chevron-right toggle-icon"></i>
+				</button>
 						<div class="category-items" id="data-sources">
 							<div class="palette-item database-selector-btn" data-type="database-selector" title="Add Databases">
 								<i class="fas fa-database"></i><span>Databases</span>
 							</div>
+						<div class="palette-item" draggable="true" data-type="raspberry-pi" title="Raspberry Pi Edge Node">
+							<i class="fab fa-raspberry-pi" style="color: #d61c4e;"></i><span>Raspberry Pi</span>
+						</div>
 							<div class="palette-item" draggable="true" data-type="api" title="API Endpoint">
 								<i class="fas fa-plug"></i><span>API</span>
 							</div>
@@ -243,13 +306,13 @@
 						</div>
 					</div>
 
-					<!-- Storage & Processing Category -->
-					<div class="palette-category">
-						<button class="category-header" onclick="togglePaletteCategory('storage-processing')">
-							<i class="fas fa-server"></i>
-							<span>Storage & Processing</span>
-							<i class="fas fa-chevron-down toggle-icon"></i>
-						</button>
+			<!-- Storage & Processing Category -->
+			<div class="palette-category">
+				<button class="category-header" onclick="togglePaletteCategory('storage-processing', event)">
+					<i class="fas fa-server"></i>
+					<span>Storage & Processing</span>
+					<i class="fas fa-chevron-right toggle-icon"></i>
+				</button>
 						<div class="category-items" id="storage-processing">
 							<div class="palette-item" draggable="true" data-type="warehouse" title="Data Warehouse">
 								<i class="fas fa-warehouse"></i><span>Warehouse</span>
@@ -276,12 +339,12 @@
 					</div>
 
 					<!-- Containers & Groups Category -->
-					<div class="palette-category">
-						<button class="category-header" onclick="togglePaletteCategory('containers-groups')">
-							<i class="fas fa-object-group"></i>
-							<span>Containers & Groups</span>
-							<i class="fas fa-chevron-down toggle-icon"></i>
-						</button>
+			<div class="palette-category">
+				<button class="category-header" onclick="togglePaletteCategory('containers-groups', event)">
+					<i class="fas fa-object-group"></i>
+					<span>Containers & Groups</span>
+					<i class="fas fa-chevron-right toggle-icon"></i>
+				</button>
 						<div class="category-items" id="containers-groups">
 							<div class="palette-item" draggable="true" data-type="api-collection" title="API Collection - Groups tables from API endpoint">
 								<i class="fas fa-layer-group" style="color: #06b6d4;"></i><span>API Collection</span>
@@ -298,16 +361,31 @@
 							<div class="palette-item" draggable="true" data-type="zone-container" title="Data Zone - Large area grouping (Landing/Raw/Curated)">
 								<i class="fas fa-square" style="color: #6b7280;"></i><span>Data Zone</span>
 							</div>
+							<div class="palette-item" draggable="true" data-type="datasources-container" title="Datasources - Container for data sources">
+								<i class="fas fa-database" style="color: #17a2b8;"></i><span>Datasources</span>
+							</div>
+							<div class="palette-item" draggable="true" data-type="onelake-container" title="One Lake - Container for OneLake items">
+								<i class="fas fa-water" style="color: #20c997;"></i><span>One Lake</span>
+							</div>
+							<div class="palette-item" draggable="true" data-type="transformation-container" title="Transformation - Container for transformation processes">
+								<i class="fas fa-exchange-alt" style="color: #fd7e14;"></i><span>Transformation</span>
+							</div>
+							<div class="palette-item" draggable="true" data-type="semantic-models-container" title="Semantic Models - Container for semantic models">
+								<i class="fas fa-cubes" style="color: #6610f2;"></i><span>Semantic Models</span>
+							</div>
+							<div class="palette-item" draggable="true" data-type="reports-container" title="Reports - Container for reports and dashboards">
+								<i class="fas fa-chart-bar" style="color: #e83e8c;"></i><span>Reports</span>
+							</div>
 						</div>
 					</div>
 
 					<!-- Medallion Architecture Category -->
-					<div class="palette-category">
-						<button class="category-header" onclick="togglePaletteCategory('medallion')">
-							<i class="fas fa-layer-group"></i>
-							<span>Medallion Layers</span>
-							<i class="fas fa-chevron-down toggle-icon"></i>
-						</button>
+			<div class="palette-category">
+				<button class="category-header" onclick="togglePaletteCategory('medallion', event)">
+					<i class="fas fa-layer-group"></i>
+					<span>Medallion Layers</span>
+					<i class="fas fa-chevron-right toggle-icon"></i>
+				</button>
 						<div class="category-items" id="medallion">
 							<div class="palette-item" draggable="true" data-type="bronze" title="Bronze Layer - Raw Data">
 								<i class="fas fa-award" style="color: #CD7F32;"></i><span>Bronze</span>
@@ -325,12 +403,12 @@
 					</div>
 
 					<!-- Analytics & Models Category -->
-					<div class="palette-category">
-						<button class="category-header" onclick="togglePaletteCategory('analytics-models')">
-							<i class="fas fa-brain"></i>
-							<span>Analytics & Models</span>
-							<i class="fas fa-chevron-down toggle-icon"></i>
-						</button>
+			<div class="palette-category">
+				<button class="category-header" onclick="togglePaletteCategory('analytics-models', event)">
+					<i class="fas fa-brain"></i>
+					<span>Analytics & Models</span>
+					<i class="fas fa-chevron-right toggle-icon"></i>
+				</button>
 						<div class="category-items" id="analytics-models">
 							<div class="palette-item" draggable="true" data-type="semantic-model" title="Semantic Model">
 								<i class="fas fa-cubes"></i><span>Semantic Model</span>
@@ -351,12 +429,12 @@
 					</div>
 
 					<!-- Reporting & Visualization Category -->
-					<div class="palette-category">
-						<button class="category-header" onclick="togglePaletteCategory('reporting-viz')">
-							<i class="fas fa-chart-bar"></i>
-							<span>Reporting & Visualization</span>
-							<i class="fas fa-chevron-down toggle-icon"></i>
-						</button>
+			<div class="palette-category">
+				<button class="category-header" onclick="togglePaletteCategory('reporting-viz', event)">
+					<i class="fas fa-chart-bar"></i>
+					<span>Reporting & Visualization</span>
+					<i class="fas fa-chevron-right toggle-icon"></i>
+				</button>
 						<div class="category-items" id="reporting-viz">
 							<div class="palette-item" draggable="true" data-type="dashboard" title="Dashboard">
 								<i class="fas fa-gauge-high"></i><span>Dashboard</span>
@@ -379,12 +457,12 @@
 					</div>
 
 					<!-- Governance & Security Category -->
-					<div class="palette-category">
-						<button class="category-header" onclick="togglePaletteCategory('governance-security')">
-							<i class="fas fa-shield-alt"></i>
-							<span>Governance & Security</span>
-							<i class="fas fa-chevron-down toggle-icon"></i>
-						</button>
+			<div class="palette-category">
+				<button class="category-header" onclick="togglePaletteCategory('governance-security', event)">
+					<i class="fas fa-shield-alt"></i>
+					<span>Governance & Security</span>
+					<i class="fas fa-chevron-right toggle-icon"></i>
+				</button>
 						<div class="category-items" id="governance-security">
 							<!-- Data Catalog/Lineage -->
 							<div class="palette-item" draggable="true" data-type="data-catalog" title="Data Catalog (Purview/OneLake Data Hub)">
@@ -431,12 +509,12 @@
 					</div>
 
 					<!-- Data Access Category -->
-					<div class="palette-category">
-						<button class="category-header" onclick="togglePaletteCategory('data-access')">
-							<i class="fas fa-key"></i>
-							<span>Data Access</span>
-							<i class="fas fa-chevron-down toggle-icon"></i>
-						</button>
+			<div class="palette-category">
+				<button class="category-header" onclick="togglePaletteCategory('data-access', event)">
+					<i class="fas fa-key"></i>
+					<span>Data Access</span>
+					<i class="fas fa-chevron-right toggle-icon"></i>
+				</button>
 						<div class="category-items" id="data-access">
 							<div class="palette-item" draggable="true"
 								 data-consumption-type="sql-endpoint" data-name="SQL Endpoint" data-category="Data Access"
@@ -459,7 +537,46 @@
 							</div>
 						</div>
 					</div>
+					
+					<!-- Saved Layouts Category -->
+			<div class="palette-category">
+				<button class="category-header" onclick="togglePaletteCategory('saved-layouts', event)">
+					<i class="fas fa-bookmark"></i>
+					<span>Saved Layouts</span>
+					<i class="fas fa-chevron-right toggle-icon"></i>
+				</button>
+						<div class="category-items" id="saved-layouts">
+							<div class="palette-item" onclick="loadTemplate()" title="Load Template">
+								<i class="fas fa-folder-open"></i><span>Load Template</span>
+							</div>
+							<div class="palette-item" onclick="saveAsTemplate()" title="Save Current Layout">
+								<i class="fas fa-save"></i><span>Save as Template</span>
+							</div>
+						</div>
+					</div>
 				</div>
+			</div>
+
+			<!-- Raspberry Pi monitoring overlays -->
+			<div class="pi-overlay-layer" aria-live="polite">
+				<aside class="pi-info-panel" id="pi-info-panel" aria-live="polite" aria-label="Raspberry Pi details">
+					<div class="pi-info-header">
+						<div class="pi-info-chip" id="pi-info-chip">Pi #1</div>
+						<button class="pi-info-close" id="pi-info-close" type="button" aria-label="Close Pi details">
+							<i class="fas fa-times"></i>
+						</button>
+					</div>
+					<div class="pi-info-meta">
+						<div>
+							<h3 id="pi-info-title">Select a Raspberry Pi</h3>
+							<p id="pi-info-role">Tap a Pi card on the canvas to inspect live metrics.</p>
+						</div>
+						<div class="pi-info-health" id="pi-info-health" data-level="healthy">Online</div>
+					</div>
+					<div class="pi-info-body" id="pi-info-body">
+						<p class="pi-info-empty">No node selected yet.</p>
+					</div>
+				</aside>
 			</div>
 
 			<!-- Main Workspace - Canvas + Inspector Layout -->
@@ -471,6 +588,12 @@
 						<div class="bg-panel bg-prepare">
 							<div class="bg-title">Architecture Canvas</div>
 						</div>
+					</div>
+
+					<!-- Zoom Level Indicator -->
+					<div id="zoom-indicator" class="zoom-indicator">
+						<i class="fas fa-search"></i>
+						<span id="zoom-level-text">100%</span>
 					</div>
 
 					<!-- Dynamic items will be added here via JavaScript -->
@@ -683,126 +806,146 @@
 				<button class="modal-close" id="settings-close" aria-label="Close settings">&times;</button>
 			</div>
 			<div class="modal-body">
-				<!-- Connection Lines Section -->
-				<div class="settings-section">
-					<div class="settings-section-header">
-						<i class="fas fa-project-diagram"></i>
-						<h3>Connection Lines</h3>
-					</div>
-                    
-					<div class="settings-row">
-						<div class="form-group">
-							<label for="set-line-color">
-								<i class="fas fa-palette"></i> Line Color
-							</label>
-							<input type="color" id="set-line-color" value="#f59e0b">
+				<!-- Two Column Layout -->
+				<div class="settings-columns">
+					<!-- Left Column: Connection Lines -->
+					<div class="settings-column">
+						<!-- Connection Colors -->
+						<div class="settings-section">
+							<div class="settings-section-header">
+								<i class="fas fa-palette"></i>
+								<h3>Connection Colors</h3>
+							</div>
+							<div class="settings-color-grid">
+								<div class="form-group color-input-group">
+									<label for="set-line-color">Flow Color</label>
+									<div class="color-preview-wrapper">
+										<input type="color" id="set-line-color" value="#f59e0b">
+										<span class="color-hex">#f59e0b</span>
+									</div>
+								</div>
+								<div class="form-group color-input-group">
+									<label for="set-base-color">Base Path</label>
+									<div class="color-preview-wrapper">
+										<input type="color" id="set-base-color" value="#ffffff">
+										<span class="color-hex">#ffffff</span>
+									</div>
+								</div>
+								<div class="form-group color-input-group">
+									<label for="set-arrow-color">Arrows</label>
+									<div class="color-preview-wrapper">
+										<input type="color" id="set-arrow-color" value="#ffffff">
+										<span class="color-hex">#ffffff</span>
+									</div>
+								</div>
+							</div>
+							<div class="form-group slider-group">
+								<label for="set-glow">
+									<span class="slider-label">Glow Intensity</span>
+									<span class="slider-value" id="glow-value">0.85</span>
+								</label>
+								<input type="range" id="set-glow" min="0" max="1" step="0.05" value="0.85">
+							</div>
 						</div>
-						<div class="form-group">
-							<label for="set-base-color">
-								<i class="fas fa-grip-lines"></i> Base Path Color
-							</label>
-							<input type="color" id="set-base-color" value="#ffffff">
-						</div>
-						<div class="form-group">
-							<label for="set-arrow-color">
-								<i class="fas fa-arrow-right"></i> Arrow Color
-							</label>
-							<input type="color" id="set-arrow-color" value="#ffffff">
-						</div>
-					</div>
-                    
-					<div class="form-group">
-						<label for="set-glow">
-							<i class="fas fa-sun"></i> Glow Strength
-						</label>
-						<input type="range" id="set-glow" min="0" max="1" step="0.05" value="0.85">
-						<div class="range-value">Value: <span id="glow-value">0.85</span></div>
-					</div>
-				</div>
 
-				<!-- Line Style Section -->
-				<div class="settings-section">
-					<div class="settings-section-header">
-						<i class="fas fa-pen"></i>
-						<h3>Line Style</h3>
-					</div>
-                    
-					<div class="settings-row">
-						<div class="form-group">
-							<label for="set-width">
-								<i class="fas fa-ruler-horizontal"></i> Line Width
-							</label>
-							<input type="range" id="set-width" min="1" max="8" step="1" value="3">
-							<div class="range-value">Value: <span id="width-value">3</span>px</div>
+						<!-- Line Style -->
+						<div class="settings-section">
+							<div class="settings-section-header">
+								<i class="fas fa-pen-nib"></i>
+								<h3>Line Style</h3>
+							</div>
+							<div class="form-group">
+								<label for="set-connection-style">Connection Type</label>
+								<select id="set-connection-style" class="settings-select">
+									<option value="orthogonal">⊾ Orthogonal (Right-Angle)</option>
+									<option value="curved">∿ Curved (Bezier)</option>
+								</select>
+							</div>
+							<div class="form-group slider-group">
+								<label for="set-width">
+									<span class="slider-label">Line Width</span>
+									<span class="slider-value"><span id="width-value">3</span>px</span>
+								</label>
+								<input type="range" id="set-width" min="1" max="8" step="1" value="3">
+							</div>
+							<div class="settings-inline-group">
+								<div class="form-group slider-group">
+									<label for="set-dash-a">
+										<span class="slider-label">Dash</span>
+										<span class="slider-value" id="dash-a-value">14</span>
+									</label>
+									<input type="range" id="set-dash-a" min="0" max="40" step="1" value="14">
+								</div>
+								<div class="form-group slider-group">
+									<label for="set-dash-b">
+										<span class="slider-label">Gap</span>
+										<span class="slider-value" id="dash-b-value">10</span>
+									</label>
+									<input type="range" id="set-dash-b" min="0" max="40" step="1" value="10">
+								</div>
+							</div>
 						</div>
-						<div class="form-group">
-							<label for="set-dash-a">
-								<i class="fas fa-minus"></i> Dash Length
-							</label>
-							<input type="range" id="set-dash-a" min="0" max="40" step="1" value="14">
-							<div class="range-value">Value: <span id="dash-a-value">14</span></div>
-						</div>
 					</div>
-                    
-					<div class="form-group">
-						<label for="set-dash-b">
-							<i class="fas fa-ellipsis-h"></i> Gap Length
-						</label>
-						<input type="range" id="set-dash-b" min="0" max="40" step="1" value="10">
-						<div class="range-value">Value: <span id="dash-b-value">10</span></div>
-					</div>
-				</div>
 
-				<!-- Animation Section -->
-				<div class="settings-section">
-					<div class="settings-section-header">
-						<i class="fas fa-play-circle"></i>
-						<h3>Animation</h3>
-					</div>
-                    
-					<div class="form-group checkbox-group">
-						<label>
-							<input type="checkbox" id="set-animate-lines" checked>
-							<i class="fas fa-play-circle"></i> Animate Connection Lines
-						</label>
-					</div>
-                    
-					<div class="form-group">
-						<label for="set-speed">
-							<i class="fas fa-tachometer-alt"></i> Flow Speed
-						</label>
-						<input type="range" id="set-speed" min="0.2" max="5" step="0.1" value="1.1">
-						<div class="range-value">Value: <span id="speed-value">1.1</span>s</div>
-					</div>
-				</div>
-
-				<!-- Canvas Elements Section -->
-				<div class="settings-section">
-					<div class="settings-section-header">
-						<i class="fas fa-shapes"></i>
-						<h3>Canvas Elements</h3>
-					</div>
-                    
-					<div class="settings-row">
-						<div class="form-group">
-							<label for="set-item-size">
-								<i class="fas fa-expand-arrows-alt"></i> Element Size
-							</label>
-							<input type="range" id="set-item-size" min="0.5" max="2.0" step="0.1" value="1.0">
-							<div class="range-value">Value: <span id="item-size-value">1.0</span>x</div>
+					<!-- Right Column: Animation & Elements -->
+					<div class="settings-column">
+						<!-- Animation -->
+						<div class="settings-section">
+							<div class="settings-section-header">
+								<i class="fas fa-play-circle"></i>
+								<h3>Animation</h3>
+							</div>
+							<div class="form-group toggle-group">
+								<label class="toggle-label">
+									<input type="checkbox" id="set-animate-lines" checked>
+									<span class="toggle-switch"></span>
+									<span class="toggle-text">Animate Connections</span>
+								</label>
+							</div>
+							<div class="form-group slider-group">
+								<label for="set-speed">
+									<span class="slider-label">Flow Speed</span>
+									<span class="slider-value"><span id="speed-value">1.1</span>s</span>
+								</label>
+								<input type="range" id="set-speed" min="0.2" max="5" step="0.1" value="1.1">
+								<div class="slider-hints">
+									<span>Fast</span>
+									<span>Slow</span>
+								</div>
+							</div>
 						</div>
-						<div class="form-group checkbox-group">
-							<label>
-								<input type="checkbox" id="set-show-arrows" checked>
-								<i class="fas fa-chevron-right"></i> Show Mid Arrows
-							</label>
+
+						<!-- Canvas Elements -->
+						<div class="settings-section">
+							<div class="settings-section-header">
+								<i class="fas fa-shapes"></i>
+								<h3>Canvas Elements</h3>
+							</div>
+							<div class="form-group slider-group">
+								<label for="set-item-size">
+									<span class="slider-label">Element Scale</span>
+									<span class="slider-value"><span id="item-size-value">1.0</span>x</span>
+								</label>
+								<input type="range" id="set-item-size" min="0.5" max="2.0" step="0.1" value="1.0">
+								<div class="slider-hints">
+									<span>50%</span>
+									<span>200%</span>
+								</div>
+							</div>
+							<div class="form-group toggle-group">
+								<label class="toggle-label">
+									<input type="checkbox" id="set-show-arrows" checked>
+									<span class="toggle-switch"></span>
+									<span class="toggle-text">Show Direction Arrows</span>
+								</label>
+							</div>
 						</div>
 					</div>
 				</div>
                 
-				<div style="margin-top: 20px; display: flex; gap: 8px; justify-content: flex-end;">
+				<div class="settings-actions">
 					<button id="settings-reset" class="btn btn-secondary">
-						<i class="fas fa-undo"></i> Reset to Defaults
+						<i class="fas fa-undo"></i> Reset Defaults
 					</button>
 					<button id="settings-apply" class="btn btn-primary">
 						<i class="fas fa-check"></i> Apply & Close
@@ -815,9 +958,30 @@
 	<!-- PDF libraries (no SRI to avoid local blocking) -->
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	
+	<!-- Core Application (contains all functionality) -->
 	<script src="playground.js"></script>
+	
+	<!-- 
+	MODULAR COMPONENTS (disabled - code still in playground.js)
+	To enable modular architecture:
+	1. Remove duplicated code from playground.js
+	2. Uncomment the module scripts below
+	
+	<script src="modules/ui/canvas-settings.js"></script>
+	<script src="modules/ui/page-manager.js"></script>
+	<script src="modules/ui/metadata-panel.js"></script>
+	<script src="modules/features/export.js"></script>
+	<script src="modules/features/raspberry-pi.js"></script>
+	<script src="modules/utils/presentation-mode.js"></script>
+	<script src="modules/utils/palette-utils.js"></script>
+	<script src="modules/utils/global-functions.js"></script>
+	<script src="modules/playground-main.js"></script>
+	-->
 </body>
 <script>
+// Note: togglePaletteCategory is defined in playground.js
+
 // Simple PDF export with Shift+click compatibility
 document.addEventListener('DOMContentLoaded', function() {
 	// Keep backward compatibility with Shift+click for quick snapshot

@@ -2,11 +2,11 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "Launch BI Data Mapping Tool",
+			"label": "Launch InfiniBI Studio",
 			"type": "shell",
 			"command": "start",
 			"args": [
-				"index.html"
+				"studio.html"
 			],
 			"isBackground": false,
 			"problemMatcher": [],
