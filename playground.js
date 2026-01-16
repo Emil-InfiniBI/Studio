@@ -7204,6 +7204,15 @@ class ArchitecturePlayground {
                         lastItem.id = savedId;
                         lastItem.element.id = savedId;
                         loadedItems.set(savedId, lastItem.element);
+                        
+                        // Restore saved width/height for containers
+                        if (item.width && item.height) {
+                            lastItem.element.style.setProperty('width', item.width + 'px', 'important');
+                            lastItem.element.style.setProperty('height', item.height + 'px', 'important');
+                        } else if (item.style?.width || item.style?.height) {
+                            if (item.style.width) lastItem.element.style.setProperty('width', item.style.width, 'important');
+                            if (item.style.height) lastItem.element.style.setProperty('height', item.style.height, 'important');
+                        }
                     }
                     return;
                 }
@@ -7850,20 +7859,39 @@ function clearCanvas() {
 
 function exportCanvas() {
     try {
-        console.log('[Export] Starting multi-page export...');
+        console.log('[Export] Starting export...');
         
         // Save current page to page manager
         if (typeof pageManager !== 'undefined' && pageManager.saveCurrentPage) {
             pageManager.saveCurrentPage();
         }
         
-        // Get all pages data
+        // Get all pages data to check if multi-page
         const pagesData = localStorage.getItem('canvas-pages');
-        const isMultiPage = pagesData && JSON.parse(pagesData).pages;
+        const isMultiPage = pagesData && JSON.parse(pagesData).pages && Object.keys(JSON.parse(pagesData).pages).length > 1;
+        
+        // Ask user what to export
+        let exportMode = 'current'; // default to current page
+        if (isMultiPage) {
+            const choice = prompt(
+                'Export options:\n\n' +
+                '1 = Current page only\n' +
+                '2 = All pages\n\n' +
+                'Enter 1 or 2:',
+                '1'
+            );
+            
+            if (choice === null) {
+                playground.showNotification('Export cancelled', 'info');
+                return;
+            }
+            
+            exportMode = choice.trim() === '2' ? 'all' : 'current';
+        }
         
         let exportData;
         
-        if (isMultiPage) {
+        if (exportMode === 'all' && isMultiPage) {
             // Export all pages
             const multiPageData = JSON.parse(pagesData);
             const pageCount = Object.keys(multiPageData.pages).length;
@@ -7896,16 +7924,25 @@ function exportCanvas() {
                 totalConnections: exportData.metadata.totalConnections
             });
         } else {
-            // Fallback to single page export
+            // Export current page only
             const data = playground.serialize();
-            console.log('[Export] Single page data:', {
+            console.log('[Export] Current page data:', {
                 items: data.items?.length || 0,
                 connections: data.connections?.length || 0
             });
             
             if (!data.items || data.items.length === 0) {
-                playground.showNotification('No items to export', 'warning');
+                playground.showNotification('No items to export on current page', 'warning');
                 return;
+            }
+            
+            // Get current page name if available
+            let pageName = 'Page';
+            if (typeof pageManager !== 'undefined' && pageManager.currentPageId) {
+                const pagesDataParsed = pagesData ? JSON.parse(pagesData) : null;
+                if (pagesDataParsed && pagesDataParsed.pages && pagesDataParsed.pages[pageManager.currentPageId]) {
+                    pageName = pagesDataParsed.pages[pageManager.currentPageId].name || pageName;
+                }
             }
             
             exportData = {
@@ -7913,6 +7950,7 @@ function exportCanvas() {
                 version: '1.0',
                 metadata: {
                     exportDate: new Date().toISOString(),
+                    pageName: pageName,
                     itemCount: data.items.length,
                     connectionCount: data.connections.length
                 },
@@ -7924,7 +7962,7 @@ function exportCanvas() {
 
         // Prompt user for filename (optional). Provide sensible default.
         const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-        const defaultName = isMultiPage ? 
+        const defaultName = exportMode === 'all' ? 
             `bi-architecture-multipage-${timestamp}` : 
             `bi-architecture-${timestamp}`;
         let userName = (typeof window !== 'undefined') ? window.prompt('Export filename (without extension):', defaultName) : defaultName;
@@ -7959,13 +7997,13 @@ function exportCanvas() {
         setTimeout(() => URL.revokeObjectURL(url), 2500);
         console.log('[Export] Download triggered:', filename);
         
-        if (isMultiPage) {
+        if (exportMode === 'all') {
             playground.showNotification(
                 `Multi-page architecture exported (${exportData.metadata.pageCount} pages, ${exportData.metadata.totalItems} items)`, 
                 'success'
             );
         } else {
-            playground.showNotification(`Architecture exported (${exportData.items.length} items)`, 'success');
+            playground.showNotification(`Current page exported (${exportData.items.length} items)`, 'success');
         }
     } catch (e) {
         console.error('Export failed:', e);
@@ -8062,33 +8100,72 @@ function handleMultiPageImport(importData) {
     });
     
     const pageCount = Object.keys(importData.pages).length;
-    const confirmReplace = confirm(
-        `This will replace all current pages with ${pageCount} imported page(s). Continue?`
+    
+    // Ask user how to import
+    const choice = prompt(
+        `Importing ${pageCount} page(s):\n\n` +
+        '1 = Replace ALL pages (overwrites everything)\n' +
+        '2 = Add as new pages (keeps existing pages)\n\n' +
+        'Enter 1 or 2:',
+        '2'
     );
     
-    if (!confirmReplace) {
+    if (choice === null) {
         playground.showNotification('Import cancelled', 'info');
         return;
     }
     
-    // Save the multi-page data
-    const multiPageData = {
-        pages: importData.pages,
-        currentPageId: importData.currentPageId || Object.keys(importData.pages)[0],
-        pageCounter: importData.pageCounter || Object.keys(importData.pages).length
-    };
+    const importMode = choice.trim() === '1' ? 'replace' : 'add';
     
-    localStorage.setItem('canvas-pages', JSON.stringify(multiPageData));
-    
-    // Reinitialize page manager
-    if (typeof pageManager !== 'undefined' && pageManager.init) {
-        pageManager.init();
+    if (importMode === 'replace') {
+        // Replace all pages
+        const multiPageData = {
+            pages: importData.pages,
+            currentPageId: importData.currentPageId || Object.keys(importData.pages)[0],
+            pageCounter: importData.pageCounter || Object.keys(importData.pages).length
+        };
+        
+        localStorage.setItem('canvas-pages', JSON.stringify(multiPageData));
+        
+        // Reinitialize page manager
+        if (typeof pageManager !== 'undefined' && pageManager.init) {
+            pageManager.init();
+        }
+        
+        playground.showNotification(
+            `All pages replaced with ${pageCount} imported page(s)`,
+            'success'
+        );
+    } else {
+        // Add as new pages
+        const pagesData = localStorage.getItem('canvas-pages');
+        let existingData = pagesData ? JSON.parse(pagesData) : { pages: {}, currentPageId: 'page-1', pageCounter: 1 };
+        
+        let addedCount = 0;
+        Object.entries(importData.pages).forEach(([oldId, pageData]) => {
+            existingData.pageCounter++;
+            const newPageId = 'page-' + existingData.pageCounter;
+            
+            // Add page with new ID
+            existingData.pages[newPageId] = {
+                ...pageData,
+                name: pageData.name + ' (imported)'
+            };
+            addedCount++;
+        });
+        
+        localStorage.setItem('canvas-pages', JSON.stringify(existingData));
+        
+        // Reinitialize page manager
+        if (typeof pageManager !== 'undefined' && pageManager.init) {
+            pageManager.init();
+        }
+        
+        playground.showNotification(
+            `Added ${addedCount} new page(s) from import`,
+            'success'
+        );
     }
-    
-    playground.showNotification(
-        `Multi-page architecture imported (${pageCount} pages)`,
-        'success'
-    );
 }
 
 function handleSinglePageImport(importData) {
@@ -8101,38 +8178,97 @@ function handleSinglePageImport(importData) {
         throw new Error('Invalid file format: missing items array');
     }
     
-    // Set loading flag BEFORE clearing canvas
-    playground._isLoading = true;
-    playground._suppressNotifications = true;
+    // Check if there are multiple pages
+    const pagesData = localStorage.getItem('canvas-pages');
+    const hasMultiplePages = pagesData && JSON.parse(pagesData).pages && Object.keys(JSON.parse(pagesData).pages).length > 1;
     
-    try {
-        // Clear current canvas using the method (not the global function)
-        console.log('[Import] Clearing canvas...');
-        const canvas = document.getElementById('fabric-canvas');
-        canvas.querySelectorAll('.canvas-item').forEach(el => el.remove());
-        playground.canvasItems = [];
-        playground.connections = [];
-        if (playground.connectionSvg) playground.connectionSvg.innerHTML = '';
+    // Ask user how to import
+    let importMode = 'current';
+    const choice = prompt(
+        'Import options:\n\n' +
+        '1 = Import to current page (replaces current page content)\n' +
+        '2 = Import as new page (adds a new page)\n\n' +
+        'Enter 1 or 2:',
+        '1'
+    );
+    
+    if (choice === null) {
+        playground.showNotification('Import cancelled', 'info');
+        return;
+    }
+    
+    importMode = choice.trim() === '2' ? 'new' : 'current';
+    
+    if (importMode === 'new') {
+        // Create a new page with the imported data
+        const existingPagesData = pagesData ? JSON.parse(pagesData) : { pages: {}, currentPageId: 'page-1', pageCounter: 1 };
         
-        console.log('[Import] Loading data...');
-        // Load the imported data
-        playground.loadFromData(importData);
+        // Save current page first
+        if (typeof pageManager !== 'undefined' && pageManager.saveCurrentPage) {
+            pageManager.saveCurrentPage();
+        }
         
-        const itemCount = importData.items.length;
-        const connectionCount = (importData.connections || []).length;
+        existingPagesData.pageCounter++;
+        const newPageId = 'page-' + existingPagesData.pageCounter;
+        const pageName = importData.metadata?.pageName || 'Imported Page';
         
-        console.log('[Import] Complete!');
+        existingPagesData.pages[newPageId] = {
+            name: pageName,
+            data: {
+                items: importData.items,
+                connections: importData.connections || []
+            }
+        };
+        
+        // Switch to the new page
+        existingPagesData.currentPageId = newPageId;
+        
+        localStorage.setItem('canvas-pages', JSON.stringify(existingPagesData));
+        
+        // Reinitialize page manager to show the new page
+        if (typeof pageManager !== 'undefined' && pageManager.init) {
+            pageManager.init();
+        }
+        
         playground.showNotification(
-            `Architecture imported (${itemCount} items, ${connectionCount} connections)`,
+            `Imported as new page "${pageName}" (${importData.items.length} items)`,
             'success'
         );
-    } catch (error) {
-        console.error('[Import] Error during import:', error);
-        playground.showNotification('Import failed: ' + error.message, 'error');
-    } finally {
-        // Always clear the loading flags
-        playground._isLoading = false;
-        playground._suppressNotifications = false;
+    } else {
+        // Import to current page (original behavior)
+        // Set loading flag BEFORE clearing canvas
+        playground._isLoading = true;
+        playground._suppressNotifications = true;
+        
+        try {
+            // Clear current canvas
+            console.log('[Import] Clearing canvas...');
+            const canvas = document.getElementById('fabric-canvas');
+            canvas.querySelectorAll('.canvas-item').forEach(el => el.remove());
+            playground.canvasItems = [];
+            playground.connections = [];
+            if (playground.connectionSvg) playground.connectionSvg.innerHTML = '';
+            
+            console.log('[Import] Loading data...');
+            // Load the imported data
+            playground.loadFromData(importData);
+            
+            const itemCount = importData.items.length;
+            const connectionCount = (importData.connections || []).length;
+            
+            console.log('[Import] Complete!');
+            playground.showNotification(
+                `Current page updated (${itemCount} items, ${connectionCount} connections)`,
+                'success'
+            );
+        } catch (error) {
+            console.error('[Import] Error during import:', error);
+            playground.showNotification('Import failed: ' + error.message, 'error');
+        } finally {
+            // Always clear the loading flags
+            playground._isLoading = false;
+            playground._suppressNotifications = false;
+        }
     }
 }
 
