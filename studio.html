@@ -265,11 +265,33 @@
 								<i class="fas fa-folder-open" style="color: #0078d4;"></i><span>Load Canvas</span>
 							</div>
 							<hr style="margin: 4px 0; border: none; border-top: 1px solid #e1e5e9;">
-							<div class="palette-item" onclick="exportCanvas(); togglePaletteCategory('file-menu-header')" title="Export canvas as JSON file">
-								<i class="fas fa-file-export" style="color: #10b981;"></i><span>Export JSON</span>
+							<div class="palette-item-dropdown">
+								<div class="palette-item" title="Export canvas as JSON file">
+									<i class="fas fa-file-export" style="color: #10b981;"></i><span>Export JSON</span>
+									<i class="fas fa-chevron-right" style="margin-left: auto; font-size: 10px; color: #9ca3af;"></i>
+								</div>
+								<div class="palette-item-submenu">
+									<div class="palette-item" onclick="exportCanvas('current'); togglePaletteCategory('file-menu-header')" title="Export current page only">
+										<i class="fas fa-file" style="color: #10b981;"></i><span>Current Page</span>
+									</div>
+									<div class="palette-item" onclick="exportCanvas('all'); togglePaletteCategory('file-menu-header')" title="Export all pages">
+										<i class="fas fa-copy" style="color: #10b981;"></i><span>All Pages</span>
+									</div>
+								</div>
 							</div>
-							<div class="palette-item" onclick="importCanvas(); togglePaletteCategory('file-menu-header')" title="Import canvas from JSON file">
-								<i class="fas fa-file-import" style="color: #6b7280;"></i><span>Import JSON</span>
+							<div class="palette-item-dropdown">
+								<div class="palette-item" title="Import canvas from JSON file">
+									<i class="fas fa-file-import" style="color: #6b7280;"></i><span>Import JSON</span>
+									<i class="fas fa-chevron-right" style="margin-left: auto; font-size: 10px; color: #9ca3af;"></i>
+								</div>
+								<div class="palette-item-submenu">
+									<div class="palette-item" onclick="importCanvas('current'); togglePaletteCategory('file-menu-header')" title="Import to current page">
+										<i class="fas fa-file" style="color: #6b7280;"></i><span>To Current Page</span>
+									</div>
+									<div class="palette-item" onclick="importCanvas('new'); togglePaletteCategory('file-menu-header')" title="Import as new page(s)">
+										<i class="fas fa-plus" style="color: #6b7280;"></i><span>As New Page(s)</span>
+									</div>
+								</div>
 							</div>
 							<hr style="margin: 4px 0; border: none; border-top: 1px solid #e1e5e9;">
 							<div class="palette-item" onclick="document.getElementById('settings-btn').click(); togglePaletteCategory('file-menu-header')" title="Configure canvas settings">

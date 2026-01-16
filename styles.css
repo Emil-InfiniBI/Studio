@@ -4891,6 +4891,54 @@ body.hide-mid-arrows svg .connection-mid-arrow {
 [data-theme="dark"] .category-items .palette-item:hover {
     background: #3e3e42;
 }
+
+/* Dropdown submenu for palette items (Export/Import) */
+.palette-item-dropdown {
+    position: relative;
+}
+
+.palette-item-dropdown > .palette-item {
+    cursor: default;
+}
+
+.palette-item-submenu {
+    display: none;
+    position: absolute;
+    left: 100%;
+    top: 0;
+    min-width: 160px;
+    background: var(--bg-primary, white);
+    border: 1px solid var(--border-color, #e1e5e9);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 10000;
+    padding: 4px 0;
+}
+
+.palette-item-dropdown:hover > .palette-item-submenu {
+    display: block;
+}
+
+.palette-item-submenu .palette-item {
+    padding: 8px 12px;
+    min-height: auto;
+    background: transparent;
+    border-bottom: none;
+}
+
+.palette-item-submenu .palette-item:hover {
+    background: var(--bg-secondary, #f5f5f5);
+}
+
+[data-theme="dark"] .palette-item-submenu {
+    background: #252526;
+    border-color: #3e3e42;
+}
+
+[data-theme="dark"] .palette-item-submenu .palette-item:hover {
+    background: #3e3e42;
+}
+
 /* Palette icons use Font Awesome; give them size and accent per type */
 .item-palette .palette-item i,
 .component-palette .palette-item i { 

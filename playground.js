@@ -7857,9 +7857,9 @@ function clearCanvas() {
     playground.showNotification('Canvas cleared', 'success');
 }
 
-function exportCanvas() {
+function exportCanvas(mode) {
     try {
-        console.log('[Export] Starting export...');
+        console.log('[Export] Starting export with mode:', mode);
         
         // Save current page to page manager
         if (typeof pageManager !== 'undefined' && pageManager.saveCurrentPage) {
@@ -7870,24 +7870,8 @@ function exportCanvas() {
         const pagesData = localStorage.getItem('canvas-pages');
         const isMultiPage = pagesData && JSON.parse(pagesData).pages && Object.keys(JSON.parse(pagesData).pages).length > 1;
         
-        // Ask user what to export
-        let exportMode = 'current'; // default to current page
-        if (isMultiPage) {
-            const choice = prompt(
-                'Export options:\n\n' +
-                '1 = Current page only\n' +
-                '2 = All pages\n\n' +
-                'Enter 1 or 2:',
-                '1'
-            );
-            
-            if (choice === null) {
-                playground.showNotification('Export cancelled', 'info');
-                return;
-            }
-            
-            exportMode = choice.trim() === '2' ? 'all' : 'current';
-        }
+        // Use mode parameter directly (from dropdown menu)
+        let exportMode = mode || 'current';
         
         let exportData;
         
@@ -8011,35 +7995,36 @@ function exportCanvas() {
     }
 }
 
-function importCanvas(inputElement) {
-    // If no input element provided, create one and trigger file picker
-    if (!inputElement || !inputElement.files) {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json';
-        input.style.display = 'none';
-        
-        // Add to DOM (required for some browsers)
-        document.body.appendChild(input);
-        
-        input.addEventListener('change', function handleFileSelect(e) {
-            // Remove the input from DOM
-            document.body.removeChild(input);
-            
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            // Process the file with a delay
-            setTimeout(function() {
-                processImportFile(e.target);
-            }, 200);
-        });
-        
-        input.click();
-        return;
-    }
+// Global variable to store import mode
+let pendingImportMode = 'current';
+
+function importCanvas(mode) {
+    // Store the mode for use when file is selected
+    pendingImportMode = mode || 'current';
     
-    processImportFile(inputElement);
+    // Create file input and trigger file picker
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.style.display = 'none';
+    
+    // Add to DOM (required for some browsers)
+    document.body.appendChild(input);
+    
+    input.addEventListener('change', function handleFileSelect(e) {
+        // Remove the input from DOM
+        document.body.removeChild(input);
+        
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        // Process the file with a delay
+        setTimeout(function() {
+            processImportFile(e.target);
+        }, 200);
+    });
+    
+    input.click();
 }
 
 function processImportFile(inputElement) {
@@ -8101,21 +8086,9 @@ function handleMultiPageImport(importData) {
     
     const pageCount = Object.keys(importData.pages).length;
     
-    // Ask user how to import
-    const choice = prompt(
-        `Importing ${pageCount} page(s):\n\n` +
-        '1 = Replace ALL pages (overwrites everything)\n' +
-        '2 = Add as new pages (keeps existing pages)\n\n' +
-        'Enter 1 or 2:',
-        '2'
-    );
-    
-    if (choice === null) {
-        playground.showNotification('Import cancelled', 'info');
-        return;
-    }
-    
-    const importMode = choice.trim() === '1' ? 'replace' : 'add';
+    // Use pendingImportMode from dropdown selection
+    // 'current' = replace all, 'new' = add as new pages
+    const importMode = pendingImportMode === 'new' ? 'add' : 'replace';
     
     if (importMode === 'replace') {
         // Replace all pages
@@ -8182,22 +8155,8 @@ function handleSinglePageImport(importData) {
     const pagesData = localStorage.getItem('canvas-pages');
     const hasMultiplePages = pagesData && JSON.parse(pagesData).pages && Object.keys(JSON.parse(pagesData).pages).length > 1;
     
-    // Ask user how to import
-    let importMode = 'current';
-    const choice = prompt(
-        'Import options:\n\n' +
-        '1 = Import to current page (replaces current page content)\n' +
-        '2 = Import as new page (adds a new page)\n\n' +
-        'Enter 1 or 2:',
-        '1'
-    );
-    
-    if (choice === null) {
-        playground.showNotification('Import cancelled', 'info');
-        return;
-    }
-    
-    importMode = choice.trim() === '2' ? 'new' : 'current';
+    // Use pendingImportMode from dropdown selection
+    const importMode = pendingImportMode; // 'current' or 'new'
     
     if (importMode === 'new') {
         // Create a new page with the imported data
