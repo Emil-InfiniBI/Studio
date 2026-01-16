@@ -4941,23 +4941,8 @@ body.hide-mid-arrows svg .connection-mid-arrow {
 [data-theme="dark"] .palette-item { background: #2d2d30; border-color: #3e3e42; color: #cccccc; }
 [data-theme="dark"] .palette-item:hover { background: #3e3e42; }
 
-/* Medallion canvas items (Bronze/Silver/Gold) */
+/* Medallion canvas items (Bronze/Silver/Gold) - just color accents, same size as all items */
 .canvas-item.ci-medallion { --ci-accent: #999999; }
-.canvas-item.ci-medallion {
-    /* slightly larger than standard 110x110 cards, now responsive */
-    width: calc(140px * var(--canvas-item-size));
-    height: calc(130px * var(--canvas-item-size));
-    padding: calc(12px * var(--canvas-item-size));
-    border-radius: calc(12px * var(--canvas-item-size)); /* slightly larger radius for larger cards */
-}
-.canvas-item.ci-medallion .canvas-item-header { gap: calc(10px * var(--canvas-item-size)); }
-.canvas-item.ci-medallion .ci-icon {
-    width: calc(38px * var(--canvas-item-size));
-    height: calc(38px * var(--canvas-item-size));
-}
-.canvas-item.ci-medallion .ci-icon i { font-size: calc(18px * var(--canvas-item-size)); }
-.canvas-item.ci-medallion .canvas-item-title { font-size: calc(14px * var(--canvas-item-size)); }
-.canvas-item.ci-medallion .canvas-item-type { font-weight: 600; font-size: calc(11px * var(--canvas-item-size)); padding: calc(3px * var(--canvas-item-size)) calc(8px * var(--canvas-item-size)); }
 .canvas-item.ci-medallion-bronze { --ci-accent: #cd7f32; }
 .canvas-item.ci-medallion-silver { --ci-accent: #c0c0c0; }
 .canvas-item.ci-medallion-gold { --ci-accent: #ffd700; }
@@ -6141,24 +6126,26 @@ body.hide-mid-arrows svg .connection-mid-arrow {
 .canvas-item {
     --ci-accent: #3b82f6; /* default accent for outline/type pill */
     position: absolute;
-    width: calc(100px * var(--canvas-item-size));   /* balanced width */
-    min-height: calc(90px * var(--canvas-item-size));  /* balanced height */
+    width: calc(140px * var(--canvas-item-size, 1)) !important;   /* scales with element size */
+    height: calc(130px * var(--canvas-item-size, 1)) !important;  /* scales with element size */
+    min-width: auto !important;
+    max-width: none !important;
     background: linear-gradient(180deg, rgba(252,253,254,0.98), rgba(243,245,248,0.95));
     backdrop-filter: blur(10px);
     border: 1px solid rgba(200, 205, 215, 0.45);
-    border-radius: calc(8px * var(--canvas-item-size));
+    border-radius: calc(12px * var(--canvas-item-size, 1));
     box-shadow: 
         0 4px 12px rgba(0, 0, 0, 0.08),
         0 1px 3px rgba(0, 0, 0, 0.05),
         inset 0 1px 0 rgba(255, 255, 255, 0.7);
     cursor: move;
-    transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease, width 0.15s ease, height 0.15s ease;
     z-index: 10;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: calc(10px * var(--canvas-item-size));
+    padding: calc(12px * var(--canvas-item-size, 1));
     text-align: center;
 }
 
@@ -6174,6 +6161,103 @@ body.hide-mid-arrows svg .connection-mid-arrow {
     z-index: 15;
 }
 
+/* ========================================
+   PATH TRACE HIGHLIGHTING
+   Shows full data lineage when clicking items
+   ======================================== */
+
+/* Origin item - the clicked item */
+.canvas-item.path-trace-origin {
+    border-color: #ffd700 !important;
+    box-shadow: 
+        0 0 0 3px #ffd700,
+        0 0 20px rgba(255, 215, 0, 0.6),
+        0 0 40px rgba(255, 215, 0, 0.3),
+        0 8px 24px rgba(0, 0, 0, 0.3) !important;
+    transform: scale(1.05);
+    z-index: 100 !important;
+}
+
+/* Upstream items - data sources (where data comes FROM) */
+.canvas-item.path-trace-upstream {
+    border-color: #00d4ff !important;
+    box-shadow: 
+        0 0 0 2px #00d4ff,
+        0 0 15px rgba(0, 212, 255, 0.5),
+        0 0 30px rgba(0, 212, 255, 0.2),
+        0 4px 12px rgba(0, 0, 0, 0.2) !important;
+    z-index: 50 !important;
+}
+
+/* Downstream items - data targets (where data goes TO) */
+.canvas-item.path-trace-downstream {
+    border-color: #10b981 !important;
+    box-shadow: 
+        0 0 0 2px #10b981,
+        0 0 15px rgba(16, 185, 129, 0.5),
+        0 0 30px rgba(16, 185, 129, 0.2),
+        0 4px 12px rgba(0, 0, 0, 0.2) !important;
+    z-index: 50 !important;
+}
+
+/* Upstream connection lines - targets SVG g elements */
+g.path-trace-upstream path,
+.path-trace-upstream path {
+    stroke: #00d4ff !important;
+    stroke-width: 4 !important;
+    filter: drop-shadow(0 0 10px rgba(0, 212, 255, 0.9)) drop-shadow(0 0 20px rgba(0, 212, 255, 0.5));
+}
+
+g.path-trace-upstream .connection-arrow,
+.path-trace-upstream .connection-arrow,
+g.path-trace-upstream polygon,
+.path-trace-upstream polygon {
+    fill: #00d4ff !important;
+    filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.9));
+}
+
+/* Downstream connection lines - targets SVG g elements */
+g.path-trace-downstream path,
+.path-trace-downstream path {
+    stroke: #10b981 !important;
+    stroke-width: 4 !important;
+    filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.9)) drop-shadow(0 0 20px rgba(16, 185, 129, 0.5));
+}
+
+g.path-trace-downstream .connection-arrow,
+.path-trace-downstream .connection-arrow,
+g.path-trace-downstream polygon,
+.path-trace-downstream polygon {
+    fill: #10b981 !important;
+    filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.9));
+}
+
+/* Make non-traced connections dim when path trace is active */
+#connections-svg.path-trace-active g:not(.path-trace-upstream):not(.path-trace-downstream) {
+    opacity: 0.15;
+}
+
+/* Make non-traced items dim when path trace is active */
+.canvas-content-wrapper.path-trace-active .canvas-item:not(.path-trace-origin):not(.path-trace-upstream):not(.path-trace-downstream) {
+    opacity: 0.3;
+    filter: grayscale(50%);
+}
+
+/* Dim non-highlighted items when path trace is active */
+.canvas-item:not(.path-trace-origin):not(.path-trace-upstream):not(.path-trace-downstream):not(.selected) {
+    /* Only apply dimming when path trace is active - controlled via parent class */
+}
+
+/* Add animation to traced paths */
+@keyframes pathTracePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.canvas-item.path-trace-origin {
+    animation: pathTracePulse 2s ease-in-out infinite;
+}
+
 /* Canvas item header + icon badge */
 .canvas-item .canvas-item-header {
     display: flex;
@@ -6186,8 +6270,8 @@ body.hide-mid-arrows svg .connection-mid-arrow {
 
 .canvas-item .ci-icon {
     /* don't override --ci-accent here; inherit from .canvas-item so medallions can set their own */
-    width: calc(26px * var(--canvas-item-size));   /* balanced badge size */
-    height: calc(26px * var(--canvas-item-size));  /* balanced badge size */
+    width: calc(38px * var(--canvas-item-size));   /* larger icon badge */
+    height: calc(38px * var(--canvas-item-size));  /* larger icon badge */
     border-radius: 50%;
     display: grid;
     place-items: center;
@@ -6198,31 +6282,31 @@ body.hide-mid-arrows svg .connection-mid-arrow {
     border: 1px solid color-mix(in oklab, var(--ci-accent, #3b82f6), #fff 60%);
 }
 
-.canvas-item .ci-icon i { color: #fff; font-size: calc(12px * var(--canvas-item-size)); }
-.canvas-item .ci-icon .emoji { font-size: calc(14px * var(--canvas-item-size)); line-height: 1; }
+.canvas-item .ci-icon i { color: #fff; font-size: calc(18px * var(--canvas-item-size)); }
+.canvas-item .ci-icon .emoji { font-size: calc(20px * var(--canvas-item-size)); line-height: 1; }
 
 .canvas-item .canvas-item-title {
     color: #1f2937;
     font-weight: 700;
-    font-size: calc(11px * var(--canvas-item-size)); /* balanced readable font */
-    letter-spacing: 0px;
-    word-wrap: break-word !important;
-    overflow-wrap: break-word !important;
-    hyphens: auto;
-    white-space: normal !important;
-    line-height: 1.15;
+    font-size: calc(14px * var(--canvas-item-size));
+    letter-spacing: -0.2px;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    hyphens: none;
+    white-space: normal;
+    line-height: 1.25;
     max-width: 100%;
-    text-overflow: unset !important;
-    overflow: visible !important;
-    display: block !important;
+    overflow: visible;
+    display: block;
     width: 100%;
+    text-align: center;
 }
 
 .canvas-item .canvas-item-type {
     margin-top: calc(4px * var(--canvas-item-size));
-    padding: calc(3px * var(--canvas-item-size)) calc(6px * var(--canvas-item-size));
+    padding: calc(3px * var(--canvas-item-size)) calc(8px * var(--canvas-item-size));
     border-radius: calc(999px * var(--canvas-item-size)); /* maintains pill shape at any size */
-    font-size: calc(9px * var(--canvas-item-size)); /* balanced type size */
+    font-size: calc(11px * var(--canvas-item-size)); /* larger type size */
     font-weight: 600;
     color: color-mix(in oklab, var(--ci-accent), #000 10%);
     background: color-mix(in oklab, var(--ci-accent), #fff 88%);
@@ -6353,8 +6437,10 @@ body.hide-mid-arrows svg .connection-mid-arrow {
     border: 1px dashed #666;  /* Allow customization - no !important */
     box-shadow: none !important;
     min-height: 30px !important;
-    min-width: 100px;
-    width: 200px;  /* Default width */
+    min-width: 100px !important;
+    width: 200px !important;  /* Default width - override base canvas-item scaling */
+    height: auto !important;  /* Text labels need auto height */
+    max-width: none !important;
     padding: 8px 12px !important;
     padding-bottom: 20px !important;  /* Extra space for resize handle */
     font-size: 14px;  /* Allow customization - no !important */
@@ -6400,9 +6486,11 @@ body.hide-mid-arrows svg .connection-mid-arrow {
     padding: 0 !important;
     cursor: move !important;
     position: absolute !important;
+    width: auto !important;  /* Images don't use scaling */
+    height: auto !important;  /* Images don't use scaling */
     min-width: 100px !important;
     min-height: 100px !important;
-    max-width: 800px;
+    max-width: 800px !important;
     max-height: 600px;
     display: block !important;
     overflow: visible;
@@ -6529,18 +6617,19 @@ body.hide-mid-arrows svg .connection-mid-arrow {
 
 /* Container Components - Flexible size containers for grouping */
 .canvas-item.ci-container {
-    min-width: calc(200px * var(--canvas-item-size));
-    min-height: calc(150px * var(--canvas-item-size));
-    width: calc(300px * var(--canvas-item-size)); /* Set reasonable default width */
-    height: calc(200px * var(--canvas-item-size)); /* Set reasonable default height */
-    border-radius: calc(12px * var(--canvas-item-size));
+    min-width: calc(200px * var(--canvas-item-size, 1)) !important;
+    min-height: calc(150px * var(--canvas-item-size, 1)) !important;
+    width: calc(300px * var(--canvas-item-size, 1)) !important; /* Set reasonable default width */
+    height: calc(200px * var(--canvas-item-size, 1)) !important; /* Set reasonable default height */
+    max-width: none !important;
+    border-radius: calc(12px * var(--canvas-item-size, 1));
     border: 2px dashed rgba(var(--ci-accent-rgb, 59, 130, 246), 0.6);
     background: linear-gradient(180deg, 
         rgba(var(--ci-accent-rgb, 59, 130, 246), 0.08), 
         rgba(var(--ci-accent-rgb, 59, 130, 246), 0.15)
     );
     backdrop-filter: blur(5px);
-    padding: calc(16px * var(--canvas-item-size));
+    padding: calc(16px * var(--canvas-item-size, 1));
     justify-content: flex-start;
     align-items: flex-start;
     text-align: left;
@@ -6555,6 +6644,15 @@ body.hide-mid-arrows svg .connection-mid-arrow {
     align-items: flex-start;
     width: 100%;
     margin-bottom: calc(12px * var(--canvas-item-size));
+}
+
+/* Hide header when toggled */
+.canvas-item.ci-container.header-hidden .canvas-item-header {
+    display: none !important;
+}
+
+.canvas-item.ci-container.header-hidden {
+    padding-top: calc(8px * var(--canvas-item-size));
 }
 
 .canvas-item.ci-container .canvas-item-title {
@@ -9494,6 +9592,56 @@ svg g[data-manual="true"] polygon {
 .mp-field input, .mp-field textarea, .mp-field select { background:#1f212b; border:1px solid #2c2f3a; border-radius:6px; padding:6px 8px; font-size:13px; color:#e6e8ef; font-family:inherit; resize:vertical; }
 .mp-field textarea { min-height:60px; }
 .mp-field input:focus, .mp-field textarea:focus, .mp-field select:focus { outline:2px solid #4f46e5; border-color:#4f46e5; }
+
+/* Toggle switch styles for inspector panel */
+.mp-checkbox-field { flex-direction: row !important; }
+.mp-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+}
+.mp-toggle input[type="checkbox"] {
+    display: none;
+}
+.mp-toggle-slider {
+    width: 40px;
+    height: 22px;
+    background: #2c2f3a;
+    border-radius: 11px;
+    position: relative;
+    transition: background 0.25s ease;
+    border: 1px solid #3d4150;
+}
+.mp-toggle-slider::before {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: #6b7280;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.25s ease, background 0.25s ease;
+}
+.mp-toggle input[type="checkbox"]:checked + .mp-toggle-slider {
+    background: #4f46e5;
+    border-color: #5a52e6;
+}
+.mp-toggle input[type="checkbox"]:checked + .mp-toggle-slider::before {
+    transform: translateX(18px);
+    background: #fff;
+}
+.mp-toggle-label {
+    font-size: 13px;
+    color: #e6e8ef;
+    font-weight: 500;
+}
+[data-theme="light"] .mp-toggle-slider { background: #e5e7eb; border-color: #d1d5db; }
+[data-theme="light"] .mp-toggle-slider::before { background: #9ca3af; }
+[data-theme="light"] .mp-toggle-label { color: #374151; }
+
 .mp-footer { position:absolute; bottom:0; left:0; right:0; padding:10px 14px; background:linear-gradient(180deg,rgba(20,22,28,0),rgba(20,22,28,0.95)); border-top:1px solid #2d2f3a; display:flex; justify-content:space-between; align-items:center; }
 .mp-status-line { display:flex; gap:12px; align-items:center; font-size:12px; }
 .mp-dirty { color:#f59e0b; }
@@ -9565,10 +9713,16 @@ svg g[data-manual="true"] polygon {
     color: #a3a7b7;
 }
 
-.context-menu-separator {
+.context-menu-separator,
+.context-menu-divider {
     height: 1px;
     background: rgba(255, 255, 255, 0.1);
     margin: 4px 0;
+}
+
+[data-theme="light"] .context-menu-separator,
+[data-theme="light"] .context-menu-divider {
+    background: rgba(0, 0, 0, 0.1);
 }
 
 [data-theme="light"] .item-context-menu {

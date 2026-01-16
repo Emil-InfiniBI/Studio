@@ -1,4 +1,89 @@
 // InfiniBI Studio - Standalone Version
+
+// ============================================
+// PASSWORD GATE SYSTEM
+// ============================================
+const STUDIO_PASSWORD = 'demo'; // Change this password as needed
+
+function checkPassword(event) {
+    event.preventDefault();
+    const input = document.getElementById('password-input');
+    const error = document.getElementById('password-error');
+    
+    if (input.value === STUDIO_PASSWORD) {
+        // Store authenticated state in session
+        sessionStorage.setItem('infinibi-authenticated', 'true');
+        
+        // Hide password gate with animation
+        const gate = document.getElementById('password-gate');
+        gate.classList.add('hidden');
+        
+        // Remove gate from DOM after animation
+        setTimeout(() => {
+            gate.style.display = 'none';
+            // Now show the welcome modal if not dismissed
+            const hideWelcome = localStorage.getItem('infinibi-hide-welcome') === 'true';
+            if (!hideWelcome) {
+                setTimeout(() => showWelcomeModal(), 300);
+            }
+        }, 500);
+        
+        return false;
+    } else {
+        // Show error
+        error.classList.add('show');
+        input.value = '';
+        input.focus();
+        
+        // Hide error after 3 seconds
+        setTimeout(() => {
+            error.classList.remove('show');
+        }, 3000);
+        
+        return false;
+    }
+}
+
+function togglePasswordVisibility() {
+    const input = document.getElementById('password-input');
+    const eye = document.getElementById('password-eye');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        eye.classList.remove('fa-eye');
+        eye.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        eye.classList.remove('fa-eye-slash');
+        eye.classList.add('fa-eye');
+    }
+}
+
+function isAuthenticated() {
+    return sessionStorage.getItem('infinibi-authenticated') === 'true';
+}
+
+// Check authentication on page load
+document.addEventListener('DOMContentLoaded', () => {
+    const gate = document.getElementById('password-gate');
+    if (gate) {
+        if (isAuthenticated()) {
+            // Already authenticated this session, hide gate immediately
+            gate.style.display = 'none';
+        } else {
+            // Focus on password input
+            setTimeout(() => {
+                const input = document.getElementById('password-input');
+                if (input) input.focus();
+            }, 100);
+        }
+    }
+});
+
+// ============================================
+// END PASSWORD GATE SYSTEM
+// ============================================
+
 class ArchitecturePlayground {
     constructor() {
         // Canvas + connection state
@@ -595,6 +680,8 @@ class ArchitecturePlayground {
                 this.clearSelection();
                 // Clear any stuck connection anchors/previews
                 this.clearConnectionState();
+                // Clear path trace highlighting
+                this.clearPathTrace();
             }
             // Toggle Pan/Select mode with Space key
             if (e.code === 'Space') {
@@ -721,6 +808,9 @@ class ArchitecturePlayground {
                     
                     // Hide text formatting toolbar when clicking empty canvas
                     this.hideTextFormatToolbar();
+                    
+                    // Clear path trace when clicking empty canvas
+                    this.clearPathTrace();
                     
                     // Close any open palette dropdowns
                     closeAllDropdowns();
@@ -5147,15 +5237,22 @@ class ArchitecturePlayground {
                 const isMultiSelected = item.classList.contains('multi-selected');
                 const hasMultipleSelected = this.selectedItems.size > 1;
                 
+                // Shift+Click triggers path trace
+                if (e.shiftKey && !e.ctrlKey) {
+                    this.togglePathTrace(item);
+                    return;
+                }
+                
                 // Only clear and re-select if not part of existing multi-selection
                 if (!isMultiSelected || !hasMultipleSelected) {
                     this.clearSelections();
+                    this.clearPathTrace(); // Clear any existing path trace when selecting
                     item.classList.add('selected');
                     
                     // Show helpful tip on first selection
-                    if (!localStorage.getItem('properties-tip-shown')) {
-                        this.showNotification('💡 Double-click or right-click for Properties', 'info', 4000);
-                        localStorage.setItem('properties-tip-shown', 'true');
+                    if (!localStorage.getItem('path-trace-tip-shown')) {
+                        this.showNotification('💡 Shift+Click to trace data flow path', 'info', 4000);
+                        localStorage.setItem('path-trace-tip-shown', 'true');
                     }
                 }
             }
@@ -5222,11 +5319,17 @@ class ArchitecturePlayground {
         
         // Check if item is locked
         const isLocked = item.dataset.locked === 'true';
+        // Check if path trace is active for this item
+        const isTraced = item.classList.contains('path-trace-origin');
         
         menu.innerHTML = `
             <div class="context-menu-item" data-action="properties">
                 <i class="fas fa-cog"></i> Properties
             </div>
+            <div class="context-menu-item" data-action="trace-path">
+                <i class="fas fa-project-diagram"></i> ${isTraced ? 'Clear Path Trace' : 'Trace Data Flow'}
+            </div>
+            <div class="context-menu-divider"></div>
             <div class="context-menu-item" data-action="${isLocked ? 'unlock' : 'lock'}">
                 <i class="fas fa-${isLocked ? 'unlock' : 'lock'}"></i> ${isLocked ? 'Unlock' : 'Lock'}
             </div>
@@ -5246,6 +5349,8 @@ class ArchitecturePlayground {
                 if (id && typeof metadataPanel !== 'undefined') {
                     metadataPanel.openForItem(id);
                 }
+            } else if (action === 'trace-path') {
+                this.togglePathTrace(item);
             } else if (action === 'lock') {
                 this.lockItem(item);
             } else if (action === 'unlock') {
@@ -6337,6 +6442,129 @@ class ArchitecturePlayground {
         // Remove all highlights from connection paths
         const highlightedPaths = this.connectionSvg.querySelectorAll('.connection-highlighted');
         highlightedPaths.forEach(el => el.classList.remove('connection-highlighted'));
+        
+        // Also clear path trace highlights
+        this.clearPathTrace();
+    }
+    
+    // ========================================
+    // PATH TRACING - Highlight full data flow
+    // ========================================
+    
+    // Track if path tracing is active
+    _pathTraceActive = false;
+    _pathTraceOrigin = null;
+    
+    // Toggle path trace on click (Shift+Click or regular click toggles)
+    togglePathTrace(item) {
+        // If clicking the same item, toggle off
+        if (this._pathTraceActive && this._pathTraceOrigin === item) {
+            this.clearPathTrace();
+            return;
+        }
+        
+        // Clear any existing trace
+        this.clearPathTrace();
+        
+        // Start new trace
+        this._pathTraceActive = true;
+        this._pathTraceOrigin = item;
+        
+        // Trace both upstream (sources) and downstream (targets)
+        const upstreamItems = new Set();
+        const downstreamItems = new Set();
+        const upstreamConnections = new Set();
+        const downstreamConnections = new Set();
+        
+        // Trace upstream (where data comes FROM)
+        this._traceUpstream(item, upstreamItems, upstreamConnections);
+        
+        // Trace downstream (where data goes TO)
+        this._traceDownstream(item, downstreamItems, downstreamConnections);
+        
+        // Highlight the origin item
+        item.classList.add('path-trace-origin');
+        
+        // Highlight upstream items and connections
+        upstreamItems.forEach(el => {
+            if (el !== item) el.classList.add('path-trace-upstream');
+        });
+        upstreamConnections.forEach(conn => {
+            if (conn.element) conn.element.classList.add('path-trace-upstream');
+        });
+        
+        // Highlight downstream items and connections
+        downstreamItems.forEach(el => {
+            if (el !== item) el.classList.add('path-trace-downstream');
+        });
+        downstreamConnections.forEach(conn => {
+            if (conn.element) conn.element.classList.add('path-trace-downstream');
+        });
+        
+        // Add path-trace-active class to enable dimming of non-traced elements
+        const canvas = document.getElementById('fabric-canvas');
+        const wrapper = canvas?.querySelector('.canvas-content-wrapper');
+        if (wrapper) wrapper.classList.add('path-trace-active');
+        if (this.connectionSvg) this.connectionSvg.classList.add('path-trace-active');
+        
+        // Show notification
+        const totalItems = upstreamItems.size + downstreamItems.size - 1; // -1 for origin counted twice
+        const totalConnections = upstreamConnections.size + downstreamConnections.size;
+        this.showNotification(`📊 Traced ${totalItems} items and ${totalConnections} connections. Click canvas to clear.`, 'info', 4000);
+    }
+    
+    // Trace all upstream connections (data sources)
+    _traceUpstream(item, visitedItems, visitedConnections) {
+        if (visitedItems.has(item)) return;
+        visitedItems.add(item);
+        
+        this.connections.forEach(conn => {
+            // If this connection goes TO the current item, trace back to its source
+            if (conn.to === item && !visitedConnections.has(conn)) {
+                visitedConnections.add(conn);
+                this._traceUpstream(conn.from, visitedItems, visitedConnections);
+            }
+        });
+    }
+    
+    // Trace all downstream connections (data targets)
+    _traceDownstream(item, visitedItems, visitedConnections) {
+        if (visitedItems.has(item)) return;
+        visitedItems.add(item);
+        
+        this.connections.forEach(conn => {
+            // If this connection comes FROM the current item, trace to its target
+            if (conn.from === item && !visitedConnections.has(conn)) {
+                visitedConnections.add(conn);
+                this._traceDownstream(conn.to, visitedItems, visitedConnections);
+            }
+        });
+    }
+    
+    // Clear all path trace highlights
+    clearPathTrace() {
+        this._pathTraceActive = false;
+        this._pathTraceOrigin = null;
+        
+        const canvas = document.getElementById('fabric-canvas');
+        if (!canvas) return;
+        
+        // Remove path-trace-active class from wrapper and SVG
+        const wrapper = canvas.querySelector('.canvas-content-wrapper');
+        if (wrapper) wrapper.classList.remove('path-trace-active');
+        if (this.connectionSvg) this.connectionSvg.classList.remove('path-trace-active');
+        
+        // Remove all path trace classes from items
+        canvas.querySelectorAll('.path-trace-origin, .path-trace-upstream, .path-trace-downstream').forEach(el => {
+            el.classList.remove('path-trace-origin', 'path-trace-upstream', 'path-trace-downstream');
+        });
+        
+        // Remove all path trace classes from connections
+        if (this.connectionSvg) {
+            this.connectionSvg.querySelectorAll('.path-trace-upstream, .path-trace-downstream').forEach(el => {
+                el.classList.remove('path-trace-upstream', 'path-trace-downstream');
+            });
+        }
     }
 
     showNotification(message, type = 'info') {
@@ -7068,6 +7296,15 @@ class ArchitecturePlayground {
                     console.log('Restored metadata for item:', savedItem.id, savedItem.data.meta);
                 }
             }
+            
+            // Restore hideHeader state for containers
+            if (savedItem.data && savedItem.data.hideHeader) {
+                const canvasItem = this.canvasItems.find(ci => ci.id === savedItem.id);
+                if (canvasItem && canvasItem.element) {
+                    canvasItem.data.hideHeader = savedItem.data.hideHeader;
+                    canvasItem.element.classList.add('header-hidden');
+                }
+            }
         });
 
     // Final sanitize + redraw
@@ -7325,7 +7562,9 @@ const metadataPanel = (function(){
         latency: null,
         notes: null,
         dirty: null,
-        saved: null
+        saved: null,
+        hideHeader: null,
+        containerOptions: null
     };
 
     function init(){
@@ -7345,11 +7584,19 @@ const metadataPanel = (function(){
         el.notes = document.getElementById('mp-notes');
         el.dirty = document.getElementById('mp-dirty-indicator');
         el.saved = document.getElementById('mp-saved-indicator');
+        el.hideHeader = document.getElementById('mp-hide-header');
+        el.containerOptions = document.getElementById('mp-container-options');
 
         [el.name, el.purpose, el.owner, el.criticality, el.status, el.refresh, el.volume, el.latency, el.notes].forEach(inp => {
             if(!inp) return;
             inp.addEventListener('input', handleFieldChange);
         });
+        
+        // Checkbox change listener for hide header
+        if(el.hideHeader) {
+            el.hideHeader.addEventListener('change', handleHideHeaderChange);
+        }
+        
         // Remove close button listener
         document.addEventListener('keydown', e => {
             if(e.key === 'Escape' && !el.panel.classList.contains('collapsed')) {
@@ -7360,6 +7607,27 @@ const metadataPanel = (function(){
     }
 
     function handleFieldChange(){
+        markDirty();
+        if(debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(flushChanges, DEBOUNCE_MS);
+    }
+    
+    function handleHideHeaderChange(){
+        // Immediate update for visual feedback
+        if(!currentItemId) return;
+        const entry = playground.canvasItems.find(ci => ci.id === currentItemId);
+        if(!entry) return;
+        
+        const isHidden = el.hideHeader.checked;
+        entry.data.hideHeader = isHidden;
+        
+        // Toggle the visual class on the element
+        if(isHidden) {
+            entry.element.classList.add('header-hidden');
+        } else {
+            entry.element.classList.remove('header-hidden');
+        }
+        
         markDirty();
         if(debounceTimer) clearTimeout(debounceTimer);
         debounceTimer = setTimeout(flushChanges, DEBOUNCE_MS);
@@ -7407,6 +7675,16 @@ const metadataPanel = (function(){
         if(el.volume) el.volume.value = t.volume || '';
         if(el.latency) el.latency.value = t.latency || '';
         if(el.notes) el.notes.value = n.text || '';
+        
+        // Show/hide container options based on whether this is a container
+        const isContainer = entry.element && entry.element.classList.contains('ci-container');
+        if(el.containerOptions) {
+            el.containerOptions.style.display = isContainer ? 'block' : 'none';
+        }
+        if(el.hideHeader) {
+            el.hideHeader.checked = entry.data.hideHeader || false;
+        }
+        
         markSaved();
     }
 
@@ -7434,6 +7712,12 @@ const metadataPanel = (function(){
         if(el.volume) t.volume = el.volume.value.trim();
         if(el.latency) t.latency = el.latency.value.trim();
         if(el.notes) n.text = el.notes.value.trim();
+        
+        // Save hideHeader state for containers
+        if(el.hideHeader && entry.element.classList.contains('ci-container')) {
+            entry.data.hideHeader = el.hideHeader.checked;
+        }
+        
         // store last edited timestamp
         entry.data.meta.timestamps = entry.data.meta.timestamps || {};
         entry.data.meta.timestamps.lastEdited = new Date().toISOString();
@@ -9611,15 +9895,14 @@ function loadDemoProject() {
 
 // Check if we should show welcome modal on page load
 document.addEventListener('DOMContentLoaded', () => {
-    // Check if user has dismissed welcome before
-    const hideWelcome = localStorage.getItem('infinibi-hide-welcome') === 'true';
-    
-    // Show welcome only if not dismissed (regardless of saved work - let users see demo option)
-    if (!hideWelcome) {
-        // Small delay to let the app initialize first
-        setTimeout(() => {
-            showWelcomeModal();
-        }, 500);
+    // Only show welcome if already authenticated (password gate will handle showing it otherwise)
+    if (isAuthenticated()) {
+        const hideWelcome = localStorage.getItem('infinibi-hide-welcome') === 'true';
+        if (!hideWelcome) {
+            setTimeout(() => {
+                showWelcomeModal();
+            }, 500);
+        }
     }
 });
 
