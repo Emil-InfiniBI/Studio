@@ -2607,84 +2607,78 @@ class ArchitecturePlayground {
         const handles = containerElement.querySelectorAll('.resize-handle');
         
         handles.forEach(handle => {
-            let isResizing = false;
-            let startX, startY, startWidth, startHeight, startLeft, startTop;
             const direction = handle.dataset.direction;
             
-            handle.addEventListener('mousedown', (e) => {
+            const onMouseDown = (e) => {
                 e.stopPropagation(); // Prevent triggering drag
+                e.preventDefault();
                 
                 // Save state BEFORE starting resize for proper undo
                 this.saveState('before resize container');
                 
-                isResizing = true;
-                
-                startX = e.clientX;
-                startY = e.clientY;
-                startWidth = parseInt(containerElement.offsetWidth);
-                startHeight = parseInt(containerElement.offsetHeight);
-                startLeft = parseInt(containerElement.style.left);
-                startTop = parseInt(containerElement.style.top);
+                const startX = e.clientX;
+                const startY = e.clientY;
+                const startWidth = containerElement.offsetWidth;
+                const startHeight = containerElement.offsetHeight;
+                const startLeft = parseInt(containerElement.style.left) || 0;
+                const startTop = parseInt(containerElement.style.top) || 0;
                 
                 containerElement.classList.add('resizing');
-                document.body.style.cursor = handle.style.cursor;
+                document.body.style.cursor = getComputedStyle(handle).cursor;
                 
-                e.preventDefault();
-            });
-            
-            document.addEventListener('mousemove', (e) => {
-                if (!isResizing) return;
+                const onMouseMove = (moveEvent) => {
+                    const deltaX = moveEvent.clientX - startX;
+                    const deltaY = moveEvent.clientY - startY;
+                    
+                    let newWidth = startWidth;
+                    let newHeight = startHeight;
+                    let newLeft = startLeft;
+                    let newTop = startTop;
+                    
+                    // Calculate new dimensions based on handle direction
+                    switch (direction) {
+                        case 'se': // bottom-right
+                            newWidth = Math.max(200, startWidth + deltaX);
+                            newHeight = Math.max(150, startHeight + deltaY);
+                            break;
+                        case 'sw': // bottom-left
+                            newWidth = Math.max(200, startWidth - deltaX);
+                            newHeight = Math.max(150, startHeight + deltaY);
+                            newLeft = startLeft + deltaX;
+                            break;
+                        case 'ne': // top-right
+                            newWidth = Math.max(200, startWidth + deltaX);
+                            newHeight = Math.max(150, startHeight - deltaY);
+                            newTop = startTop + deltaY;
+                            break;
+                        case 'nw': // top-left
+                            newWidth = Math.max(200, startWidth - deltaX);
+                            newHeight = Math.max(150, startHeight - deltaY);
+                            newLeft = startLeft + deltaX;
+                            newTop = startTop + deltaY;
+                            break;
+                    }
+                    
+                    // Apply new dimensions with !important to override CSS
+                    containerElement.style.setProperty('width', newWidth + 'px', 'important');
+                    containerElement.style.setProperty('height', newHeight + 'px', 'important');
+                    containerElement.style.left = newLeft + 'px';
+                    containerElement.style.top = newTop + 'px';
+                };
                 
-                const deltaX = e.clientX - startX;
-                const deltaY = e.clientY - startY;
-                
-                let newWidth = startWidth;
-                let newHeight = startHeight;
-                let newLeft = startLeft;
-                let newTop = startTop;
-                
-                // Calculate new dimensions based on handle direction
-                switch (direction) {
-                    case 'se': // bottom-right
-                        newWidth = Math.max(200, startWidth + deltaX);
-                        newHeight = Math.max(150, startHeight + deltaY);
-                        break;
-                    case 'sw': // bottom-left
-                        newWidth = Math.max(200, startWidth - deltaX);
-                        newHeight = Math.max(150, startHeight + deltaY);
-                        newLeft = startLeft + deltaX;
-                        break;
-                    case 'ne': // top-right
-                        newWidth = Math.max(200, startWidth + deltaX);
-                        newHeight = Math.max(150, startHeight - deltaY);
-                        newTop = startTop + deltaY;
-                        break;
-                    case 'nw': // top-left
-                        newWidth = Math.max(200, startWidth - deltaX);
-                        newHeight = Math.max(150, startHeight - deltaY);
-                        newLeft = startLeft + deltaX;
-                        newTop = startTop + deltaY;
-                        break;
-                }
-                
-                // Apply new dimensions
-                containerElement.style.width = newWidth + 'px';
-                containerElement.style.height = newHeight + 'px';
-                containerElement.style.left = newLeft + 'px';
-                containerElement.style.top = newTop + 'px';
-            });
-            
-            document.addEventListener('mouseup', () => {
-                if (isResizing) {
-                    isResizing = false;
+                const onMouseUp = () => {
                     containerElement.classList.remove('resizing');
                     document.body.style.cursor = '';
-                    
-                    // State was saved BEFORE resize in mousedown
-                    // No saveState here - we want undo to restore the pre-resize state
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
                     this.autosave();
-                }
-            });
+                };
+                
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            };
+            
+            handle.addEventListener('mousedown', onMouseDown);
         });
     }
 
@@ -3319,12 +3313,23 @@ class ArchitecturePlayground {
     }
 
     // === TEXT LABEL FUNCTIONALITY ===
-    addTextLabel() {
+    addTextLabel(x = null, y = null) {
         const canvas = document.getElementById('fabric-canvas');
         if (!canvas) return;
 
         // Create unique ID for the text label
         const labelId = 'text-label-' + Date.now();
+        
+        // Calculate position - use provided coordinates or center of visible canvas
+        let posX = x;
+        let posY = y;
+        
+        if (posX === null || posY === null) {
+            // Default to center of visible canvas area
+            const canvasRect = canvas.getBoundingClientRect();
+            posX = (canvasRect.width / 2) / (this.zoomLevel || 1);
+            posY = (canvasRect.height / 2) / (this.zoomLevel || 1);
+        }
 
         // Create text label element
         const label = document.createElement('div');
@@ -3333,8 +3338,8 @@ class ArchitecturePlayground {
         label.contentEditable = 'false';  // Start as NOT editable so dragging works
         label.textContent = 'Double-click to edit';
         label.style.position = 'absolute';  // Absolutely positioned - won't affect layout
-        label.style.left = '100px';
-        label.style.top = '100px';
+        label.style.left = posX + 'px';
+        label.style.top = posY + 'px';
         label.style.width = '200px';  // Default width
         label.style.height = 'auto';  // Auto height based on content
         label.style.zIndex = '1000';
@@ -3342,7 +3347,7 @@ class ArchitecturePlayground {
         
         // Initialize dataset properties for toggling
         label.dataset.lastBgColor = '#1a1a2e';  // Default background color
-        label.dataset.lastBorder = '1px dashed #666';  // Default border
+        label.dataset.lastBorder = 'none';  // No border by default
         
         // Add resize handle
         const resizeHandle = document.createElement('div');
@@ -3410,7 +3415,12 @@ class ArchitecturePlayground {
         label.addEventListener('blur', () => {
             label.classList.remove('editing');
             label.style.cursor = 'move';
-            label.style.border = '1px dashed #666';
+            // Restore previous border or keep none
+            if (label.dataset.lastBorder && label.dataset.lastBorder !== 'none') {
+                label.style.border = label.dataset.lastBorder;
+            } else {
+                label.style.border = 'none';
+            }
             label.contentEditable = 'false';  // Disable editing so dragging works again
             label.draggable = true;  // Re-enable dragging
             if (label.textContent.trim() === '') {
@@ -4323,7 +4333,7 @@ class ArchitecturePlayground {
             // Save current color and make transparent
             this.selectedTextLabel.dataset.lastBgColor = currentBg.startsWith('rgb') ? this.rgbToHex(currentBg) : currentBg;
             this.selectedTextLabel.style.background = 'transparent';
-            this.selectedTextLabel.style.border = '1px dashed #666';
+            this.selectedTextLabel.style.border = this.selectedTextLabel.dataset.lastBorder || 'none';
             this.showNotification('Background set to transparent', 'info');
         }
     }
@@ -4342,7 +4352,7 @@ class ArchitecturePlayground {
             this.showNotification('Border hidden', 'info');
         } else {
             // Restore last border or use default
-            const lastBorder = this.selectedTextLabel.dataset.lastBorder || '1px dashed #666';
+            const lastBorder = this.selectedTextLabel.dataset.lastBorder || 'none';
             this.selectedTextLabel.style.border = lastBorder;
             this.showNotification('Border shown', 'info');
         }
@@ -5423,9 +5433,29 @@ class ArchitecturePlayground {
             </div>
         `;
         
+        // Capture canvas coordinates for text label placement
+        const canvas = document.getElementById('fabric-canvas');
+        const wrapper = canvas?.querySelector('.canvas-content-wrapper');
+        let canvasX = 100, canvasY = 100;
+        if (canvas) {
+            const canvasRect = canvas.getBoundingClientRect();
+            const wrapperTransform = wrapper ? getComputedStyle(wrapper).transform : 'none';
+            let scale = 1;
+            let translateX = 0, translateY = 0;
+            if (wrapperTransform && wrapperTransform !== 'none') {
+                const matrix = new DOMMatrix(wrapperTransform);
+                scale = matrix.a || 1;
+                translateX = matrix.e || 0;
+                translateY = matrix.f || 0;
+            }
+            // Account for canvas scroll and wrapper transform
+            canvasX = (e.clientX - canvasRect.left - translateX) / scale;
+            canvasY = (e.clientY - canvasRect.top - translateY) / scale;
+        }
+        
         // Add click handlers
-        menu.addEventListener('click', (e) => {
-            const action = e.target.closest('.context-menu-item')?.dataset.action;
+        menu.addEventListener('click', (menuEvent) => {
+            const action = menuEvent.target.closest('.context-menu-item')?.dataset.action;
             if (action === 'toggle-pan-select') {
                 this.togglePanSelectMode();
             } else if (action === 'cancel-edit') {
@@ -5441,7 +5471,7 @@ class ArchitecturePlayground {
             } else if (action === 'toggle-snap') {
                 this.toggleSnapToGrid();
             } else if (action === 'add-text') {
-                this.addTextLabel();
+                this.addTextLabel(canvasX, canvasY);
             } else if (action === 'canvas-settings') {
                 // Open canvas settings modal
                 const settingsBtn = document.getElementById('settings-btn');
@@ -7063,7 +7093,7 @@ class ArchitecturePlayground {
                         label.addEventListener('blur', () => {
                             label.classList.remove('editing');
                             label.style.cursor = 'move';
-                            label.style.border = '1px dashed #666';
+                            label.style.border = label.dataset.lastBorder || 'none';
                             label.contentEditable = 'false';
                             label.draggable = true;
                             if (label.textContent.trim() === '') {
@@ -7303,6 +7333,15 @@ class ArchitecturePlayground {
                 if (canvasItem && canvasItem.element) {
                     canvasItem.data.hideHeader = savedItem.data.hideHeader;
                     canvasItem.element.classList.add('header-hidden');
+                }
+            }
+            
+            // Restore transparentBg state for containers
+            if (savedItem.data && savedItem.data.transparentBg) {
+                const canvasItem = this.canvasItems.find(ci => ci.id === savedItem.id);
+                if (canvasItem && canvasItem.element) {
+                    canvasItem.data.transparentBg = savedItem.data.transparentBg;
+                    canvasItem.element.classList.add('transparent-bg');
                 }
             }
         });
@@ -7564,6 +7603,7 @@ const metadataPanel = (function(){
         dirty: null,
         saved: null,
         hideHeader: null,
+        transparentBg: null,
         containerOptions: null
     };
 
@@ -7585,6 +7625,7 @@ const metadataPanel = (function(){
         el.dirty = document.getElementById('mp-dirty-indicator');
         el.saved = document.getElementById('mp-saved-indicator');
         el.hideHeader = document.getElementById('mp-hide-header');
+        el.transparentBg = document.getElementById('mp-transparent-bg');
         el.containerOptions = document.getElementById('mp-container-options');
 
         [el.name, el.purpose, el.owner, el.criticality, el.status, el.refresh, el.volume, el.latency, el.notes].forEach(inp => {
@@ -7595,6 +7636,11 @@ const metadataPanel = (function(){
         // Checkbox change listener for hide header
         if(el.hideHeader) {
             el.hideHeader.addEventListener('change', handleHideHeaderChange);
+        }
+        
+        // Checkbox change listener for transparent background
+        if(el.transparentBg) {
+            el.transparentBg.addEventListener('change', handleTransparentBgChange);
         }
         
         // Remove close button listener
@@ -7626,6 +7672,27 @@ const metadataPanel = (function(){
             entry.element.classList.add('header-hidden');
         } else {
             entry.element.classList.remove('header-hidden');
+        }
+        
+        markDirty();
+        if(debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(flushChanges, DEBOUNCE_MS);
+    }
+    
+    function handleTransparentBgChange(){
+        // Immediate update for visual feedback
+        if(!currentItemId) return;
+        const entry = playground.canvasItems.find(ci => ci.id === currentItemId);
+        if(!entry) return;
+        
+        const isTransparent = el.transparentBg.checked;
+        entry.data.transparentBg = isTransparent;
+        
+        // Toggle the visual class on the element
+        if(isTransparent) {
+            entry.element.classList.add('transparent-bg');
+        } else {
+            entry.element.classList.remove('transparent-bg');
         }
         
         markDirty();
@@ -7684,6 +7751,9 @@ const metadataPanel = (function(){
         if(el.hideHeader) {
             el.hideHeader.checked = entry.data.hideHeader || false;
         }
+        if(el.transparentBg) {
+            el.transparentBg.checked = entry.data.transparentBg || entry.element.classList.contains('transparent-bg') || false;
+        }
         
         markSaved();
     }
@@ -7716,6 +7786,11 @@ const metadataPanel = (function(){
         // Save hideHeader state for containers
         if(el.hideHeader && entry.element.classList.contains('ci-container')) {
             entry.data.hideHeader = el.hideHeader.checked;
+        }
+        
+        // Save transparentBg state for containers
+        if(el.transparentBg && entry.element.classList.contains('ci-container')) {
+            entry.data.transparentBg = el.transparentBg.checked;
         }
         
         // store last edited timestamp

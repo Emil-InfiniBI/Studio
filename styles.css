@@ -6174,7 +6174,7 @@ body.hide-mid-arrows svg .connection-mid-arrow {
         0 0 20px rgba(255, 215, 0, 0.6),
         0 0 40px rgba(255, 215, 0, 0.3),
         0 8px 24px rgba(0, 0, 0, 0.3) !important;
-    transform: scale(1.05);
+    /* No transform/scale - prevents alignment issues */
     z-index: 100 !important;
 }
 
@@ -6241,11 +6241,6 @@ g.path-trace-downstream polygon,
 .canvas-content-wrapper.path-trace-active .canvas-item:not(.path-trace-origin):not(.path-trace-upstream):not(.path-trace-downstream) {
     opacity: 0.3;
     filter: grayscale(50%);
-}
-
-/* Dim non-highlighted items when path trace is active */
-.canvas-item:not(.path-trace-origin):not(.path-trace-upstream):not(.path-trace-downstream):not(.selected) {
-    /* Only apply dimming when path trace is active - controlled via parent class */
 }
 
 /* Add animation to traced paths */
@@ -6315,7 +6310,7 @@ g.path-trace-downstream polygon,
 
 .canvas-item:hover {
     box-shadow: 0 14px 28px rgba(0,0,0,0.22), 0 6px 12px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.9);
-    transform: translateY(-1px);
+    /* No transform - prevents alignment issues when positioning containers */
 }
 
 .canvas-item.selected {
@@ -6434,7 +6429,7 @@ g.path-trace-downstream polygon,
 /* Text Label Styling */
 .canvas-item.text-label {
     background: transparent;  /* Allow customization - no !important */
-    border: 1px dashed #666;  /* Allow customization - no !important */
+    border: none;  /* No border by default - can be added via Toggle Border button */
     box-shadow: none !important;
     min-height: 30px !important;
     min-width: 100px !important;
@@ -6619,9 +6614,11 @@ g.path-trace-downstream polygon,
 .canvas-item.ci-container {
     min-width: calc(200px * var(--canvas-item-size, 1)) !important;
     min-height: calc(150px * var(--canvas-item-size, 1)) !important;
-    width: calc(300px * var(--canvas-item-size, 1)) !important; /* Set reasonable default width */
-    height: calc(200px * var(--canvas-item-size, 1)) !important; /* Set reasonable default height */
+    width: calc(300px * var(--canvas-item-size, 1)); /* Default width - can be overridden by inline styles */
+    height: calc(200px * var(--canvas-item-size, 1)); /* Default height - can be overridden by inline styles */
     max-width: none !important;
+    max-height: none !important;
+    overflow: visible !important; /* Allow resize handles to show outside bounds */
     border-radius: calc(12px * var(--canvas-item-size, 1));
     border: 2px dashed rgba(var(--ci-accent-rgb, 59, 130, 246), 0.6);
     background: linear-gradient(180deg, 
@@ -6653,6 +6650,22 @@ g.path-trace-downstream polygon,
 
 .canvas-item.ci-container.header-hidden {
     padding-top: calc(8px * var(--canvas-item-size));
+}
+
+/* Transparent container - hide border and background */
+.canvas-item.ci-container[style*="background: transparent"],
+.canvas-item.ci-container[style*="background:transparent"],
+.canvas-item.ci-container.transparent-bg {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+}
+
+/* Transparent container hover - show subtle outline for interaction feedback */
+.canvas-item.ci-container.transparent-bg:hover {
+    outline: 1px dashed rgba(255, 255, 255, 0.3) !important;
+    outline-offset: -1px;
 }
 
 .canvas-item.ci-container .canvas-item-title {
@@ -6813,7 +6826,7 @@ body.connect-mode .fabric-sidebar .data-source-item {
         0 8px 24px rgba(0, 0, 0, 0.15),
         0 2px 4px rgba(0, 0, 0, 0.08),
         inset 0 1px 0 rgba(255, 255, 255, 0.9);
-    transform: translateY(-2px) scale(1.01);
+    /* No transform - prevents alignment issues when positioning containers */
     border-color: rgba(0, 120, 212, 0.4);
     transition: all 0.15s ease;
 }
@@ -7861,7 +7874,7 @@ body.connect-mode .fabric-sidebar .data-source-item {
         inset 0 1px 0 rgba(48, 164, 255, 0.2);
     background: rgba(48, 54, 61, 0.95);
     border-color: rgba(48, 164, 255, 0.4);
-    transform: translateY(-2px) scale(1.01);
+    /* No transform - prevents alignment issues when positioning items */
     transition: all 0.15s ease;
 }
 
@@ -9503,13 +9516,18 @@ svg g[data-manual="true"] polygon {
 
 .inspector-panel {
     width: 360px;
+    height: 100vh;
+    max-height: 100vh;
     background: rgba(28, 30, 38, 0.98);
     border-left: 1px solid #2d2f3a;
     display: flex;
     flex-direction: column;
-    position: relative;
+    position: fixed;
+    right: 0;
+    top: 0;
     transition: all 0.3s ease;
     z-index: 100;
+    overflow: hidden;
 }
 
 .inspector-panel.collapsed {
@@ -9554,8 +9572,10 @@ svg g[data-manual="true"] polygon {
 .inspector-content {
     display: flex;
     flex-direction: column;
-    height: 100%;
+    flex: 1 1 0;
+    min-height: 0; /* Critical for flex scroll */
     min-width: 360px;
+    overflow: hidden;
 }
 
 .inspector-header {
@@ -9578,9 +9598,11 @@ svg g[data-manual="true"] polygon {
 }
 
 .inspector-body {
-    flex: 1;
+    flex: 1 1 0;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 20px;
+    min-height: 0; /* Allow flex child to shrink and scroll */
 }
 .mp-section { margin-bottom:20px; }
 .mp-section-header { font-size:11px; letter-spacing:1px; text-transform:uppercase; font-weight:600; color:#7d8291; margin:0 0 8px; position:relative; padding-left:10px; }
@@ -10539,43 +10561,51 @@ select[disabled] {
 /* Container resize handles (only visible in edit mode) */
 .canvas-item.ci-container .resize-handle {
     position: absolute;
-    width: 12px;
-    height: 12px;
-    background: var(--accent-primary);
+    width: 16px;
+    height: 16px;
+    background: var(--accent-primary, #3b82f6);
     border: 2px solid white;
     border-radius: 50%;
-    cursor: nw-resize;
     opacity: 0;
-    transition: opacity 0.2s ease;
-    z-index: 25;
+    transition: opacity 0.2s ease, transform 0.15s ease;
+    z-index: 100;
+    pointer-events: auto !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
-.edit-mode .canvas-item.ci-container:hover .resize-handle,
-.edit-mode .canvas-item.ci-container.resizing .resize-handle {
+.canvas-item.ci-container .resize-handle:hover {
+    transform: scale(1.2);
+    background: #2563eb;
+}
+
+.canvas-item.ci-container:hover .resize-handle,
+.canvas-item.ci-container.selected .resize-handle,
+.canvas-item.ci-container.multi-selected .resize-handle,
+.canvas-item.ci-container.resizing .resize-handle {
     opacity: 1;
 }
 
 .canvas-item.ci-container .resize-handle.nw {
-    top: -6px;
-    left: -6px;
+    top: -8px;
+    left: -8px;
     cursor: nw-resize;
 }
 
 .canvas-item.ci-container .resize-handle.ne {
-    top: -6px;
-    right: -6px;
+    top: -8px;
+    right: -8px;
     cursor: ne-resize;
 }
 
 .canvas-item.ci-container .resize-handle.sw {
-    bottom: -6px;
-    left: -6px;
+    bottom: -8px;
+    left: -8px;
     cursor: sw-resize;
 }
 
 .canvas-item.ci-container .resize-handle.se {
-    bottom: -6px;
-    right: -6px;
+    bottom: -8px;
+    right: -8px;
     cursor: se-resize;
 }
 
