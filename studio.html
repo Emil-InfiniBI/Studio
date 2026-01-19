@@ -195,6 +195,36 @@
 						</div>
 					</div>
 				</div>
+				
+				<div class="welcome-shortcuts">
+					<h3><i class="fas fa-keyboard"></i> Quick Shortcuts</h3>
+					<div class="shortcuts-grid">
+						<div class="shortcut-item">
+							<kbd>Ctrl</kbd> + <kbd>Z</kbd> <span>Undo</span>
+						</div>
+						<div class="shortcut-item">
+							<kbd>Ctrl</kbd> + <kbd>Y</kbd> <span>Redo</span>
+						</div>
+						<div class="shortcut-item">
+							<kbd>Ctrl</kbd> + <kbd>C</kbd> <span>Copy</span>
+						</div>
+						<div class="shortcut-item">
+							<kbd>Ctrl</kbd> + <kbd>V</kbd> <span>Paste</span>
+						</div>
+						<div class="shortcut-item">
+							<kbd>Delete</kbd> <span>Remove item</span>
+						</div>
+						<div class="shortcut-item">
+							<kbd>Space</kbd> <span>Pan mode (hold)</span>
+						</div>
+						<div class="shortcut-item">
+							<kbd>Ctrl</kbd> + <kbd>Scroll</kbd> <span>Zoom</span>
+						</div>
+						<div class="shortcut-item">
+							<kbd>G</kbd> <span>Toggle grid snap</span>
+						</div>
+					</div>
+				</div>
 			</div>
 			
 			<div class="welcome-footer">
@@ -1118,6 +1148,79 @@
 	<script src="modules/utils/global-functions.js"></script>
 	<script src="modules/playground-main.js"></script>
 	-->
+	
+	<!-- Welcome Modal Functions -->
+	<script>
+		// Show welcome modal on first visit
+		function showWelcomeModal() {
+			const modal = document.getElementById('welcome-modal');
+			if (modal) {
+				modal.style.display = 'flex';
+				setTimeout(() => modal.classList.add('active'), 10);
+			}
+		}
+		
+		// Close welcome modal
+		function closeWelcomeModal() {
+			const modal = document.getElementById('welcome-modal');
+			if (modal) {
+				modal.classList.remove('active');
+				setTimeout(() => modal.style.display = 'none', 300);
+			}
+		}
+		
+		// Toggle welcome preference
+		function toggleWelcomePreference() {
+			const checkbox = document.getElementById('welcome-dont-show');
+			if (checkbox && checkbox.checked) {
+				localStorage.setItem('hideWelcome', 'true');
+			} else {
+				localStorage.removeItem('hideWelcome');
+			}
+		}
+		
+		// Load demo project
+		function loadDemoProject() {
+			closeWelcomeModal();
+			if (typeof playground !== 'undefined' && typeof playground.loadDemoArchitecture === 'function') {
+				playground.loadDemoArchitecture();
+			}
+		}
+		
+		// Check if should show welcome on load
+		document.addEventListener('DOMContentLoaded', function() {
+			// Show welcome if not disabled and no saved data exists
+			const hideWelcome = localStorage.getItem('hideWelcome');
+			const hasPages = localStorage.getItem('architecture-pages');
+			
+			if (!hideWelcome && !hasPages) {
+				// Wait for password gate to finish (if present)
+				setTimeout(() => {
+					const passwordGate = document.getElementById('password-gate');
+					if (!passwordGate || passwordGate.classList.contains('hidden')) {
+						showWelcomeModal();
+					} else {
+						// Wait for password gate to hide, then show welcome
+						const observer = new MutationObserver(() => {
+							if (passwordGate.classList.contains('hidden')) {
+								setTimeout(showWelcomeModal, 500);
+								observer.disconnect();
+							}
+						});
+						observer.observe(passwordGate, { attributes: true, attributeFilter: ['class'] });
+					}
+				}, 100);
+			}
+		});
+		
+		// Close modal when clicking outside
+		document.addEventListener('click', function(e) {
+			const modal = document.getElementById('welcome-modal');
+			if (modal && e.target === modal) {
+				closeWelcomeModal();
+			}
+		});
+	</script>
 </body>
 <script>
 // Note: togglePaletteCategory is defined in playground.js
