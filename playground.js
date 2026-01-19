@@ -129,6 +129,14 @@ class ArchitecturePlayground {
             'zone-container', 'datasources-container', 'onelake-container',
             'transformation-container', 'semantic-models-container', 'reports-container'
         ];
+        
+        // Snap to grid
+        this.snapEnabled = true; // Enable grid snapping by default
+        
+        // Smart alignment guides (PowerPoint-style snapping)
+        this.smartGuidesEnabled = true;
+        this.smartGuideThreshold = 15; // Pixels threshold for snapping (increased for easier snapping)
+        this.alignmentGuides = { horizontal: [], vertical: [] };
 
         // Undo/redo + selection
         this.undoStack = [];
@@ -163,6 +171,15 @@ class ArchitecturePlayground {
         // setupCanvasDragAndDrop is already called by setupDragAndDrop, removed duplicate
         this.setupCanvasZoom?.();
         this.loadDataSources?.();
+        
+        // Create alignment guides for smart snapping
+        this.createAlignmentGuides();
+        
+        // Load smart guides preference
+        const savedSmartGuides = localStorage.getItem('smartGuidesEnabled');
+        if (savedSmartGuides !== null) {
+            this.smartGuidesEnabled = savedSmartGuides === 'true';
+        }
     }
 
     toggleDatabaseGroup(groupName, table) {
@@ -859,31 +876,59 @@ class ArchitecturePlayground {
             const deltaX = newPrimaryX - primInit.x;
             const deltaY = newPrimaryY - primInit.y;
             
-            // Move all selected items
-            // Compute snap based on primary item only (skip snap for containers)
-            let snapAdjust={dx:0,dy:0};
-            if (!this.dragPrimaryItem.classList.contains('ci-container')){
-                const candX = primInit.x + deltaX;
-                const candY = primInit.y + deltaY;
-                const snapped = this.snapToGrid(candX, candY);
-                snapAdjust.dx = snapped.x - candX;
-                snapAdjust.dy = snapped.y - candY;
+            // Get elements being dragged (to exclude from snap points)
+            const draggedElements = Array.from(this.selectedItems).map(ci => ci.element);
+            
+            // Smart alignment guides - snap to other elements
+            let finalX = primInit.x + deltaX;
+            let finalY = primInit.y + deltaY;
+            let guideX = null;
+            let guideY = null;
+            
+            if (this.smartGuidesEnabled) {
+                const snapPoints = this.getSnapPoints(draggedElements);
+                const alignSnap = this.findAlignmentSnaps(this.dragPrimaryItem, finalX, finalY, snapPoints);
+                finalX = alignSnap.x;
+                finalY = alignSnap.y;
+                guideX = alignSnap.guideX;
+                guideY = alignSnap.guideY;
+                
+                // Show alignment guides
+                this.showAlignmentGuides(guideX, guideY);
             }
+            
+            // Calculate adjustment from smart guides
+            const smartAdjustX = finalX - (primInit.x + deltaX);
+            const smartAdjustY = finalY - (primInit.y + deltaY);
+            
+            // Only apply grid snapping if NO smart guide snap is active
+            // This prevents grid snap from overriding alignment snap
+            let snapAdjust = { dx: 0, dy: 0 };
+            if (this.snapEnabled && guideX === null && guideY === null) {
+                const snapped = this.snapToGrid(finalX, finalY);
+                snapAdjust.dx = snapped.x - finalX;
+                snapAdjust.dy = snapped.y - finalY;
+            } else if (this.snapEnabled) {
+                // If we have a smart guide on one axis, still apply grid snap on the other
+                if (guideX === null) {
+                    const snapped = this.snapToGrid(finalX, finalY);
+                    snapAdjust.dx = snapped.x - finalX;
+                }
+                if (guideY === null) {
+                    const snapped = this.snapToGrid(finalX, finalY);
+                    snapAdjust.dy = snapped.y - finalY;
+                }
+            }
+            
+            // Move all selected items
             this.selectedItems.forEach(ci => {
                 const init = this.dragInitialPositions.get(ci.element);
                 if (!init) return;
-                const nx = init.x + deltaX + snapAdjust.dx;
-                const ny = init.y + deltaY + snapAdjust.dy;
+                const nx = init.x + deltaX + smartAdjustX + snapAdjust.dx;
+                const ny = init.y + deltaY + smartAdjustY + snapAdjust.dy;
                 
-                // Skip snapping for containers - allow free movement
-                if (ci.element.classList.contains('ci-container')) {
-                    ci.element.style.left = nx + 'px';
-                    ci.element.style.top = ny + 'px';
-                } else {
-                    const g = this.snapToGrid(nx, ny);
-                    ci.element.style.left = g.x + 'px';
-                    ci.element.style.top = g.y + 'px';
-                }
+                ci.element.style.left = nx + 'px';
+                ci.element.style.top = ny + 'px';
             });
             
             // Update connections immediately during drag for smooth following
@@ -902,6 +947,9 @@ class ArchitecturePlayground {
         document.addEventListener('mouseup', () => {
             if (this.isDragging) {
                 this.isDragging = false;
+                
+                // Hide alignment guides
+                this.hideAlignmentGuides();
                 
                 // State was saved BEFORE move in startDragOperation
                 // No saveState here - we want undo to restore the pre-move state
@@ -2016,6 +2064,16 @@ class ArchitecturePlayground {
         btnUnified.addEventListener('click', () => this.toggleUnifiedMode());
 
         dock.appendChild(btnUnified);
+        
+        // Add Fit to View button below Connection Mode button
+        const btnFitToView = document.createElement('button');
+        btnFitToView.id = 'mode-fit-view-btn';
+        btnFitToView.className = 'mode-btn';
+        btnFitToView.title = 'Fit to View (F)';
+        btnFitToView.innerHTML = '<i class="fas fa-compress-arrows-alt"></i>';
+        btnFitToView.addEventListener('click', () => this.fitToView());
+        
+        dock.appendChild(btnFitToView);
         canvas.appendChild(dock);
 
         // Initial sync
@@ -2627,8 +2685,8 @@ class ArchitecturePlayground {
                 document.body.style.cursor = getComputedStyle(handle).cursor;
                 
                 const onMouseMove = (moveEvent) => {
-                    const deltaX = moveEvent.clientX - startX;
-                    const deltaY = moveEvent.clientY - startY;
+                    const deltaX = (moveEvent.clientX - startX) / this.zoomLevel;
+                    const deltaY = (moveEvent.clientY - startY) / this.zoomLevel;
                     
                     let newWidth = startWidth;
                     let newHeight = startHeight;
@@ -2659,6 +2717,79 @@ class ArchitecturePlayground {
                             break;
                     }
                     
+                    // Smart alignment snapping for resize edges
+                    if (this.smartGuidesEnabled) {
+                        const snapPoints = this.getSnapPoints([containerElement]);
+                        const threshold = this.smartGuideThreshold;
+                        let guideX = null;
+                        let guideY = null;
+                        
+                        // Get the edges being resized
+                        const newRight = newLeft + newWidth;
+                        const newBottom = newTop + newHeight;
+                        
+                        // Check for edge snapping based on direction
+                        if (direction.includes('e')) { // Right edge being resized
+                            for (const snapVal of [...snapPoints.left, ...snapPoints.right]) {
+                                if (Math.abs(newRight - snapVal) <= threshold) {
+                                    newWidth = snapVal - newLeft;
+                                    guideX = snapVal;
+                                    break;
+                                }
+                            }
+                        }
+                        if (direction.includes('w')) { // Left edge being resized
+                            for (const snapVal of [...snapPoints.left, ...snapPoints.right]) {
+                                if (Math.abs(newLeft - snapVal) <= threshold) {
+                                    const oldRight = newLeft + newWidth;
+                                    newLeft = snapVal;
+                                    newWidth = oldRight - newLeft;
+                                    guideX = snapVal;
+                                    break;
+                                }
+                            }
+                        }
+                        if (direction.includes('s')) { // Bottom edge being resized
+                            for (const snapVal of [...snapPoints.top, ...snapPoints.bottom]) {
+                                if (Math.abs(newBottom - snapVal) <= threshold) {
+                                    newHeight = snapVal - newTop;
+                                    guideY = snapVal;
+                                    break;
+                                }
+                            }
+                        }
+                        if (direction.includes('n')) { // Top edge being resized
+                            for (const snapVal of [...snapPoints.top, ...snapPoints.bottom]) {
+                                if (Math.abs(newTop - snapVal) <= threshold) {
+                                    const oldBottom = newTop + newHeight;
+                                    newTop = snapVal;
+                                    newHeight = oldBottom - newTop;
+                                    guideY = snapVal;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // Show alignment guides
+                        this.showAlignmentGuides(guideX, guideY);
+                    }
+                    
+                    // Also snap to grid if enabled and no smart guide snap
+                    if (this.snapEnabled) {
+                        newWidth = Math.round(newWidth / this.gridSize) * this.gridSize;
+                        newHeight = Math.round(newHeight / this.gridSize) * this.gridSize;
+                        if (direction.includes('w')) {
+                            newLeft = Math.round(newLeft / this.gridSize) * this.gridSize;
+                        }
+                        if (direction.includes('n')) {
+                            newTop = Math.round(newTop / this.gridSize) * this.gridSize;
+                        }
+                    }
+                    
+                    // Enforce minimum sizes
+                    newWidth = Math.max(200, newWidth);
+                    newHeight = Math.max(150, newHeight);
+                    
                     // Apply new dimensions with !important to override CSS
                     containerElement.style.setProperty('width', newWidth + 'px', 'important');
                     containerElement.style.setProperty('height', newHeight + 'px', 'important');
@@ -2671,7 +2802,17 @@ class ArchitecturePlayground {
                     document.body.style.cursor = '';
                     document.removeEventListener('mousemove', onMouseMove);
                     document.removeEventListener('mouseup', onMouseUp);
+                    
+                    // Hide alignment guides
+                    this.hideAlignmentGuides();
+                    
                     this.autosave();
+                    
+                    // Save to page manager so changes persist on refresh
+                    if (typeof pageManager !== 'undefined' && pageManager.saveCurrentPage) {
+                        pageManager.saveCurrentPage();
+                        pageManager.savePages(); // Must call savePages to write to localStorage
+                    }
                 };
                 
                 document.addEventListener('mousemove', onMouseMove);
@@ -3088,15 +3229,233 @@ class ArchitecturePlayground {
         };
     }
 
+    // === SMART ALIGNMENT GUIDES (PowerPoint-style snapping) ===
+    
+    // Create alignment guide elements in the canvas
+    createAlignmentGuides() {
+        const canvas = document.getElementById('fabric-canvas');
+        if (!canvas) return;
+        
+        // Remove existing guides
+        canvas.querySelectorAll('.alignment-guide').forEach(g => g.remove());
+        
+        // Create horizontal and vertical guide elements
+        const hGuide = document.createElement('div');
+        hGuide.className = 'alignment-guide alignment-guide-horizontal';
+        hGuide.id = 'alignment-guide-h';
+        
+        const vGuide = document.createElement('div');
+        vGuide.className = 'alignment-guide alignment-guide-vertical';
+        vGuide.id = 'alignment-guide-v';
+        
+        const wrapper = canvas.querySelector('.canvas-content-wrapper');
+        if (wrapper) {
+            wrapper.appendChild(hGuide);
+            wrapper.appendChild(vGuide);
+        }
+    }
+    
+    // Get snap points from all other elements (excluding the dragged items)
+    getSnapPoints(excludeElements = []) {
+        const snapPoints = {
+            left: [],    // Left edges
+            right: [],   // Right edges
+            centerX: [], // Horizontal centers
+            top: [],     // Top edges
+            bottom: [],  // Bottom edges
+            centerY: []  // Vertical centers
+        };
+        
+        this.canvasItems.forEach(ci => {
+            // Skip excluded elements (the ones being dragged)
+            if (excludeElements.includes(ci.element)) return;
+            
+            const el = ci.element;
+            const x = parseInt(el.style.left) || 0;
+            const y = parseInt(el.style.top) || 0;
+            const w = el.offsetWidth;
+            const h = el.offsetHeight;
+            
+            snapPoints.left.push(x);
+            snapPoints.right.push(x + w);
+            snapPoints.centerX.push(x + w / 2);
+            snapPoints.top.push(y);
+            snapPoints.bottom.push(y + h);
+            snapPoints.centerY.push(y + h / 2);
+        });
+        
+        return snapPoints;
+    }
+    
+    // Find alignment snaps for an element being moved
+    findAlignmentSnaps(element, newX, newY, snapPoints) {
+        const threshold = this.smartGuideThreshold;
+        const w = element.offsetWidth;
+        const h = element.offsetHeight;
+        
+        // Current element edges and center
+        const myLeft = newX;
+        const myRight = newX + w;
+        const myCenterX = newX + w / 2;
+        const myTop = newY;
+        const myBottom = newY + h;
+        const myCenterY = newY + h / 2;
+        
+        let snapX = null;
+        let snapY = null;
+        let guideX = null;
+        let guideY = null;
+        
+        // Check horizontal alignment (X axis)
+        // Check left edge
+        for (const snapVal of snapPoints.left) {
+            if (Math.abs(myLeft - snapVal) <= threshold) {
+                snapX = snapVal;
+                guideX = snapVal;
+                break;
+            }
+            if (Math.abs(myRight - snapVal) <= threshold) {
+                snapX = snapVal - w;
+                guideX = snapVal;
+                break;
+            }
+            if (Math.abs(myCenterX - snapVal) <= threshold) {
+                snapX = snapVal - w / 2;
+                guideX = snapVal;
+                break;
+            }
+        }
+        
+        // Check right edge
+        if (snapX === null) {
+            for (const snapVal of snapPoints.right) {
+                if (Math.abs(myRight - snapVal) <= threshold) {
+                    snapX = snapVal - w;
+                    guideX = snapVal;
+                    break;
+                }
+                if (Math.abs(myLeft - snapVal) <= threshold) {
+                    snapX = snapVal;
+                    guideX = snapVal;
+                    break;
+                }
+            }
+        }
+        
+        // Check center X
+        if (snapX === null) {
+            for (const snapVal of snapPoints.centerX) {
+                if (Math.abs(myCenterX - snapVal) <= threshold) {
+                    snapX = snapVal - w / 2;
+                    guideX = snapVal;
+                    break;
+                }
+            }
+        }
+        
+        // Check vertical alignment (Y axis)
+        // Check top edge
+        for (const snapVal of snapPoints.top) {
+            if (Math.abs(myTop - snapVal) <= threshold) {
+                snapY = snapVal;
+                guideY = snapVal;
+                break;
+            }
+            if (Math.abs(myBottom - snapVal) <= threshold) {
+                snapY = snapVal - h;
+                guideY = snapVal;
+                break;
+            }
+            if (Math.abs(myCenterY - snapVal) <= threshold) {
+                snapY = snapVal - h / 2;
+                guideY = snapVal;
+                break;
+            }
+        }
+        
+        // Check bottom edge
+        if (snapY === null) {
+            for (const snapVal of snapPoints.bottom) {
+                if (Math.abs(myBottom - snapVal) <= threshold) {
+                    snapY = snapVal - h;
+                    guideY = snapVal;
+                    break;
+                }
+                if (Math.abs(myTop - snapVal) <= threshold) {
+                    snapY = snapVal;
+                    guideY = snapVal;
+                    break;
+                }
+            }
+        }
+        
+        // Check center Y
+        if (snapY === null) {
+            for (const snapVal of snapPoints.centerY) {
+                if (Math.abs(myCenterY - snapVal) <= threshold) {
+                    snapY = snapVal - h / 2;
+                    guideY = snapVal;
+                    break;
+                }
+            }
+        }
+        
+        return {
+            x: snapX !== null ? snapX : newX,
+            y: snapY !== null ? snapY : newY,
+            guideX,
+            guideY
+        };
+    }
+    
+    // Show alignment guides
+    showAlignmentGuides(guideX, guideY) {
+        const hGuide = document.getElementById('alignment-guide-h');
+        const vGuide = document.getElementById('alignment-guide-v');
+        
+        if (vGuide) {
+            if (guideX !== null) {
+                vGuide.style.left = guideX + 'px';
+                vGuide.style.display = 'block';
+            } else {
+                vGuide.style.display = 'none';
+            }
+        }
+        
+        if (hGuide) {
+            if (guideY !== null) {
+                hGuide.style.top = guideY + 'px';
+                hGuide.style.display = 'block';
+            } else {
+                hGuide.style.display = 'none';
+            }
+        }
+    }
+    
+    // Hide alignment guides
+    hideAlignmentGuides() {
+        const hGuide = document.getElementById('alignment-guide-h');
+        const vGuide = document.getElementById('alignment-guide-v');
+        if (hGuide) hGuide.style.display = 'none';
+        if (vGuide) vGuide.style.display = 'none';
+    }
+    
+    // Toggle smart guides
+    toggleSmartGuides() {
+        this.smartGuidesEnabled = !this.smartGuidesEnabled;
+        localStorage.setItem('smartGuidesEnabled', this.smartGuidesEnabled.toString());
+        this.showNotification(
+            `Smart alignment guides ${this.smartGuidesEnabled ? 'enabled' : 'disabled'}`,
+            'info'
+        );
+    }
+
     // === UNDO/REDO SYSTEM ===
     saveState(actionType = 'action') {
-        console.log('[saveState] Called with action:', actionType, '| _isLoading:', this._isLoading);
         // Skip saving state during bulk load operations
         if (this._isLoading) {
-            console.log('[saveState] Skipped due to _isLoading flag');
             return;
         }
-        console.log('[saveState] Saving state, current stack size:', this.undoStack.length);
         
         const state = {
             items: this.canvasItems.map(ci => {
@@ -3161,7 +3520,6 @@ class ArchitecturePlayground {
         };
         
         this.undoStack.push(state);
-        console.log('[saveState] State pushed, new stack size:', this.undoStack.length, '| items:', state.items.length, '| connections:', state.connections.length);
         if (this.undoStack.length > this.maxUndoSteps) {
             this.undoStack.shift();
         }
@@ -3169,9 +3527,7 @@ class ArchitecturePlayground {
     }
 
     undo() {
-        console.log('[Undo] Called. undoStack.length:', this.undoStack.length);
         if (this.undoStack.length === 0) {
-            console.log('[Undo] Stack is empty, nothing to undo');
             this.showNotification('Nothing to undo', 'warning');
             return;
         }
@@ -3959,7 +4315,7 @@ class ArchitecturePlayground {
         this.applyCanvasTransform();
         
         // Update all connections after zoom
-        this.updateAllConnections();
+        this.updateConnections();
 
         // Update zoom indicator
         this.updateZoomIndicator();
@@ -4200,7 +4556,7 @@ class ArchitecturePlayground {
         });
 
         // Update all connections
-        this.updateAllConnections();
+        this.updateConnections();
         
         // Show notification
         this.showNotification(`Auto-arranged: ${connectedItems.length} connected, ${unconnectedItems.length} unconnected (compact)`, 'success');
@@ -4266,15 +4622,27 @@ class ArchitecturePlayground {
         }
         
         const sizes = {
-            small: '14px',
-            medium: '18px',
-            large: '28px'
+            xs: '10px',
+            small: '12px',
+            medium: '16px',
+            large: '20px',
+            xl: '28px',
+            xxl: '36px',
+            huge: '48px'
         };
         
         this.saveState('before text-format');
         this.selectedTextLabel.style.fontSize = sizes[size] || sizes.medium;
         this.selectedTextLabel.style.lineHeight = '1.4';
-        this.showNotification(`Text size changed to ${size}`, 'success');
+        
+        // Update active state on size buttons
+        document.querySelectorAll('.text-size-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.size === size) btn.classList.add('active');
+        });
+        
+        this.showNotification(`Text size: ${size}`, 'success');
+        this.autosaveDebounced();
     }
 
     toggleBold() {
@@ -4290,6 +4658,7 @@ class ArchitecturePlayground {
         if (boldBtn) {
             boldBtn.classList.toggle('active', !isBold);
         }
+        this.autosaveDebounced();
     }
 
     setTextColor(color) {
@@ -4297,6 +4666,7 @@ class ArchitecturePlayground {
         
         this.saveState('before text-format');
         this.selectedTextLabel.style.color = color;
+        this.autosaveDebounced();
     }
 
     setBackgroundColor(color) {
@@ -4308,6 +4678,7 @@ class ArchitecturePlayground {
         this.saveState('before text-format');
         this.selectedTextLabel.style.background = color;
         this.selectedTextLabel.style.border = '1px solid ' + color;
+        this.autosaveDebounced();
     }
 
     toggleBackgroundTransparent() {
@@ -4336,6 +4707,7 @@ class ArchitecturePlayground {
             this.selectedTextLabel.style.border = this.selectedTextLabel.dataset.lastBorder || 'none';
             this.showNotification('Background set to transparent', 'info');
         }
+        this.autosaveDebounced();
     }
 
     toggleBorder() {
@@ -4356,6 +4728,7 @@ class ArchitecturePlayground {
             this.selectedTextLabel.style.border = lastBorder;
             this.showNotification('Border shown', 'info');
         }
+        this.autosaveDebounced();
     }
 
     setBackgroundTransparent() {
@@ -6690,6 +7063,17 @@ class ArchitecturePlayground {
                     innerHTML: ci.element.innerHTML
                 };
                 
+                // Save explicit inline width/height styles for all items (especially containers)
+                if (ci.element.style.width || ci.element.style.height) {
+                    itemData.style = itemData.style || {};
+                    if (ci.element.style.width) {
+                        itemData.style.width = ci.element.style.width;
+                    }
+                    if (ci.element.style.height) {
+                        itemData.style.height = ci.element.style.height;
+                    }
+                }
+                
                 // Special handling for text labels - save the text content
                 if (ci.type === 'text-label' && ci.element) {
                     itemData.data = {
@@ -6732,6 +7116,18 @@ class ArchitecturePlayground {
                             width: ci.element.style.width || ''
                         };
                     }
+                }
+                
+                // Special handling for containers - save their state and children
+                if (ci.element && ci.element.classList.contains('ci-container')) {
+                    const childrenList = ci.element.querySelector('.ci-children-list');
+                    const isMinimized = childrenList && childrenList.style.display === 'none';
+                    itemData.containerState = {
+                        minimized: isMinimized,
+                        childrenIds: Array.from(childrenList?.querySelectorAll('.ci-child-item') || [])
+                            .map(child => child.dataset.childId)
+                            .filter(Boolean)
+                    };
                 }
                 
                 return itemData;
@@ -7205,13 +7601,35 @@ class ArchitecturePlayground {
                         lastItem.element.id = savedId;
                         loadedItems.set(savedId, lastItem.element);
                         
-                        // Restore saved width/height for containers
-                        if (item.width && item.height) {
+                        // Restore saved width/height for containers - prioritize explicit styles over computed dimensions
+                        if (item.style?.width || item.style?.height) {
+                            // Use explicit styles if available (these are from manual resizing)
+                            if (item.style.width) {
+                                lastItem.element.style.setProperty('width', item.style.width, 'important');
+                            }
+                            if (item.style.height) {
+                                lastItem.element.style.setProperty('height', item.style.height, 'important');
+                            }
+                        } else if (item.width && item.height) {
+                            // Fallback to computed dimensions
                             lastItem.element.style.setProperty('width', item.width + 'px', 'important');
                             lastItem.element.style.setProperty('height', item.height + 'px', 'important');
-                        } else if (item.style?.width || item.style?.height) {
-                            if (item.style.width) lastItem.element.style.setProperty('width', item.style.width, 'important');
-                            if (item.style.height) lastItem.element.style.setProperty('height', item.style.height, 'important');
+                        }
+                        
+                        // Restore container state (minimized/expanded)
+                        if (item.containerState && lastItem.element.classList.contains('ci-container')) {
+                            const childrenList = lastItem.element.querySelector('.ci-children-list');
+                            if (childrenList && item.containerState.minimized) {
+                                // Minimize the container
+                                childrenList.style.display = 'none';
+                                const minimizeBtn = lastItem.element.querySelector('.ci-minimize-btn');
+                                if (minimizeBtn) {
+                                    const icon = minimizeBtn.querySelector('i');
+                                    if (icon) {
+                                        icon.className = 'fas fa-chevron-down';
+                                    }
+                                }
+                            }
                         }
                     }
                     return;
@@ -7413,6 +7831,12 @@ class ArchitecturePlayground {
             this.updateConnections();
             console.log('Connections after load:', this.connections.length);
         }, 100);
+        
+        // Additional delayed redraw to ensure canvas is fully laid out
+        setTimeout(() => {
+            this.updateConnections();
+            console.log('Final connection redraw completed');
+        }, 300);
 
         // Re-enable notifications and clear loading flag
         this._suppressNotifications = false;
@@ -8105,6 +8529,13 @@ function handleMultiPageImport(importData) {
             pageManager.init();
         }
         
+        // Auto fit-to-view after import
+        setTimeout(() => {
+            if (playground && playground.fitCanvasToContent) {
+                playground.fitCanvasToContent();
+            }
+        }, 500);
+        
         playground.showNotification(
             `All pages replaced with ${pageCount} imported page(s)`,
             'success'
@@ -8112,9 +8543,15 @@ function handleMultiPageImport(importData) {
     } else {
         // Add as new pages
         const pagesData = localStorage.getItem('canvas-pages');
-        let existingData = pagesData ? JSON.parse(pagesData) : { pages: {}, currentPageId: 'page-1', pageCounter: 1 };
+        let existingData = pagesData ? JSON.parse(pagesData) : { pages: {}, currentPageId: 'page-1', pageCounter: 1, pageOrder: ['page-1'] };
+        
+        // Ensure pageOrder exists
+        if (!existingData.pageOrder) {
+            existingData.pageOrder = Object.keys(existingData.pages);
+        }
         
         let addedCount = 0;
+        let lastNewPageId = null;
         Object.entries(importData.pages).forEach(([oldId, pageData]) => {
             existingData.pageCounter++;
             const newPageId = 'page-' + existingData.pageCounter;
@@ -8124,8 +8561,17 @@ function handleMultiPageImport(importData) {
                 ...pageData,
                 name: pageData.name + ' (imported)'
             };
+            
+            // Add to pageOrder
+            existingData.pageOrder.push(newPageId);
+            lastNewPageId = newPageId;
             addedCount++;
         });
+        
+        // Switch to the first imported page
+        if (lastNewPageId) {
+            existingData.currentPageId = lastNewPageId;
+        }
         
         localStorage.setItem('canvas-pages', JSON.stringify(existingData));
         
@@ -8133,6 +8579,13 @@ function handleMultiPageImport(importData) {
         if (typeof pageManager !== 'undefined' && pageManager.init) {
             pageManager.init();
         }
+        
+        // Auto fit-to-view after import
+        setTimeout(() => {
+            if (playground && playground.fitCanvasToContent) {
+                playground.fitCanvasToContent();
+            }
+        }, 500);
         
         playground.showNotification(
             `Added ${addedCount} new page(s) from import`,
@@ -8160,7 +8613,12 @@ function handleSinglePageImport(importData) {
     
     if (importMode === 'new') {
         // Create a new page with the imported data
-        const existingPagesData = pagesData ? JSON.parse(pagesData) : { pages: {}, currentPageId: 'page-1', pageCounter: 1 };
+        let existingPagesData = pagesData ? JSON.parse(pagesData) : { pages: {}, currentPageId: 'page-1', pageCounter: 1, pageOrder: ['page-1'] };
+        
+        // Ensure pageOrder exists
+        if (!existingPagesData.pageOrder) {
+            existingPagesData.pageOrder = Object.keys(existingPagesData.pages);
+        }
         
         // Save current page first
         if (typeof pageManager !== 'undefined' && pageManager.saveCurrentPage) {
@@ -8179,6 +8637,9 @@ function handleSinglePageImport(importData) {
             }
         };
         
+        // Add to pageOrder
+        existingPagesData.pageOrder.push(newPageId);
+        
         // Switch to the new page
         existingPagesData.currentPageId = newPageId;
         
@@ -8188,6 +8649,13 @@ function handleSinglePageImport(importData) {
         if (typeof pageManager !== 'undefined' && pageManager.init) {
             pageManager.init();
         }
+        
+        // Auto fit-to-view after import
+        setTimeout(() => {
+            if (playground && playground.fitCanvasToContent) {
+                playground.fitCanvasToContent();
+            }
+        }, 500);
         
         playground.showNotification(
             `Imported as new page "${pageName}" (${importData.items.length} items)`,
@@ -8216,6 +8684,14 @@ function handleSinglePageImport(importData) {
             const connectionCount = (importData.connections || []).length;
             
             console.log('[Import] Complete!');
+            
+            // Auto fit-to-view after import
+            setTimeout(() => {
+                if (playground && playground.fitCanvasToContent) {
+                    playground.fitCanvasToContent();
+                }
+            }, 500);
+            
             playground.showNotification(
                 `Current page updated (${itemCount} items, ${connectionCount} connections)`,
                 'success'
@@ -9599,6 +10075,9 @@ const pageManager = {
         
         // Save connection style with the page
         this.pages[this.currentPageId].connectionStyle = playground.connectionStyle || 'orthogonal';
+        
+        // Write to localStorage immediately
+        this.savePages();
     },
     
     saveCurrentPageSettings() {
@@ -9617,7 +10096,6 @@ const pageManager = {
         
         // Check if playground is initialized
         if (typeof playground === 'undefined' || !playground) {
-            console.warn('loadPage: playground not initialized yet, deferring load');
             // Defer loading until playground is ready
             setTimeout(() => this.loadPage(pageId), 100);
             return;
@@ -9675,6 +10153,12 @@ const pageManager = {
         // Load page data
         if (page.data && (page.data.items?.length > 0 || page.data.connections?.length > 0)) {
             playground.loadFromData(page.data);
+            
+            // Ensure connections are drawn after page load is complete
+            setTimeout(() => {
+                playground.updateConnections();
+                console.log('[loadPage] Connection redraw after page load');
+            }, 400);
         }
     },
     
@@ -9870,6 +10354,14 @@ function deletePage(pageId) {
 // Initialize page manager when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     pageManager.init();
+    
+    // Force connection redraw after everything is loaded to fix invisible connections issue
+    setTimeout(() => {
+        if (typeof playground !== 'undefined' && playground.updateConnections) {
+            playground.updateConnections();
+            console.log('[DOMContentLoaded] Final connection redraw completed');
+        }
+    }, 500);
 });
 
 // ============================================
@@ -10352,17 +10844,18 @@ const CanvasSettings = {
     // Default settings based on current CSS variables
     getDefaults() {
         return {
-            lineColor: this.getVar('--connection-flow-color') || '#ffffff',
-            baseColor: this.getVar('--connection-base-color') || '#ffffff',
-            arrowColor: this.getVar('--connection-arrow-color') || '#ffffff',
-            glow: this.parseAlpha(this.getVar('--connection-flow-glow') || 'rgba(255,255,255,0)'),
-            width: Number(this.getVar('--connection-flow-width') || 3),
-            dashA: Number((this.getVar('--connection-dash') || '14 10').split(/\s+/)[0] || 14),
-            dashB: Number((this.getVar('--connection-dash') || '14 10').split(/\s+/)[1] || 10),
-            speed: Number((this.getVar('--connection-speed') || '1.1s').replace('s', '')) || 1.1,
-            itemSize: Number(this.getVar('--canvas-item-size') || 1.0),
-            animate: !document.body.classList.contains('no-connection-animation'),
-            showArrows: !document.body.classList.contains('hide-mid-arrows')
+            lineColor: '#525252',
+            baseColor: '#ffffff',
+            arrowColor: '#4a9eff',
+            glow: 0.35,
+            width: 3,
+            dashA: 14,
+            dashB: 10,
+            speed: 2.1,
+            itemSize: 1.0,
+            animate: true,
+            showArrows: true,
+            connectionStyle: 'curved'
         };
     },
 
@@ -11664,6 +12157,40 @@ async function exportAnimatedHTML() {
             }
         };
         
+        // Calculate crop bounds before cropping (we need these for coordinate mapping)
+        const items = Array.from(document.querySelectorAll('#fabric-canvas .canvas-item'))
+            .filter(el => el.offsetWidth && el.offsetHeight && 
+                          window.getComputedStyle(el).visibility !== 'hidden' && 
+                          window.getComputedStyle(el).opacity !== '0');
+        
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        const pad = 20;
+        
+        if (items.length > 0) {
+            items.forEach(el => {
+                const rect = el.getBoundingClientRect();
+                const container = document.getElementById('fabric-canvas');
+                const containerRect = container.getBoundingClientRect();
+                
+                const x = rect.left - containerRect.left;
+                const y = rect.top - containerRect.top;
+                const w = rect.width;
+                const h = rect.height;
+                
+                minX = Math.min(minX, x);
+                minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x + w);
+                maxY = Math.max(maxY, y + h);
+            });
+        } else {
+            minX = minY = 0;
+            maxX = maxY = 1000;
+        }
+        
+        // Ensure valid numbers for JavaScript output
+        const cropOffsetX = isFinite(minX) ? minX - pad : 0;
+        const cropOffsetY = isFinite(minY) ? minY - pad : 0;
+        
         // Crop the canvas
         const croppedCanvas = cropToContent(canvas, { scale: 3, pad: 20 });
         
@@ -11673,324 +12200,304 @@ async function exportAnimatedHTML() {
         // Serialize the current diagram data
         const data = playground.serialize();
         
+        // Escape final name for use in HTML
+        const escapedName = finalName.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        
         // Extract all CSS animations and styles needed
         const styleElement = document.querySelector('style, link[rel="stylesheet"]');
         
         // Build the animated HTML with captured canvas image
-        const htmlContent = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${finalName} - Interactive</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Inter', Arial, sans-serif;
-            background: #0a0b0f;
-            color: #ffffff;
-            overflow: hidden;
-        }
-        
-        .header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
-            padding: 12px 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            z-index: 1000;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .header h1 {
-            font-size: 18px;
-            font-weight: 700;
-        }
-        
-        .controls {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .controls button {
-            background: #3b82f6;
-            border: none;
-            color: white;
-            padding: 6px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
-            transition: background 0.2s;
-        }
-        
-        .controls button:hover {
-            background: #2563eb;
-        }
-        
-        #canvas-container {
-            position: fixed;
-            top: 50px;
-            left: 0;
-            right: 0;
-            bottom: 40px;
-            background: linear-gradient(135deg, #0a0b0f 0%, #1a1c22 100%);
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        #diagram-wrapper {
-            position: relative;
-            transform-origin: 0 0;
-            transition: transform 0.3s ease;
-        }
-        
-        #diagram-image {
-            display: block;
-            max-width: none;
-            height: auto;
-        }
-        
-        /* Animated connection overlay */
-        #connection-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-        
-        /* Connection line (white/grey with animated dashes) */
-        .connection-line {
-            stroke: rgba(255, 255, 255, 0.6);
-            stroke-width: 2;
-            fill: none;
-            stroke-dasharray: 8 4;
-            animation: connection-flow 3s linear infinite;
-        }
-        
-        @keyframes connection-flow {
-            0% { stroke-dashoffset: 0; }
-            100% { stroke-dashoffset: -100; }
-        }
-        
-        body.no-animation .connection-line {
-            animation: none;
-        }
-        
-        .connection-arrow {
-            fill: rgba(255, 255, 255, 0.6);
-        }
-        
-        .footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: rgba(31, 41, 55, 0.95);
-            padding: 8px 20px;
-            text-align: center;
-            font-size: 11px;
-            color: #9ca3af;
-            backdrop-filter: blur(10px);
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>${finalName}</h1>
-        <div class="controls">
-            <button onclick="toggleAnimation()">⏯️ Toggle Animation</button>
-            <button onclick="zoomIn()">🔍 Zoom In</button>
-            <button onclick="zoomOut()">🔍 Zoom Out</button>
-            <button onclick="fitToScreen()">↔️ Fit Screen</button>
-            <button onclick="resetView()">↺ Reset</button>
-        </div>
-    </div>
-    
-    <div id="canvas-container">
-        <div id="diagram-wrapper">
-            <img id="diagram-image" src="${imageDataUrl}" alt="${finalName}">
-            <svg id="connection-overlay"></svg>
-        </div>
-    </div>
-    
-    <div class="footer">
-        <strong>InfiniBI Studio</strong> - Interactive Architecture Diagram | Generated ${new Date().toLocaleDateString()} | ${data.items.length} Components, ${data.connections.length} Connections
-    </div>
-    
-    <script>
-        // Embedded diagram data for connection animations
-        const diagramData = ${JSON.stringify(data, null, 2)};
-        
-        let currentZoom = 1;
-        let panX = 0;
-        let panY = 0;
-        let isPanning = false;
-        let startX = 0;
-        let startY = 0;
-        
-        const wrapper = document.getElementById('diagram-wrapper');
-        const image = document.getElementById('diagram-image');
-        const svg = document.getElementById('connection-overlay');
-        const container = document.getElementById('canvas-container');
-        
-        // Wait for image to load
-        image.onload = function() {
-            // Set SVG to match image dimensions
-            svg.setAttribute('width', image.naturalWidth);
-            svg.setAttribute('height', image.naturalHeight);
-            svg.style.width = image.width + 'px';
-            svg.style.height = image.height + 'px';
-            
-            // Fit to screen initially
-            fitToScreen();
-            
-            // Render animated connections
-            renderConnections();
-        };
-        
-        function renderConnections() {
-            svg.innerHTML = '';
-            
-            // Get the scale factor used when capturing (3x)
-            const captureScale = 3;
-            
-            diagramData.connections.forEach(conn => {
-                const fromItem = diagramData.items.find(i => i.id === conn.fromId);
-                const toItem = diagramData.items.find(i => i.id === conn.toId);
-                
-                if (!fromItem || !toItem) return;
-                
-                // Calculate positions (scaled by capture factor)
-                const fromX = ((fromItem.position?.x || 0) + (fromItem.width || 140) / 2) * captureScale;
-                const fromY = ((fromItem.position?.y || 0) + (fromItem.height || 70) / 2) * captureScale;
-                const toX = ((toItem.position?.x || 0) + (toItem.width || 140) / 2) * captureScale;
-                const toY = ((toItem.position?.y || 0) + (toItem.height || 70) / 2) * captureScale;
-                
-                // Draw animated white/grey line (dashed, flowing)
-                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.setAttribute('class', 'connection-line');
-                line.setAttribute('x1', fromX);
-                line.setAttribute('y1', fromY);
-                line.setAttribute('x2', toX);
-                line.setAttribute('y2', toY);
-                svg.appendChild(line);
-                
-                // Draw arrow (white/grey)
-                const angle = Math.atan2(toY - fromY, toX - fromX);
-                const arrowSize = 24; // Scaled up for 3x
-                const arrowDist = 60; // Scaled up for 3x
-                const arrowX = toX - Math.cos(angle) * arrowDist;
-                const arrowY = toY - Math.sin(angle) * arrowDist;
-                
-                const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-                arrow.setAttribute('class', 'connection-arrow');
-                const points = [
-                    [arrowX, arrowY],
-                    [arrowX - arrowSize * Math.cos(angle - Math.PI / 6), arrowY - arrowSize * Math.sin(angle - Math.PI / 6)],
-                    [arrowX - arrowSize * Math.cos(angle + Math.PI / 6), arrowY - arrowSize * Math.sin(angle + Math.PI / 6)]
-                ];
-                arrow.setAttribute('points', points.map(p => p.join(',')).join(' '));
-                svg.appendChild(arrow);
-            });
-        }
-        
-        function applyTransform() {
-            const containerRect = container.getBoundingClientRect();
-            const imgWidth = image.naturalWidth;
-            const imgHeight = image.naturalHeight;
-            
-            // Center the diagram
-            const offsetX = (containerRect.width - imgWidth * currentZoom) / 2;
-            const offsetY = (containerRect.height - imgHeight * currentZoom) / 2;
-            
-            wrapper.style.transform = \`translate(\${panX + offsetX}px, \${panY + offsetY}px) scale(\${currentZoom})\`;
-        }
-        
-        // Pan and zoom controls
-        wrapper.addEventListener('mousedown', (e) => {
-            isPanning = true;
-            startX = e.clientX - panX;
-            startY = e.clientY - panY;
-            wrapper.style.cursor = 'grabbing';
-        });
-        
-        document.addEventListener('mousemove', (e) => {
-            if (isPanning) {
-                panX = e.clientX - startX;
-                panY = e.clientY - startY;
-                applyTransform();
-            }
-        });
-        
-        document.addEventListener('mouseup', () => {
-            if (isPanning) {
-                isPanning = false;
-                wrapper.style.cursor = 'grab';
-            }
-        });
-        
-        wrapper.style.cursor = 'grab';
-        
-        // Zoom controls
-        function zoomIn() {
-            currentZoom = Math.min(currentZoom + 0.2, 3);
-            applyTransform();
-        }
-        
-        function zoomOut() {
-            currentZoom = Math.max(currentZoom - 0.2, 0.3);
-            applyTransform();
-        }
-        
-        function fitToScreen() {
-            const containerRect = container.getBoundingClientRect();
-            const imgWidth = image.naturalWidth;
-            const imgHeight = image.naturalHeight;
-            
-            const scaleX = (containerRect.width * 0.9) / imgWidth;
-            const scaleY = (containerRect.height * 0.9) / imgHeight;
-            
-            currentZoom = Math.min(scaleX, scaleY);
-            panX = 0;
-            panY = 0;
-            applyTransform();
-        }
-        
-        function resetView() {
-            currentZoom = 1;
-            panX = 0;
-            panY = 0;
-            applyTransform();
-        }
-        
-        function toggleAnimation() {
-            document.body.classList.toggle('no-animation');
-        }
-        
-        // Mouse wheel zoom
-        container.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            const delta = e.deltaY > 0 ? -0.1 : 0.1;
-            currentZoom = Math.max(0.3, Math.min(3, currentZoom + delta));
-            applyTransform();
-        });
-    </script>
-</body>
-</html>`;
+        const htmlContent = '<!DOCTYPE html>' +
+'<html lang="en">' +
+'<head>' +
+'    <meta charset="UTF-8">' +
+'    <meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+'    <title>' + escapedName + ' - Interactive</title>' +
+'    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">' +
+'    <style>' +
+'        * {' +
+'            margin: 0;' +
+'            padding: 0;' +
+'            box-sizing: border-box;' +
+'        }' +
+'        ' +
+'        body {' +
+'            font-family: "Inter", Arial, sans-serif;' +
+'            background: #0a0b0f;' +
+'            color: #ffffff;' +
+'            overflow: hidden;' +
+'        }' +
+'        ' +
+'        .header {' +
+'            position: fixed;' +
+'            top: 0;' +
+'            left: 0;' +
+'            right: 0;' +
+'            background: linear-gradient(135deg, #1f2937 0%, #374151 100%);' +
+'            padding: 12px 20px;' +
+'            box-shadow: 0 2px 10px rgba(0,0,0,0.3);' +
+'            z-index: 1000;' +
+'            display: flex;' +
+'            justify-content: space-between;' +
+'            align-items: center;' +
+'        }' +
+'        ' +
+'        .header h1 {' +
+'            font-size: 18px;' +
+'            font-weight: 700;' +
+'        }' +
+'        ' +
+'        .controls {' +
+'            display: flex;' +
+'            gap: 10px;' +
+'        }' +
+'        ' +
+'        .controls button {' +
+'            background: #3b82f6;' +
+'            border: none;' +
+'            color: white;' +
+'            padding: 6px 12px;' +
+'            border-radius: 6px;' +
+'            cursor: pointer;' +
+'            font-size: 13px;' +
+'            transition: background 0.2s;' +
+'        }' +
+'        ' +
+'        .controls button:hover {' +
+'            background: #2563eb;' +
+'        }' +
+'        ' +
+'        #canvas-container {' +
+'            position: fixed;' +
+'            top: 50px;' +
+'            left: 0;' +
+'            right: 0;' +
+'            bottom: 40px;' +
+'            background: linear-gradient(135deg, #0a0b0f 0%, #1a1c22 100%);' +
+'            overflow: hidden;' +
+'            display: flex;' +
+'            align-items: center;' +
+'            justify-content: center;' +
+'        }' +
+'        ' +
+'        #diagram-wrapper {' +
+'            position: relative;' +
+'            transform-origin: 0 0;' +
+'            transition: transform 0.3s ease;' +
+'        }' +
+'        ' +
+'        #diagram-image {' +
+'            display: block;' +
+'            max-width: none;' +
+'            height: auto;' +
+'        }' +
+'        ' +
+'        #connection-overlay {' +
+'            position: absolute;' +
+'            top: 0;' +
+'            left: 0;' +
+'            width: 100%;' +
+'            height: 100%;' +
+'            pointer-events: none;' +
+'        }' +
+'        ' +
+'        .connection-line {' +
+'            stroke: rgba(255, 255, 255, 0.6);' +
+'            stroke-width: 2;' +
+'            fill: none;' +
+'            stroke-dasharray: 8 4;' +
+'            animation: connection-flow 3s linear infinite;' +
+'        }' +
+'        ' +
+'        @keyframes connection-flow {' +
+'            0% { stroke-dashoffset: 0; }' +
+'            100% { stroke-dashoffset: -100; }' +
+'        }' +
+'        ' +
+'        body.no-animation .connection-line {' +
+'            animation: none;' +
+'        }' +
+'        ' +
+'        .connection-arrow {' +
+'            fill: rgba(255, 255, 255, 0.6);' +
+'        }' +
+'        ' +
+'        .footer {' +
+'            position: fixed;' +
+'            bottom: 0;' +
+'            left: 0;' +
+'            right: 0;' +
+'            background: rgba(31, 41, 55, 0.95);' +
+'            padding: 8px 20px;' +
+'            text-align: center;' +
+'            font-size: 11px;' +
+'            color: #9ca3af;' +
+'            backdrop-filter: blur(10px);' +
+'        }' +
+'    </style>' +
+'</head>' +
+'<body>' +
+'    <div class="header">' +
+'        <h1>' + escapedName + '</h1>' +
+'        <div class="controls">' +
+'            <button onclick="toggleAnimation()">⏯️ Toggle Animation</button>' +
+'            <button onclick="zoomIn()">🔍 Zoom In</button>' +
+'            <button onclick="zoomOut()">🔍 Zoom Out</button>' +
+'            <button onclick="fitToScreen()">↔️ Fit Screen</button>' +
+'            <button onclick="resetView()">↺ Reset</button>' +
+'        </div>' +
+'    </div>' +
+'    ' +
+'    <div id="canvas-container">' +
+'        <div id="diagram-wrapper">' +
+'            <img id="diagram-image" src="' + imageDataUrl + '" alt="' + escapedName + '">' +
+'            <svg id="connection-overlay"></svg>' +
+'        </div>' +
+'    </div>' +
+'    ' +
+'    <div class="footer">' +
+'        <strong>InfiniBI Studio</strong> - Interactive Architecture Diagram | Generated ' + new Date().toLocaleDateString() + ' | ' + data.items.length + ' Components, ' + data.connections.length + ' Connections' +
+'    </div>' +
+'    ' +
+'    <script>' +
+'        var diagramData = ' + JSON.stringify(data) + ';' +
+'        ' +
+'        var cropOffsetX = ' + cropOffsetX.toFixed(2) + ';' +
+'        var cropOffsetY = ' + cropOffsetY.toFixed(2) + ';' +
+'        var captureScale = 3;' +
+'        ' +
+'        var currentZoom = 0.5;' +
+'        var panX = 0;' +
+'        var panY = 0;' +
+'        var isPanning = false;' +
+'        var startX = 0;' +
+'        var startY = 0;' +
+'        ' +
+'        var wrapper = document.getElementById("diagram-wrapper");' +
+'        var image = document.getElementById("diagram-image");' +
+'        var svg = document.getElementById("connection-overlay");' +
+'        var container = document.getElementById("canvas-container");' +
+'        ' +
+'        function zoomIn() {' +
+'            currentZoom = Math.min(currentZoom + 0.2, 3);' +
+'            applyTransform();' +
+'        }' +
+'        ' +
+'        function zoomOut() {' +
+'            currentZoom = Math.max(currentZoom - 0.2, 0.2);' +
+'            applyTransform();' +
+'        }' +
+'        ' +
+'        function fitToScreen() {' +
+'            var containerRect = container.getBoundingClientRect();' +
+'            var imgWidth = image.naturalWidth || image.width;' +
+'            var imgHeight = image.naturalHeight || image.height;' +
+'            if (!imgWidth || !imgHeight) {' +
+'                console.log("Image not loaded yet");' +
+'                return;' +
+'            }' +
+'            var scaleX = (containerRect.width * 0.9) / imgWidth;' +
+'            var scaleY = (containerRect.height * 0.9) / imgHeight;' +
+'            currentZoom = Math.min(scaleX, scaleY);' +
+'            panX = 0;' +
+'            panY = 0;' +
+'            applyTransform();' +
+'        }' +
+'        ' +
+'        function resetView() {' +
+'            currentZoom = 0.5;' +
+'            panX = 0;' +
+'            panY = 0;' +
+'            applyTransform();' +
+'        }' +
+'        ' +
+'        function toggleAnimation() {' +
+'            document.body.classList.toggle("no-animation");' +
+'        }' +
+'        ' +
+'        function applyTransform() {' +
+'            var containerRect = container.getBoundingClientRect();' +
+'            var imgWidth = image.naturalWidth;' +
+'            var imgHeight = image.naturalHeight;' +
+'            var offsetX = (containerRect.width - imgWidth * currentZoom) / 2;' +
+'            var offsetY = (containerRect.height - imgHeight * currentZoom) / 2;' +
+'            wrapper.style.transform = "translate(" + (panX + offsetX) + "px, " + (panY + offsetY) + "px) scale(" + currentZoom + ")";' +
+'        }' +
+'        ' +
+'        image.onload = function() {' +
+'            svg.setAttribute("width", image.naturalWidth);' +
+'            svg.setAttribute("height", image.naturalHeight);' +
+'            svg.style.width = image.width + "px";' +
+'            svg.style.height = image.height + "px";' +
+'            setTimeout(function() {' +
+'                fitToScreen();' +
+'                renderConnections();' +
+'            }, 100);' +
+'        };' +
+'        ' +
+'        function renderConnections() {' +
+'            svg.innerHTML = "";' +
+'            diagramData.connections.forEach(function(conn) {' +
+'                var fromItem = diagramData.items.find(function(i) { return i.id === conn.fromId; });' +
+'                var toItem = diagramData.items.find(function(i) { return i.id === conn.toId; });' +
+'                if (!fromItem || !toItem) return;' +
+'                var fromX = ((fromItem.position && fromItem.position.x || 0) - cropOffsetX + (fromItem.width || 140) / 2) * captureScale;' +
+'                var fromY = ((fromItem.position && fromItem.position.y || 0) - cropOffsetY + (fromItem.height || 70) / 2) * captureScale;' +
+'                var toX = ((toItem.position && toItem.position.x || 0) - cropOffsetX + (toItem.width || 140) / 2) * captureScale;' +
+'                var toY = ((toItem.position && toItem.position.y || 0) - cropOffsetY + (toItem.height || 70) / 2) * captureScale;' +
+'                var line = document.createElementNS("http://www.w3.org/2000/svg", "line");' +
+'                line.setAttribute("class", "connection-line");' +
+'                line.setAttribute("x1", fromX);' +
+'                line.setAttribute("y1", fromY);' +
+'                line.setAttribute("x2", toX);' +
+'                line.setAttribute("y2", toY);' +
+'                svg.appendChild(line);' +
+'                var angle = Math.atan2(toY - fromY, toX - fromX);' +
+'                var arrowSize = 24;' +
+'                var arrowDist = 60;' +
+'                var arrowX = toX - Math.cos(angle) * arrowDist;' +
+'                var arrowY = toY - Math.sin(angle) * arrowDist;' +
+'                var arrow = document.createElementNS("http://www.w3.org/2000/svg", "polygon");' +
+'                arrow.setAttribute("class", "connection-arrow");' +
+'                var points = [[arrowX, arrowY], [arrowX - arrowSize * Math.cos(angle - Math.PI / 6), arrowY - arrowSize * Math.sin(angle - Math.PI / 6)], [arrowX - arrowSize * Math.cos(angle + Math.PI / 6), arrowY - arrowSize * Math.sin(angle + Math.PI / 6)]];' +
+'                arrow.setAttribute("points", points.map(function(p) { return p.join(","); }).join(" "));' +
+'                svg.appendChild(arrow);' +
+'            });' +
+'        }' +
+'        ' +
+'        wrapper.addEventListener("mousedown", function(e) {' +
+'            isPanning = true;' +
+'            startX = e.clientX - panX;' +
+'            startY = e.clientY - panY;' +
+'            wrapper.style.cursor = "grabbing";' +
+'        });' +
+'        ' +
+'        document.addEventListener("mousemove", function(e) {' +
+'            if (isPanning) {' +
+'                panX = e.clientX - startX;' +
+'                panY = e.clientY - startY;' +
+'                applyTransform();' +
+'            }' +
+'        });' +
+'        ' +
+'        document.addEventListener("mouseup", function() {' +
+'            if (isPanning) {' +
+'                isPanning = false;' +
+'                wrapper.style.cursor = "grab";' +
+'            }' +
+'        });' +
+'        ' +
+'        wrapper.style.cursor = "grab";' +
+'        ' +
+'        container.addEventListener("wheel", function(e) {' +
+'            e.preventDefault();' +
+'            var delta = e.deltaY > 0 ? -0.1 : 0.1;' +
+'            currentZoom = Math.max(0.2, Math.min(3, currentZoom + delta));' +
+'            applyTransform();' +
+'        });' +
+'    </script>' +
+'</body>' +
+'</html>';
 
         // Create blob and download
         const blob = new Blob([htmlContent], { type: 'text/html' });

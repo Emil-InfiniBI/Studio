@@ -4915,7 +4915,8 @@ body.hide-mid-arrows svg .connection-mid-arrow {
     padding: 4px 0;
 }
 
-.palette-item-dropdown:hover > .palette-item-submenu {
+.palette-item-dropdown:hover > .palette-item-submenu,
+.palette-item-dropdown.show-submenu > .palette-item-submenu {
     display: block;
 }
 
@@ -5809,6 +5810,40 @@ body.hide-mid-arrows svg .connection-mid-arrow {
     background-size: 24px 24px;
 }
 
+/* Smart Alignment Guides (PowerPoint-style snapping) */
+.alignment-guide {
+    position: absolute;
+    pointer-events: none;
+    z-index: 9999;
+    display: none;
+}
+
+.alignment-guide-horizontal {
+    left: 0;
+    width: 50000px;
+    height: 1px;
+    background: linear-gradient(90deg, 
+        transparent 0%, 
+        #ff6b6b 10%, 
+        #ff6b6b 90%, 
+        transparent 100%
+    );
+    box-shadow: 0 0 4px #ff6b6b, 0 0 8px rgba(255, 107, 107, 0.5);
+}
+
+.alignment-guide-vertical {
+    top: 0;
+    height: 50000px;
+    width: 1px;
+    background: linear-gradient(180deg, 
+        transparent 0%, 
+        #ff6b6b 10%, 
+        #ff6b6b 90%, 
+        transparent 100%
+    );
+    box-shadow: 0 0 4px #ff6b6b, 0 0 8px rgba(255, 107, 107, 0.5);
+}
+
 .canvas-background .bg-panel {
     background: rgba(180, 186, 197, 0.18);
     border: none;
@@ -6174,8 +6209,8 @@ body.hide-mid-arrows svg .connection-mid-arrow {
 .canvas-item {
     --ci-accent: #3b82f6; /* default accent for outline/type pill */
     position: absolute;
-    width: calc(140px * var(--canvas-item-size, 1)) !important;   /* scales with element size */
-    height: calc(130px * var(--canvas-item-size, 1)) !important;  /* scales with element size */
+    width: calc(140px * var(--canvas-item-size, 1));   /* scales with element size - no !important to allow inline override */
+    height: calc(130px * var(--canvas-item-size, 1));  /* scales with element size - no !important to allow inline override */
     min-width: auto !important;
     max-width: none !important;
     background: linear-gradient(180deg, rgba(252,253,254,0.98), rgba(243,245,248,0.95));
@@ -6476,13 +6511,13 @@ g.path-trace-downstream polygon,
 
 /* Text Label Styling */
 .canvas-item.text-label {
-    background: transparent;  /* Allow customization - no !important */
+    background: transparent !important;  /* 100% transparent - no background */
     border: none;  /* No border by default - can be added via Toggle Border button */
     box-shadow: none !important;
     min-height: 30px !important;
     min-width: 100px !important;
-    width: 200px !important;  /* Default width - override base canvas-item scaling */
-    height: auto !important;  /* Text labels need auto height */
+    width: 200px;  /* Default width - NO !important to allow inline resize */
+    height: auto;  /* Default auto height - NO !important to allow inline resize */
     max-width: none !important;
     padding: 8px 12px !important;
     padding-bottom: 20px !important;  /* Extra space for resize handle */
@@ -9575,7 +9610,8 @@ svg g[data-manual="true"] polygon {
     top: 0;
     transition: all 0.3s ease;
     z-index: 100;
-    overflow: hidden;
+    overflow-x: visible;
+    overflow-y: hidden;
 }
 
 .inspector-panel.collapsed {
@@ -9584,27 +9620,33 @@ svg g[data-manual="true"] polygon {
 }
 
 .inspector-toggle {
-    position: absolute;
-    left: -32px;
+    position: fixed;
+    right: 360px;  /* Width of inspector panel when open */
     top: 50%;
     transform: translateY(-50%);
     width: 32px;
     height: 60px;
-    background: rgba(28, 30, 38, 0.95);
-    border: 1px solid #2d2f3a;
+    background: rgba(59, 130, 246, 0.9);  /* Blue background to make it more visible */
+    border: 1px solid #3b82f6;
     border-right: none;
     border-radius: 6px 0 0 6px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.3s ease;
-    z-index: 101;
+    transition: right 0.3s ease, background 0.3s ease;
+    z-index: 10001;  /* Increased from 101 to ensure visibility */
+    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.3);  /* Add shadow for visibility */
+}
+
+.inspector-panel.collapsed ~ .inspector-toggle {
+    display: none;  /* Hide when panel is collapsed */
 }
 
 .inspector-toggle:hover {
-    background: rgba(99, 102, 241, 0.15);
+    background: rgba(99, 102, 241, 0.95);
     border-color: #6366f1;
+    box-shadow: -2px 0 12px rgba(59, 130, 246, 0.5);
 }
 
 .inspector-toggle i {
