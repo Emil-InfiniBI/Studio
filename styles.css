@@ -9671,7 +9671,8 @@ svg g[data-manual="true"] polygon {
 .inspector-header {
     padding: 16px 20px;
     border-bottom: 1px solid #2d2f3a;
-    background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0));
+    background: #1a1c24;
+    flex-shrink: 0;
 }
 
 .inspector-title {
@@ -9681,10 +9682,48 @@ svg g[data-manual="true"] polygon {
     font-weight: 600;
     font-size: 15px;
     color: #ffffff;
+    margin-bottom: 0;
 }
 
 .inspector-title i {
     color: #6366f1;
+}
+
+.inspector-name-field {
+    display: flex !important;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #2c2f3a;
+    background: #1a1c24;
+}
+
+.inspector-name-field label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #a5b4fc;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.inspector-name-field input {
+    background: #252836 !important;
+    border: 1px solid #3d4055;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #e6e8ef;
+    font-family: inherit;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.inspector-name-field input:focus {
+    outline: 2px solid #6366f1;
+    border-color: #6366f1;
 }
 
 .inspector-body {

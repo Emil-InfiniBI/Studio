@@ -347,13 +347,9 @@ class ArchitecturePlayground {
         try {
             // Get the databases from the databases page
             const databasesData = localStorage.getItem('company-databases');
-            if (!databasesData) {
-                console.log('No company databases found');
-                return;
-            }
+            if (!databasesData) return;
             
             const databases = JSON.parse(databasesData);
-            console.log('Found databases:', databases.map(db => ({ name: db.name, type: db.type })));
             
             let hasChanges = false;
             
@@ -738,12 +734,10 @@ class ArchitecturePlayground {
             }
             // Undo/Redo shortcuts
             if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
-                console.log('[Keyboard] Ctrl+Z pressed, calling undo(), stack size:', this.undoStack.length);
                 e.preventDefault();
                 this.undo();
             }
             if (e.ctrlKey && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
-                console.log('[Keyboard] Ctrl+Y/Ctrl+Shift+Z pressed, calling redo(), stack size:', this.redoStack.length);
                 e.preventDefault();
                 this.redo();
             }
@@ -813,6 +807,18 @@ class ArchitecturePlayground {
                     clickedElement.classList.contains('bg-panel') ||
                     clickedElement.classList.contains('bg-prepare') ||
                     clickedElement.classList.contains('bg-title')) {
+                    
+                    // Blur any active content-editable elements (finish name editing)
+                    const activeEditable = document.querySelector('[contenteditable="true"]');
+                    if (activeEditable) {
+                        activeEditable.contentEditable = 'false';
+                        activeEditable.blur();
+                    }
+                    
+                    // Also blur any focused inputs
+                    if (document.activeElement && document.activeElement.blur) {
+                        document.activeElement.blur();
+                    }
                     
                     // Clear selection when clicking on empty canvas area
                     this.clearSelection();
@@ -1024,17 +1030,12 @@ class ArchitecturePlayground {
     }
 
     setupDatabaseModal() {
-        console.log('Setting up database modal...');
-        
         // Setup database selector button
         const databaseBtn = document.querySelector('.database-selector-btn');
-        console.log('Database button found:', databaseBtn);
         
         if (databaseBtn) {
-            console.log('Adding click listener to database button');
             databaseBtn.addEventListener('click', (e) => {
-                console.log('Database button clicked!');
-                e.preventDefault();
+                e.preventDefault;
                 e.stopPropagation();
                 this.showDatabaseModal();
             });
@@ -2406,8 +2407,6 @@ class ArchitecturePlayground {
         const canvas = document.getElementById('fabric-canvas');
         if (!canvas) return;
 
-        console.log('setupCanvasDragAndDrop called, canvas found:', canvas);
-
         canvas.addEventListener('dragover', (e) => {
             e.preventDefault();
         });
@@ -3531,7 +3530,6 @@ class ArchitecturePlayground {
             this.showNotification('Nothing to undo', 'warning');
             return;
         }
-        console.log('[Undo] Proceeding with undo...');
         
         // Save current state to redo stack
         const currentState = {
@@ -4185,7 +4183,6 @@ class ArchitecturePlayground {
         // Add mouse wheel event listener for zoom (no Ctrl needed)
         canvas.addEventListener('wheel', (e) => {
             e.preventDefault(); // Prevent page scroll
-            console.log('[WHEEL] Zoom event triggered, current zoom:', this.zoomLevel);
             
             // Get mouse position relative to canvas
             const rect = canvas.getBoundingClientRect();
@@ -4201,14 +4198,12 @@ class ArchitecturePlayground {
             const newZoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoomLevel + delta));
             
             if (newZoom !== this.zoomLevel) {
-                console.log('[WHEEL] Applying new zoom:', newZoom);
                 // Calculate new offset to keep mouse position fixed
                 const newOffsetX = mouseX - (canvasMouseX * newZoom);
                 const newOffsetY = mouseY - (canvasMouseY * newZoom);
                 
                 this.canvasOffset = { x: newOffsetX, y: newOffsetY };
                 this.setCanvasZoom(newZoom);
-                console.log('[WHEEL] After setCanvasZoom, zoomLevel is:', this.zoomLevel);
                 
                 // Save pan offset to current page
                 if (typeof pageManager !== 'undefined' && pageManager.currentPageId && pageManager.pages[pageManager.currentPageId]) {
@@ -4642,7 +4637,7 @@ class ArchitecturePlayground {
         });
         
         this.showNotification(`Text size: ${size}`, 'success');
-        this.autosaveDebounced();
+        this.autosave();
     }
 
     toggleBold() {
@@ -4658,7 +4653,7 @@ class ArchitecturePlayground {
         if (boldBtn) {
             boldBtn.classList.toggle('active', !isBold);
         }
-        this.autosaveDebounced();
+        this.autosave();
     }
 
     setTextColor(color) {
@@ -4666,7 +4661,7 @@ class ArchitecturePlayground {
         
         this.saveState('before text-format');
         this.selectedTextLabel.style.color = color;
-        this.autosaveDebounced();
+        this.autosave();
     }
 
     setBackgroundColor(color) {
@@ -4678,7 +4673,7 @@ class ArchitecturePlayground {
         this.saveState('before text-format');
         this.selectedTextLabel.style.background = color;
         this.selectedTextLabel.style.border = '1px solid ' + color;
-        this.autosaveDebounced();
+        this.autosave();
     }
 
     toggleBackgroundTransparent() {
@@ -4707,7 +4702,7 @@ class ArchitecturePlayground {
             this.selectedTextLabel.style.border = this.selectedTextLabel.dataset.lastBorder || 'none';
             this.showNotification('Background set to transparent', 'info');
         }
-        this.autosaveDebounced();
+        this.autosave();
     }
 
     toggleBorder() {
@@ -4728,7 +4723,7 @@ class ArchitecturePlayground {
             this.selectedTextLabel.style.border = lastBorder;
             this.showNotification('Border shown', 'info');
         }
-        this.autosaveDebounced();
+        this.autosave();
     }
 
     setBackgroundTransparent() {
@@ -5519,7 +5514,7 @@ class ArchitecturePlayground {
             if (mode==='bottom'){const max=Math.max(...rects.map(r=>r.y+r.h));rects.forEach(r=>r.el.style.top=(max - r.h)+'px');}
         }
         targets.forEach(el=>this.updateConnectionsForElement(el));
-        this.autosaveDebounced();
+        this.autosave();
     }
     distributeSelected(direction){
         const targets=Array.from(this.selectedItems).map(ci=>ci.element);
@@ -5539,7 +5534,7 @@ class ArchitecturePlayground {
             let cursor=top; rects.forEach(r=>{ r.el.style.top=cursor+'px'; cursor += r.h + gap; });
         }
         targets.forEach(el=>this.updateConnectionsForElement(el));
-        this.autosaveDebounced();
+        this.autosave();
     }
     openMetadataPanelForElement(el){
         const panel=document.getElementById('inspector-panel'); if(!panel) return; 
@@ -5641,17 +5636,66 @@ class ArchitecturePlayground {
             }
         });
         
-        // Double-click to open metadata panel
+        // Double-click to edit name (or open metadata panel if clicking elsewhere)
         item.addEventListener('dblclick', (e) => {
             if (!this.connectionMode) {
                 e.preventDefault();
-                try {
-                    const canvasItem = this.canvasItems.find(ci => ci.element === item);
-                    const id = item.id || canvasItem?.id;
-                    if (id && typeof metadataPanel !== 'undefined') {
-                        metadataPanel.openForItem(id);
-                    }
-                } catch(err){ console.warn('Double-click handler failed', err); }
+                
+                // Check if double-click was on the title
+                const titleElement = e.target.closest('.canvas-item-title');
+                
+                if (titleElement && !item.classList.contains('ci-container')) {
+                    // Edit the title inline
+                    const currentText = titleElement.textContent.trim();
+                    titleElement.contentEditable = 'true';
+                    titleElement.focus();
+                    
+                    // Select all text
+                    const range = document.createRange();
+                    range.selectNodeContents(titleElement);
+                    const sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                    
+                    // Save state before editing
+                    this.saveState('before edit name');
+                    
+                    // Handle finishing edit
+                    const finishEdit = () => {
+                        titleElement.contentEditable = 'false';
+                        const newText = titleElement.textContent.trim();
+                        
+                        // Update the canvas item data
+                        const canvasItem = this.canvasItems.find(ci => ci.element === item);
+                        if (canvasItem && canvasItem.data) {
+                            canvasItem.data.name = newText;
+                        }
+                        
+                        // Auto-save
+                        this.autosave();
+                    };
+                    
+                    // Finish on blur
+                    titleElement.addEventListener('blur', finishEdit, { once: true });
+                    
+                    // Finish on Enter key
+                    titleElement.addEventListener('keydown', (keyEvent) => {
+                        if (keyEvent.key === 'Enter') {
+                            keyEvent.preventDefault();
+                            titleElement.blur();
+                        }
+                    }, { once: true });
+                    
+                } else {
+                    // Open metadata panel if not clicking on title
+                    try {
+                        const canvasItem = this.canvasItems.find(ci => ci.element === item);
+                        const id = item.id || canvasItem?.id;
+                        if (id && typeof metadataPanel !== 'undefined') {
+                            metadataPanel.openForItem(id);
+                        }
+                    } catch(err){ console.warn('Double-click handler failed', err); }
+                }
             }
         });
         
@@ -6152,8 +6196,6 @@ class ArchitecturePlayground {
         // Use the playground's connection style (per-page)
         const connectionStyle = this.connectionStyle || 'orthogonal';
         
-        console.log('[DrawConnection] Drawing', connection.id, 'with style:', connectionStyle, 'color:', connection.color);
-        
         if (connectionStyle === 'curved') {
             return this.drawCurvedConnection(connection);
         } else {
@@ -6231,7 +6273,6 @@ class ArchitecturePlayground {
         arrowHead.setAttribute('stroke-width', '1');
         arrowHead.style.opacity = '0.9';
         arrowHead.setAttribute('pointer-events', 'none');
-        console.log('[DrawCurvedConnection] Created arrowhead at', toCenter.x, toCenter.y, 'color: #60a5fa');
         
         // Create group and add elements (same structure as orthogonal)
         const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -7261,7 +7302,6 @@ class ArchitecturePlayground {
     }
 
     loadFromData(data) {
-        console.log('[loadFromData] START');
         const canvas = document.getElementById('fabric-canvas');
         if (!canvas || !data) {
             this.showNotification('Invalid data or canvas not found', 'error');
@@ -7270,14 +7310,12 @@ class ArchitecturePlayground {
 
         // Set loading flag to prevent saveState from being called for each item
         this._isLoading = true;
-        console.log('[loadFromData] _isLoading set to true');
 
         // Clear existing
         canvas.querySelectorAll('.canvas-item').forEach(el => el.remove());
         this.canvasItems = [];
         this.connections = [];
         if (this.connectionSvg) this.connectionSvg.innerHTML = '';
-        console.log('[loadFromData] Canvas cleared');
 
         // Suppress notifications during bulk load
         this._suppressNotifications = true;
@@ -7286,11 +7324,7 @@ class ArchitecturePlayground {
         const loadedItems = new Map();
 
         // Recreate items using creation helpers to preserve classes, accents and structure
-        console.log('[loadFromData] Starting items loop, count:', (data.items || []).length);
-        let itemIndex = 0;
         (data.items || []).forEach(item => {
-            console.log('[loadFromData] Processing item', itemIndex, item.type, item.id);
-            itemIndex++;
             let px = item.position?.x || 0;
             let py = item.position?.y || 0;
             
@@ -7393,7 +7427,6 @@ class ArchitecturePlayground {
                     const canvas = document.getElementById('fabric-canvas');
                     if (canvas) {
                         const textToRestore = item.data?.name || item.data?.text || 'Double-click to edit';
-                        console.log('Creating text label with text:', textToRestore, 'at position:', px, py, 'from data:', item.data);
                         
                         const label = document.createElement('div');
                         label.id = savedId;
@@ -7693,7 +7726,6 @@ class ArchitecturePlayground {
                     this.connections.push(connection);
                     this.drawConnection(connection, conn.color);
                     connectionsCreated++;
-                    console.log('Created connection:', connectionId, 'from', conn.fromId, 'to', conn.toId);
                 } else {
                     console.warn('Connection elements not found:', {
                         fromId: conn.fromId,
@@ -7706,9 +7738,6 @@ class ArchitecturePlayground {
                 console.warn('Failed to create connection:', conn, error);
             }
         });
-
-        // After attempting to build all connections, log a summary
-        console.log(`Rebuilt ${connectionsCreated} connections (requested: ${(data.connections||[]).length})`);
 
         // Restore dimensions for all loaded items (especially containers)
         (data.items || []).forEach(savedItem => {
@@ -7749,8 +7778,6 @@ class ArchitecturePlayground {
                     if (savedItem.data.meta.business && savedItem.data.meta.business.status) {
                         updateComponentStatusIndicator(canvasItem.element, savedItem.data.meta.business.status);
                     }
-                    
-                    console.log('Restored metadata for item:', savedItem.id, savedItem.data.meta);
                 }
             }
             
@@ -7829,13 +7856,11 @@ class ArchitecturePlayground {
         // Final update with a slight delay to ensure DOM is ready
         setTimeout(() => {
             this.updateConnections();
-            console.log('Connections after load:', this.connections.length);
         }, 100);
         
         // Additional delayed redraw to ensure canvas is fully laid out
         setTimeout(() => {
             this.updateConnections();
-            console.log('Final connection redraw completed');
         }, 300);
 
         // Re-enable notifications and clear loading flag
@@ -8150,6 +8175,12 @@ const metadataPanel = (function(){
         populate(entry);
         el.panel.classList.remove('collapsed');
         el.panel.setAttribute('aria-hidden','false');
+        
+        // Scroll inspector body to top to show Name field
+        const inspectorBody = document.getElementById('metadata-panel-body');
+        if (inspectorBody) {
+            inspectorBody.scrollTop = 0;
+        }
     }
 
     function ensureMetaStructure(entry){
@@ -8199,9 +8230,14 @@ const metadataPanel = (function(){
         const b = entry.data.meta.business;
         const t = entry.data.meta.technical;
         const n = entry.data.meta.notes;
-        if(el.name){ b.name = el.name.value.trim(); if(b.name) { // also reflect on visual title
-            const titleSpan = entry.element.querySelector('.canvas-item-title');
-            if(titleSpan) titleSpan.textContent = b.name; }
+        if(el.name){ 
+            const newName = el.name.value.trim();
+            b.name = newName;
+            entry.data.name = newName; // Also update entry.data.name for consistency
+            if(newName) { // also reflect on visual title
+                const titleSpan = entry.element.querySelector('.canvas-item-title');
+                if(titleSpan) titleSpan.textContent = newName;
+            }
         }
         if(el.purpose) b.purpose = el.purpose.value.trim();
         if(el.owner) b.owner = el.owner.value.trim();
@@ -8595,10 +8631,6 @@ function handleMultiPageImport(importData) {
 }
 
 function handleSinglePageImport(importData) {
-    console.log('[Import] Starting single page import...');
-    console.log('[Import] Items:', importData.items?.length || 0);
-    console.log('[Import] Connections:', importData.connections?.length || 0);
-    
     // Validate the imported data structure
     if (!importData.items || !Array.isArray(importData.items)) {
         throw new Error('Invalid file format: missing items array');
@@ -8669,21 +8701,17 @@ function handleSinglePageImport(importData) {
         
         try {
             // Clear current canvas
-            console.log('[Import] Clearing canvas...');
             const canvas = document.getElementById('fabric-canvas');
             canvas.querySelectorAll('.canvas-item').forEach(el => el.remove());
             playground.canvasItems = [];
             playground.connections = [];
             if (playground.connectionSvg) playground.connectionSvg.innerHTML = '';
             
-            console.log('[Import] Loading data...');
             // Load the imported data
             playground.loadFromData(importData);
             
             const itemCount = importData.items.length;
             const connectionCount = (importData.connections || []).length;
-            
-            console.log('[Import] Complete!');
             
             // Auto fit-to-view after import
             setTimeout(() => {
@@ -10359,7 +10387,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         if (typeof playground !== 'undefined' && playground.updateConnections) {
             playground.updateConnections();
-            console.log('[DOMContentLoaded] Final connection redraw completed');
         }
     }, 500);
 });
@@ -10644,12 +10671,7 @@ function clearSaveData() {
 
 // Global function for palette category toggling
 function togglePaletteCategory(categoryId, event) {
-    console.log('[togglePaletteCategory] Called with:', categoryId);
-    
-    if (!categoryId) {
-        console.warn('[togglePaletteCategory] No categoryId provided');
-        return;
-    }
+    if (!categoryId) return;
 
     if (event) {
         event.preventDefault();
@@ -10657,19 +10679,10 @@ function togglePaletteCategory(categoryId, event) {
     }
 
     const categoryItems = document.getElementById(categoryId);
-    console.log('[togglePaletteCategory] Found element:', categoryItems);
-    
-    if (!categoryItems) {
-        console.error('[togglePaletteCategory] Element not found for ID:', categoryId);
-        return;
-    }
+    if (!categoryItems) return;
 
     const categoryHeader = categoryItems.previousElementSibling;
     const isExpanded = categoryItems.classList.contains('expanded');
-    
-    console.log('[togglePaletteCategory] Current state - isExpanded:', isExpanded);
-    console.log('[togglePaletteCategory] Current classes:', categoryItems.className);
-    console.log('[togglePaletteCategory] Computed display:', window.getComputedStyle(categoryItems).display);
 
     // Close any other open categories for an accordion-style experience
     document.querySelectorAll('.category-items.expanded').forEach(items => {
@@ -10680,20 +10693,15 @@ function togglePaletteCategory(categoryId, event) {
     });
 
     if (isExpanded) {
-        console.log('[togglePaletteCategory] Closing dropdown');
         categoryItems.classList.remove('expanded');
         categoryHeader?.classList.remove('expanded');
     } else {
-        console.log('[togglePaletteCategory] Opening dropdown');
         categoryItems.classList.add('expanded');
         categoryHeader?.classList.add('expanded');
         
         // Force reflow to ensure display changes are applied
         void categoryItems.offsetHeight;
     }
-    
-    console.log('[togglePaletteCategory] New classes:', categoryItems.className);
-    console.log('[togglePaletteCategory] New display:', window.getComputedStyle(categoryItems).display);
 }
 
 function closeAllDropdowns() {
