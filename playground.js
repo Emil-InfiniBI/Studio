@@ -5578,27 +5578,66 @@ class ArchitecturePlayground {
         }
         const bind = (id, getter, setter)=>{
             const elInput=document.getElementById(id); if(!elInput) return;
-            elInput.value = getter() || '';
+            const initialValue = getter() || '';
+            elInput.value = initialValue;
             if(!elInput._bound){
-                elInput.addEventListener('input', ()=>{ setter(elInput.value); markDirty(); if(id==='mp-name'){ const label=el.querySelector('.canvas-item-title')||el.querySelector('.data-source-name'); if(label) label.textContent=elInput.value; if(title) title.textContent=elInput.value || 'Unnamed'; }});
+                elInput.addEventListener('input', ()=>{ 
+                    setter(elInput.value); 
+                    markDirty(); 
+                    if(id==='mp-name'){ 
+                        const label=el.querySelector('.canvas-item-title')||el.querySelector('.data-source-name'); 
+                        if(label) label.textContent=elInput.value; 
+                        if(title) title.textContent=elInput.value || 'Unnamed'; 
+                    }
+                    if(id==='mp-subtitle'){ 
+                        const typeLabel=el.querySelector('.canvas-item-type'); 
+                        if(typeLabel) typeLabel.textContent=elInput.value; 
+                    }
+                });
                 elInput.addEventListener('change', ()=>{ setter(elInput.value); markDirty(); });
                 elInput._bound = true;
+            } else {
+                // Already bound, just update the value
+                elInput.value = initialValue;
             }
         };
-        // Name and type
+        // Name and subtitle
         bind('mp-name', ()=> ci.data.name || this.getElementName(el), v=>{ ci.data.name = v; });
-        const typeInput=document.getElementById('mp-type'); if(typeInput){ typeInput.value=el.dataset.itemType||el.dataset.type||''; }
+        
+        // Subtitle - read from DOM element dynamically each time
+        bind('mp-subtitle', ()=> {
+            const typeElement = el.querySelector('.canvas-item-type');
+            return typeElement ? typeElement.textContent.trim() : (ci.data.type || '');
+        }, v=>{ 
+            ci.data.type = v; 
+            const typeElement = el.querySelector('.canvas-item-type');
+            if(typeElement) typeElement.textContent = v;
+        });
+        
+        // Type field - make it editable and bind it
+        const typeInput=document.getElementById('mp-type'); 
+        if(typeInput){ 
+            typeInput.disabled = false;
+            typeInput.value = meta.technical.type || el.dataset.itemType || el.dataset.type || '';
+            if(!typeInput._bound) {
+                typeInput.addEventListener('input', ()=> {
+                    meta.technical.type = typeInput.value;
+                    markDirty();
+                });
+                typeInput._bound = true;
+            }
+        }
         // Business
         bind('mp-purpose', ()=> meta.business.purpose, v=> meta.business.purpose = v );
-        bind('mp-owner', ()=> meta.business.owner, v=> meta.business.owner = v );
-        bind('mp-criticality', ()=> meta.business.criticality, v=> meta.business.criticality = v );
         bind('mp-status', ()=> meta.business.status, v=> meta.business.status = v );
         // Technical
         bind('mp-refresh', ()=> meta.technical.refresh, v=> meta.technical.refresh = v );
         bind('mp-volume', ()=> meta.technical.volume, v=> meta.technical.volume = v );
-        bind('mp-latency', ()=> meta.technical.latency, v=> meta.technical.latency = v );
         // Notes
-        bind('mp-notes', ()=> meta.notes, v=> meta.notes = v );
+        bind('mp-notes', ()=> meta.notes.text || meta.notes, v=> { 
+            if(typeof meta.notes === 'object') meta.notes.text = v; 
+            else meta.notes = v; 
+        });
 
         // Saved indicator initial state
         const d=document.getElementById('mp-dirty-indicator'); const s=document.getElementById('mp-saved-indicator');
@@ -5636,66 +5675,19 @@ class ArchitecturePlayground {
             }
         });
         
-        // Double-click to edit name (or open metadata panel if clicking elsewhere)
+        // Double-click to open metadata panel
         item.addEventListener('dblclick', (e) => {
             if (!this.connectionMode) {
                 e.preventDefault();
                 
-                // Check if double-click was on the title
-                const titleElement = e.target.closest('.canvas-item-title');
-                
-                if (titleElement && !item.classList.contains('ci-container')) {
-                    // Edit the title inline
-                    const currentText = titleElement.textContent.trim();
-                    titleElement.contentEditable = 'true';
-                    titleElement.focus();
-                    
-                    // Select all text
-                    const range = document.createRange();
-                    range.selectNodeContents(titleElement);
-                    const sel = window.getSelection();
-                    sel.removeAllRanges();
-                    sel.addRange(range);
-                    
-                    // Save state before editing
-                    this.saveState('before edit name');
-                    
-                    // Handle finishing edit
-                    const finishEdit = () => {
-                        titleElement.contentEditable = 'false';
-                        const newText = titleElement.textContent.trim();
-                        
-                        // Update the canvas item data
-                        const canvasItem = this.canvasItems.find(ci => ci.element === item);
-                        if (canvasItem && canvasItem.data) {
-                            canvasItem.data.name = newText;
-                        }
-                        
-                        // Auto-save
-                        this.autosave();
-                    };
-                    
-                    // Finish on blur
-                    titleElement.addEventListener('blur', finishEdit, { once: true });
-                    
-                    // Finish on Enter key
-                    titleElement.addEventListener('keydown', (keyEvent) => {
-                        if (keyEvent.key === 'Enter') {
-                            keyEvent.preventDefault();
-                            titleElement.blur();
-                        }
-                    }, { once: true });
-                    
-                } else {
-                    // Open metadata panel if not clicking on title
-                    try {
-                        const canvasItem = this.canvasItems.find(ci => ci.element === item);
-                        const id = item.id || canvasItem?.id;
-                        if (id && typeof metadataPanel !== 'undefined') {
-                            metadataPanel.openForItem(id);
-                        }
-                    } catch(err){ console.warn('Double-click handler failed', err); }
-                }
+                // Always open metadata panel on double-click
+                try {
+                    const canvasItem = this.canvasItems.find(ci => ci.element === item);
+                    const id = item.id || canvasItem?.id;
+                    if (id && typeof metadataPanel !== 'undefined') {
+                        metadataPanel.openForItem(id);
+                    }
+                } catch(err){ console.warn('Double-click handler failed', err); }
             }
         });
         
@@ -7621,6 +7613,14 @@ class ArchitecturePlayground {
                         lastItem.id = savedId;
                         lastItem.element.id = savedId;
                         loadedItems.set(savedId, lastItem.element);
+                        
+                        // Restore the subtitle/type text from imported data if different from sourceType
+                        if (d.type && d.type !== d.sourceType) {
+                            const typeElement = lastItem.element.querySelector('.canvas-item-type');
+                            if (typeElement) {
+                                typeElement.textContent = d.type;
+                            }
+                        }
                     }
                     return;
                 }
@@ -7633,6 +7633,14 @@ class ArchitecturePlayground {
                         lastItem.id = savedId;
                         lastItem.element.id = savedId;
                         loadedItems.set(savedId, lastItem.element);
+                        
+                        // Restore the subtitle/type text from imported data
+                        if (item.data && item.data.type) {
+                            const typeElement = lastItem.element.querySelector('.canvas-item-type');
+                            if (typeElement) {
+                                typeElement.textContent = item.data.type;
+                            }
+                        }
                         
                         // Restore saved width/height for containers - prioritize explicit styles over computed dimensions
                         if (item.style?.width || item.style?.height) {
@@ -8049,6 +8057,7 @@ const metadataPanel = (function(){
         title: null,
         closeBtn: null,
         name: null,
+        subtitle: null,
         purpose: null,
         owner: null,
         criticality: null,
@@ -8071,6 +8080,7 @@ const metadataPanel = (function(){
         el.title = document.getElementById('mp-node-title');
         // Remove closeBtn since we're using toggle instead
         el.name = document.getElementById('mp-name');
+        el.subtitle = document.getElementById('mp-subtitle');
         el.purpose = document.getElementById('mp-purpose');
         el.owner = document.getElementById('mp-owner');
         el.criticality = document.getElementById('mp-criticality');
@@ -8086,7 +8096,7 @@ const metadataPanel = (function(){
         el.transparentBg = document.getElementById('mp-transparent-bg');
         el.containerOptions = document.getElementById('mp-container-options');
 
-        [el.name, el.purpose, el.owner, el.criticality, el.status, el.refresh, el.volume, el.latency, el.notes].forEach(inp => {
+        [el.name, el.subtitle, el.purpose, el.owner, el.criticality, el.status, el.refresh, el.volume, el.latency, el.notes].forEach(inp => {
             if(!inp) return;
             inp.addEventListener('input', handleFieldChange);
         });
@@ -8176,11 +8186,13 @@ const metadataPanel = (function(){
         el.panel.classList.remove('collapsed');
         el.panel.setAttribute('aria-hidden','false');
         
-        // Scroll inspector body to top to show Name field
-        const inspectorBody = document.getElementById('metadata-panel-body');
-        if (inspectorBody) {
-            inspectorBody.scrollTop = 0;
-        }
+        // Scroll inspector body to top to show Name field - use setTimeout to ensure DOM is updated
+        setTimeout(() => {
+            const inspectorBody = document.getElementById('metadata-panel-body');
+            if (inspectorBody) {
+                inspectorBody.scrollTop = 0;
+            }
+        }, 50);
     }
 
     function ensureMetaStructure(entry){
@@ -8195,8 +8207,23 @@ const metadataPanel = (function(){
         const b = entry.data.meta.business;
         const t = entry.data.meta.technical;
         const n = entry.data.meta.notes;
-        if(el.title) el.title.textContent = b.name || entry.data.name || 'Item';
-        if(el.name) el.name.value = b.name || entry.data.name || '';
+        
+        // Read title from actual DOM element to ensure accuracy
+        let currentTitle = '';
+        if(entry.element) {
+            const titleElement = entry.element.querySelector('.canvas-item-title');
+            if(titleElement) {
+                currentTitle = titleElement.textContent.trim();
+            }
+        }
+        // Fallback to metadata if DOM element not found
+        if(!currentTitle) currentTitle = b.name || entry.data.name || '';
+        
+        if(el.title) el.title.textContent = currentTitle || 'Edit Item';
+        if(el.name) {
+            el.name.value = currentTitle;
+            console.log('Populating title field with:', currentTitle, 'Element found:', !!el.name);
+        }
         if(el.purpose) el.purpose.value = b.purpose || '';
         if(el.owner) el.owner.value = b.owner || '';
         if(el.criticality) el.criticality.value = b.criticality || '';
@@ -8206,6 +8233,12 @@ const metadataPanel = (function(){
         if(el.volume) el.volume.value = t.volume || '';
         if(el.latency) el.latency.value = t.latency || '';
         if(el.notes) el.notes.value = n.text || '';
+        
+        // Populate subtitle from visual element
+        if(el.subtitle && entry.element) {
+            const typeElement = entry.element.querySelector('.canvas-item-type');
+            el.subtitle.value = typeElement ? typeElement.textContent.trim() : '';
+        }
         
         // Show/hide container options based on whether this is a container
         const isContainer = entry.element && entry.element.classList.contains('ci-container');
@@ -8232,13 +8265,26 @@ const metadataPanel = (function(){
         const n = entry.data.meta.notes;
         if(el.name){ 
             const newName = el.name.value.trim();
+            console.log('Flushing title changes:', newName);
             b.name = newName;
             entry.data.name = newName; // Also update entry.data.name for consistency
-            if(newName) { // also reflect on visual title
-                const titleSpan = entry.element.querySelector('.canvas-item-title');
-                if(titleSpan) titleSpan.textContent = newName;
+            // Update visual title on card
+            const titleSpan = entry.element.querySelector('.canvas-item-title');
+            if(titleSpan) {
+                titleSpan.textContent = newName;
+                console.log('Updated card title to:', newName);
             }
         }
+        
+        // Handle subtitle changes
+        if(el.subtitle && entry.element) {
+            const newSubtitle = el.subtitle.value.trim();
+            const typeElement = entry.element.querySelector('.canvas-item-type');
+            if(typeElement) {
+                typeElement.textContent = newSubtitle;
+            }
+        }
+        
         if(el.purpose) b.purpose = el.purpose.value.trim();
         if(el.owner) b.owner = el.owner.value.trim();
         if(el.criticality) b.criticality = el.criticality.value;

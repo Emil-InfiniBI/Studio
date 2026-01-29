@@ -762,34 +762,33 @@
 						<div class="inspector-header">
 							<div class="inspector-title">
 								<i class="fas fa-circle-info"></i>
-								<span id="mp-node-title">Properties</span>
-							</div>
-							<div class="inspector-name-field">
-								<label><i class="fas fa-tag"></i> Name</label>
-								<input type="text" id="mp-name" placeholder="Enter name...">
+								<span id="mp-node-title">Edit Item</span>
 							</div>
 						</div>
 						<div class="inspector-body" id="metadata-panel-body">
-							<div class="mp-section" data-section="business">
-								<div class="mp-section-header">Business</div>
+							<div class="mp-section" data-section="basic">
+								<div class="mp-section-header">Display Text</div>
 								<div class="mp-field">
-									<label>Purpose</label>
-									<textarea id="mp-purpose" rows="2" placeholder="Business purpose / value"></textarea>
+									<label style="color: #ff0; font-weight: bold;"><i class="fas fa-tag"></i> Title</label>
+									<input type="text" id="mp-name" placeholder="Enter title text..." style="border: 2px solid red !important; background: #ff0 !important; color: #000 !important;">
+									<small style="color: #888; display: block; margin-top: 4px;">This is the main title shown on the card</small>
 								</div>
 								<div class="mp-field">
-									<label>Owner / Stakeholder</label>
-									<input type="text" id="mp-owner" placeholder="Team or person">
+									<label><i class="fas fa-align-left"></i> Subtitle</label>
+									<input type="text" id="mp-subtitle" placeholder="e.g. 16 cols - Swedish incidents">
+									<small style="color: #888; display: block; margin-top: 4px;">This is the description text below the title</small>
+								</div>
+							</div>
+							<div class="mp-section" data-section="details">
+								<div class="mp-section-header">Additional Details</div>
+								<div class="mp-field">
+									<label>Description</label>
+									<textarea id="mp-purpose" rows="3" placeholder="Detailed description, purpose, or notes..."></textarea>
 								</div>
 								<div class="mp-field-group-inline">
 									<div class="mp-field">
-										<label>Criticality</label>
-										<select id="mp-criticality">
-											<option value="">--</option>
-											<option value="low">Low</option>
-											<option value="medium">Medium</option>
-											<option value="high">High</option>
-											<option value="mission">Mission Critical</option>
-										</select>
+										<label>Type</label>
+										<input type="text" id="mp-type" placeholder="e.g. SQL Server, REST API">
 									</div>
 									<div class="mp-field">
 										<label>Status</label>
@@ -804,12 +803,8 @@
 								</div>
 							</div>
 							<div class="mp-section" data-section="technical">
-								<div class="mp-section-header">Technical</div>
+								<div class="mp-section-header">Technical Info</div>
 								<div class="mp-field-group-inline">
-									<div class="mp-field">
-										<label>Type</label>
-										<input type="text" id="mp-type" disabled>
-									</div>
 									<div class="mp-field">
 										<label>Refresh</label>
 										<select id="mp-refresh">
@@ -821,22 +816,16 @@
 											<option value="realtime">Real-time</option>
 										</select>
 									</div>
-								</div>
-								<div class="mp-field-group-inline">
 									<div class="mp-field">
 										<label>Volume</label>
 										<input type="text" id="mp-volume" placeholder="e.g. 2TB / 5M rows">
-									</div>
-									<div class="mp-field">
-										<label>Latency Tolerance</label>
-										<input type="text" id="mp-latency" placeholder="e.g. 15 min">
 									</div>
 								</div>
 							</div>
 							<div class="mp-section" data-section="notes">
 								<div class="mp-section-header">Notes</div>
 								<div class="mp-field">
-									<textarea id="mp-notes" rows="5" placeholder="Freeform notes, assumptions, risks..."></textarea>
+									<textarea id="mp-notes" rows="4" placeholder="Additional notes, assumptions, or comments..."></textarea>
 								</div>
 							</div>
 							<!-- Container Display Options (only visible for containers) -->

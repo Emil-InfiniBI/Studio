@@ -1,0 +1,1020 @@
+{
+  "format": "single-page",
+  "version": "1.0",
+  "metadata": {
+    "exportDate": "2026-01-27T00:00:00.000Z",
+    "pageName": "HSE Report - Full Data Architecture",
+    "itemCount": 67,
+    "connectionCount": 88
+  },
+  "theme": "dark",
+  "items": [
+    {
+      "id": "lbl-sources",
+      "type": "text-label",
+      "data": {
+        "name": "📥 Data Sources",
+        "text": "📥 Data Sources",
+        "type": "text"
+      },
+      "position": { "x": 100, "y": 100 },
+      "width": 280,
+      "height": 60,
+      "style": {
+        "fontSize": "28px",
+        "fontWeight": "bold"
+      }
+    },
+    {
+      "id": "lbl-bronze",
+      "type": "text-label",
+      "data": {
+        "name": "🥉 Bronze Layer",
+        "text": "🥉 Bronze Layer",
+        "type": "text"
+      },
+      "position": { "x": 600, "y": 100 },
+      "width": 280,
+      "height": 60,
+      "style": {
+        "fontSize": "28px",
+        "fontWeight": "bold"
+      }
+    },
+    {
+      "id": "lbl-silver",
+      "type": "text-label",
+      "data": {
+        "name": "🥈 Silver Layer",
+        "text": "🥈 Silver Layer",
+        "type": "text"
+      },
+      "position": { "x": 1100, "y": 100 },
+      "width": 280,
+      "height": 60,
+      "style": {
+        "fontSize": "28px",
+        "fontWeight": "bold"
+      }
+    },
+    {
+      "id": "lbl-gold",
+      "type": "text-label",
+      "data": {
+        "name": "🥇 Gold Layer",
+        "text": "🥇 Gold Layer",
+        "type": "text"
+      },
+      "position": { "x": 1600, "y": 100 },
+      "width": 280,
+      "height": 60,
+      "style": {
+        "fontSize": "28px",
+        "fontWeight": "bold"
+      }
+    },
+    {
+      "id": "lbl-semantic",
+      "type": "text-label",
+      "data": {
+        "name": "🧱 Semantic Model",
+        "text": "🧱 Semantic Model",
+        "type": "text"
+      },
+      "position": { "x": 2100, "y": 100 },
+      "width": 320,
+      "height": 60,
+      "style": {
+        "fontSize": "28px",
+        "fontWeight": "bold"
+      }
+    },
+    {
+      "id": "lbl-reports",
+      "type": "text-label",
+      "data": {
+        "name": "📊 Reports",
+        "text": "📊 Reports",
+        "type": "text"
+      },
+      "position": { "x": 2620, "y": 100 },
+      "width": 220,
+      "height": 60,
+      "style": {
+        "fontSize": "28px",
+        "fontWeight": "bold"
+      }
+    },
+    {
+      "id": "ds_qda_hse",
+      "type": "data-source",
+      "data": {
+        "name": "QDA HSE Database",
+        "sourceType": "SQL Server",
+        "icon": "fas fa-database",
+        "meta": {
+          "technical": {
+            "server": "10.217.2.4\\GC_HSE",
+            "database": "GC_HSE",
+            "authentication": "Windows Integrated"
+          }
+        }
+      },
+      "position": { "x": 120, "y": 200 },
+      "width": 140,
+      "height": 100
+    },
+    {
+      "id": "ds_ia_btg",
+      "type": "data-source",
+      "data": {
+        "name": "IA API - BTG",
+        "sourceType": "REST API",
+        "icon": "fas fa-cloud",
+        "meta": {
+          "technical": {
+            "factory": "Guldsmedshyttan (Sweden)",
+            "authType": "OAuth 2.0"
+          }
+        }
+      },
+      "position": { "x": 120, "y": 320 },
+      "width": 140,
+      "height": 100
+    },
+    {
+      "id": "ds_ia_btl",
+      "type": "data-source",
+      "data": {
+        "name": "IA API - BTL",
+        "sourceType": "REST API",
+        "icon": "fas fa-cloud",
+        "meta": {
+          "technical": {
+            "factory": "Larvik (Norway)",
+            "authType": "OAuth 2.0"
+          }
+        }
+      },
+      "position": { "x": 120, "y": 440 },
+      "width": 140,
+      "height": 100
+    },
+    {
+      "id": "ds_ia_bti",
+      "type": "data-source",
+      "data": {
+        "name": "IA API - BTI",
+        "sourceType": "REST API",
+        "icon": "fas fa-cloud",
+        "meta": {
+          "technical": {
+            "factory": "Iron Mountain (USA)",
+            "authType": "OAuth 2.0"
+          }
+        }
+      },
+      "position": { "x": 120, "y": 560 },
+      "width": 140,
+      "height": 100
+    },
+    {
+      "id": "ds_ia_bto",
+      "type": "data-source",
+      "data": {
+        "name": "IA API - BTO",
+        "sourceType": "REST API",
+        "icon": "fas fa-cloud",
+        "meta": {
+          "technical": {
+            "factory": "Osnabrück (Germany)",
+            "authType": "OAuth 2.0"
+          }
+        }
+      },
+      "position": { "x": 120, "y": 680 },
+      "width": 140,
+      "height": 100
+    },
+    {
+      "id": "ds_sp_btt",
+      "type": "data-source",
+      "data": {
+        "name": "SharePoint BTT",
+        "sourceType": "SharePoint Online",
+        "icon": "fas fa-share-alt",
+        "meta": {
+          "technical": {
+            "factory": "Tianjin (China)",
+            "lists": "I-Check, Incident Reporting"
+          }
+        }
+      },
+      "position": { "x": 120, "y": 800 },
+      "width": 140,
+      "height": 100
+    },
+    {
+      "id": "ds_sp_btx",
+      "type": "data-source",
+      "data": {
+        "name": "SharePoint BTX",
+        "sourceType": "SharePoint Online",
+        "icon": "fas fa-share-alt",
+        "meta": {
+          "technical": {
+            "factory": "Xuzhou (China)",
+            "lists": "I-Check"
+          }
+        }
+      },
+      "position": { "x": 120, "y": 920 },
+      "width": 140,
+      "height": 100
+    },
+    {
+      "id": "ds_sp_btg",
+      "type": "data-source",
+      "data": {
+        "name": "SharePoint BTG",
+        "sourceType": "SharePoint Online",
+        "icon": "fas fa-share-alt",
+        "meta": {
+          "technical": {
+            "lists": "Incidentrapportering"
+          }
+        }
+      },
+      "position": { "x": 120, "y": 1040 },
+      "width": 140,
+      "height": 100
+    },
+    {
+      "id": "ds_dynamics",
+      "type": "data-source",
+      "data": {
+        "name": "Dynamics 365",
+        "sourceType": "Dataverse",
+        "icon": "fas fa-cloud",
+        "meta": {
+          "technical": {
+            "table": "IaSystemetMaster",
+            "purpose": "Body part master data"
+          }
+        }
+      },
+      "position": { "x": 120, "y": 1160 },
+      "width": 140,
+      "height": 100
+    },
+    {
+      "id": "ds_excel_hse",
+      "type": "data-source",
+      "data": {
+        "name": "Excel - HSE KPI",
+        "sourceType": "Excel Workbook",
+        "icon": "fas fa-file-excel",
+        "meta": {
+          "technical": {
+            "sheets": "HO and NM, Worked hours"
+          }
+        }
+      },
+      "position": { "x": 120, "y": 1280 },
+      "width": 140,
+      "height": 100
+    },
+    {
+      "id": "ds_excel_co2",
+      "type": "data-source",
+      "data": {
+        "name": "Excel - CO2",
+        "sourceType": "Excel Workbook",
+        "icon": "fas fa-file-excel",
+        "meta": {
+          "technical": {
+            "sheets": "Consumption, Conversion factors"
+          }
+        }
+      },
+      "position": { "x": 120, "y": 1400 },
+      "width": 140,
+      "height": 100
+    },
+    {
+      "id": "bronze_qda_incidents",
+      "type": "bronze",
+      "data": {
+        "name": "QDA_Incidents",
+        "type": "144 cols - Raw incident data",
+        "icon": "🥉",
+        "meta": {
+          "technical": {
+            "filter": "LANG_ID = 3 (English)",
+            "keyColumn": "MAINKEY"
+          }
+        }
+      },
+      "position": { "x": 620, "y": 200 },
+      "width": 150,
+      "height": 110
+    },
+    {
+      "id": "bronze_qda_actions",
+      "type": "bronze",
+      "data": {
+        "name": "QDA_Actions",
+        "type": "176 cols - CAPA tracking",
+        "icon": "🥉",
+        "meta": {
+          "technical": {
+            "keyColumns": "MAINKEY, MASSNAHMNR"
+          }
+        }
+      },
+      "position": { "x": 620, "y": 330 },
+      "width": 150,
+      "height": 110
+    },
+    {
+      "id": "bronze_btg",
+      "type": "bronze",
+      "data": {
+        "name": "BTG",
+        "type": "16 cols - Swedish incidents",
+        "icon": "🥉",
+        "meta": {
+          "technical": {
+            "factory": "BTG",
+            "filter": "Incidentkategori"
+          }
+        }
+      },
+      "position": { "x": 620, "y": 460 },
+      "width": 150,
+      "height": 110
+    },
+    {
+      "id": "bronze_btl",
+      "type": "bronze",
+      "data": {
+        "name": "BTL",
+        "type": "16 cols - Norwegian incidents",
+        "icon": "🥉",
+        "meta": {
+          "technical": {
+            "factory": "BTL",
+            "filter": "Hændelseskategori"
+          }
+        }
+      },
+      "position": { "x": 620, "y": 590 },
+      "width": 150,
+      "height": 110
+    },
+    {
+      "id": "bronze_bti",
+      "type": "bronze",
+      "data": {
+        "name": "BTI",
+        "type": "16 cols - USA incidents",
+        "icon": "🥉",
+        "meta": {
+          "technical": {
+            "factory": "BTI",
+            "filter": "Incident category"
+          }
+        }
+      },
+      "position": { "x": 620, "y": 720 },
+      "width": 150,
+      "height": 110
+    },
+    {
+      "id": "bronze_bto",
+      "type": "bronze",
+      "data": {
+        "name": "BTO",
+        "type": "16 cols - German incidents",
+        "icon": "🥉",
+        "meta": {
+          "technical": {
+            "factory": "BTO",
+            "filter": "Vorfallkategorie"
+          }
+        }
+      },
+      "position": { "x": 620, "y": 850 },
+      "width": 150,
+      "height": 110
+    },
+    {
+      "id": "bronze_btt_icheck",
+      "type": "bronze",
+      "data": {
+        "name": "BTT HSE I-Check",
+        "type": "8 cols - Chinese I-Check",
+        "icon": "🥉",
+        "meta": {
+          "technical": {
+            "factory": "BTT",
+            "conditionalLogic": "Department mapping"
+          }
+        }
+      },
+      "position": { "x": 620, "y": 980 },
+      "width": 150,
+      "height": 110
+    },
+    {
+      "id": "bronze_btx_icheck",
+      "type": "bronze",
+      "data": {
+        "name": "BTX HSE I-Check",
+        "type": "8 cols - Chinese I-Check",
+        "icon": "🥉",
+        "meta": {
+          "technical": {
+            "factory": "BTX",
+            "processMapping": "Assembly/Moulding"
+          }
+        }
+      },
+      "position": { "x": 620, "y": 1110 },
+      "width": 150,
+      "height": 110
+    },
+    {
+      "id": "bronze_btg_incident",
+      "type": "bronze",
+      "data": {
+        "name": "BTG_Incidentrapportering",
+        "type": "48 cols - BTG internal",
+        "icon": "🥉"
+      },
+      "position": { "x": 620, "y": 1240 },
+      "width": 150,
+      "height": 110
+    },
+    {
+      "id": "bronze_btt_formal",
+      "type": "bronze",
+      "data": {
+        "name": "BTT Formal Incidents",
+        "type": "9 cols - Formal reports",
+        "icon": "🥉",
+        "meta": {
+          "technical": {
+            "keyColumn": "MAINKEY (Site-EnteredbyId-Incidenttype)"
+          }
+        }
+      },
+      "position": { "x": 620, "y": 1370 },
+      "width": 150,
+      "height": 110
+    },
+    {
+      "id": "bronze_ia_master",
+      "type": "bronze",
+      "data": {
+        "name": "IaSystemetMaster",
+        "type": "18 cols - Body part master",
+        "icon": "🥉"
+      },
+      "position": { "x": 620, "y": 1500 },
+      "width": 150,
+      "height": 110
+    },
+    {
+      "id": "bronze_consumption",
+      "type": "bronze",
+      "data": {
+        "name": "Consumption",
+        "type": "15 cols - CO2 tracking",
+        "icon": "🥉"
+      },
+      "position": { "x": 620, "y": 1630 },
+      "width": 150,
+      "height": 110
+    },
+    {
+      "id": "bronze_conversion",
+      "type": "bronze",
+      "data": {
+        "name": "Conversion factors",
+        "type": "10 cols - CO2 factors",
+        "icon": "🥉"
+      },
+      "position": { "x": 620, "y": 1760 },
+      "width": 150,
+      "height": 110
+    },
+    {
+      "id": "bronze_worked_hours",
+      "type": "bronze",
+      "data": {
+        "name": "Worked hours",
+        "type": "7 cols - Monthly hours",
+        "icon": "🥉"
+      },
+      "position": { "x": 620, "y": 1890 },
+      "width": 150,
+      "height": 110
+    },
+    {
+      "id": "bronze_ho_nm",
+      "type": "bronze",
+      "data": {
+        "name": "HO and NM",
+        "type": "7 cols - Observations",
+        "icon": "🥉"
+      },
+      "position": { "x": 620, "y": 2020 },
+      "width": 150,
+      "height": 110
+    },
+    {
+      "id": "silver_ia_all",
+      "type": "silver",
+      "data": {
+        "name": "IA_ALL",
+        "type": "16 cols - Unified incidents",
+        "icon": "🥈",
+        "meta": {
+          "business": {
+            "description": "6-source unification: BTG+BTL+BTI+BTO+BTT+BTX"
+          },
+          "technical": {
+            "transformations": "14 Replace Value ops, multilingual standardization"
+          }
+        }
+      },
+      "position": { "x": 1120, "y": 600 },
+      "width": 150,
+      "height": 130
+    },
+    {
+      "id": "silver_ia_tri",
+      "type": "silver",
+      "data": {
+        "name": "IA_ALL_Incidents TRI",
+        "type": "13 cols - TRI classified",
+        "icon": "🥈",
+        "meta": {
+          "business": {
+            "description": "Total Recordable Incidents with body part codes"
+          },
+          "technical": {
+            "bodyPartCodes": "100-1202",
+            "triClassification": "LTI/MTI/RWI → TRI"
+          }
+        }
+      },
+      "position": { "x": 1120, "y": 750 },
+      "width": 150,
+      "height": 130
+    },
+    {
+      "id": "gold_calendar",
+      "type": "gold",
+      "data": {
+        "name": "Calendar (3 instances)",
+        "type": "Date dimension",
+        "icon": "🥇",
+        "meta": {
+          "business": {
+            "description": "Calendar, Calendar 2, Calendar 3 for different relationships"
+          },
+          "technical": {
+            "dateRange": "2015-01-01 to 2030-12-31",
+            "hierarchies": "Year > Quarter > Month > Date"
+          }
+        }
+      },
+      "position": { "x": 1620, "y": 200 },
+      "width": 150,
+      "height": 120
+    },
+    {
+      "id": "gold_factory",
+      "type": "gold",
+      "data": {
+        "name": "Factory",
+        "type": "7 locations",
+        "icon": "🥇",
+        "meta": {
+          "business": {
+            "members": "BTG, BTL, BTI, BTO, BTT, BTX, HO"
+          }
+        }
+      },
+      "position": { "x": 1620, "y": 340 },
+      "width": 150,
+      "height": 120
+    },
+    {
+      "id": "gold_rekart",
+      "type": "gold",
+      "data": {
+        "name": "REKART short",
+        "type": "Incident types",
+        "icon": "🥇",
+        "meta": {
+          "business": {
+            "categories": "LTI, MTI, RWI, TRI, Near Miss, Haz. Obs., OK"
+          }
+        }
+      },
+      "position": { "x": 1620, "y": 480 },
+      "width": 150,
+      "height": 120
+    },
+    {
+      "id": "gold_incident_cat",
+      "type": "gold",
+      "data": {
+        "name": "Incident category",
+        "type": "Body parts",
+        "icon": "🥇",
+        "meta": {
+          "business": {
+            "codes": "14 body parts (100-1202)"
+          }
+        }
+      },
+      "position": { "x": 1620, "y": 620 },
+      "width": 150,
+      "height": 120
+    },
+    {
+      "id": "gold_shift",
+      "type": "gold",
+      "data": {
+        "name": "Shift",
+        "type": "Work shift",
+        "icon": "🥇"
+      },
+      "position": { "x": 1620, "y": 760 },
+      "width": 150,
+      "height": 120
+    },
+    {
+      "id": "gold_kpi_targets",
+      "type": "gold",
+      "data": {
+        "name": "KPI targets",
+        "type": "Target values",
+        "icon": "🥇"
+      },
+      "position": { "x": 1620, "y": 900 },
+      "width": 150,
+      "height": 120
+    },
+    {
+      "id": "gold_fact_qda_incidents",
+      "type": "gold",
+      "data": {
+        "name": "FACT: QDA_Incidents",
+        "type": "144 cols - Main incident fact",
+        "icon": "🥇",
+        "meta": {
+          "business": {
+            "grain": "One row per incident",
+            "measures": "Incident Count, Days away from work"
+          }
+        }
+      },
+      "position": { "x": 1620, "y": 1040 },
+      "width": 150,
+      "height": 130
+    },
+    {
+      "id": "gold_fact_qda_actions",
+      "type": "gold",
+      "data": {
+        "name": "FACT: QDA_Actions",
+        "type": "176 cols - CAPA fact",
+        "icon": "🥇",
+        "meta": {
+          "business": {
+            "grain": "One row per action",
+            "measures": "Action count, Completion rate, Overdue"
+          }
+        }
+      },
+      "position": { "x": 1620, "y": 1190 },
+      "width": 150,
+      "height": 130
+    },
+    {
+      "id": "gold_fact_ia_all",
+      "type": "gold",
+      "data": {
+        "name": "FACT: IA_ALL",
+        "type": "16 cols - Unified observations",
+        "icon": "🥇",
+        "meta": {
+          "business": {
+            "grain": "One row per observation",
+            "measures": "Haz Obs count, Near Miss count"
+          }
+        }
+      },
+      "position": { "x": 1620, "y": 1340 },
+      "width": 150,
+      "height": 130
+    },
+    {
+      "id": "gold_fact_ia_tri",
+      "type": "gold",
+      "data": {
+        "name": "FACT: IA_TRI",
+        "type": "13 cols - TRI incidents",
+        "icon": "🥇",
+        "meta": {
+          "business": {
+            "grain": "One row per TRI",
+            "measures": "TRI, LTI, MTI, RWI counts"
+          }
+        }
+      },
+      "position": { "x": 1620, "y": 1490 },
+      "width": 150,
+      "height": 130
+    },
+    {
+      "id": "gold_fact_consumption",
+      "type": "gold",
+      "data": {
+        "name": "FACT: Consumption",
+        "type": "15 cols - Environmental",
+        "icon": "🥇",
+        "meta": {
+          "business": {
+            "grain": "Factory per month",
+            "measures": "CO2, Energy, Renewable %"
+          }
+        }
+      },
+      "position": { "x": 1620, "y": 1640 },
+      "width": 150,
+      "height": 130
+    },
+    {
+      "id": "gold_fact_worked_hours",
+      "type": "gold",
+      "data": {
+        "name": "FACT: Worked hours",
+        "type": "7 cols - PPM denominator",
+        "icon": "🥇",
+        "meta": {
+          "business": {
+            "grain": "Factory per month",
+            "measures": "Total hours worked"
+          }
+        }
+      },
+      "position": { "x": 1620, "y": 1790 },
+      "width": 150,
+      "height": 130
+    },
+    {
+      "id": "gold_fact_ho_nm",
+      "type": "gold",
+      "data": {
+        "name": "FACT: HO and NM",
+        "type": "7 cols - Observations fact",
+        "icon": "🥇",
+        "meta": {
+          "business": {
+            "grain": "Factory per type per month",
+            "measures": "HO count, NM count"
+          }
+        }
+      },
+      "position": { "x": 1620, "y": 1940 },
+      "width": 150,
+      "height": 130
+    },
+    {
+      "id": "measures_safety",
+      "type": "gold",
+      "data": {
+        "name": "Safety Measures",
+        "type": "45 DAX calculations",
+        "icon": "🥇",
+        "meta": {
+          "business": {
+            "keyMeasures": "PPM TRI, PPM LTI, PPM RWI, PPM MTI, Near Miss Rate, Haz Obs Rate"
+          }
+        }
+      },
+      "position": { "x": 1620, "y": 2090 },
+      "width": 150,
+      "height": 130
+    },
+    {
+      "id": "measures_environment",
+      "type": "gold",
+      "data": {
+        "name": "Environmental Measures",
+        "type": "15 DAX calculations",
+        "icon": "🥇",
+        "meta": {
+          "business": {
+            "keyMeasures": "CO2 per ton, Renewable %, Energy intensity"
+          }
+        }
+      },
+      "position": { "x": 1620, "y": 2240 },
+      "width": 150,
+      "height": 130
+    },
+    {
+      "id": "semantic-model",
+      "type": "semantic-model",
+      "data": {
+        "name": "HSE Report Semantic Model",
+        "type": "Power BI Model",
+        "icon": "🧱",
+        "meta": {
+          "business": {
+            "description": "92 tables, 88 relationships, 60 measures"
+          },
+          "technical": {
+            "mode": "Import",
+            "culture": "sv-SE",
+            "compatibility": "PowerBI_V3",
+            "relationshipPattern": "Star Schema",
+            "modelSize": "~150 MB compressed"
+          }
+        }
+      },
+      "position": { "x": 2120, "y": 900 },
+      "width": 160,
+      "height": 140
+    },
+    {
+      "id": "report_safety",
+      "type": "report",
+      "data": {
+        "name": "Safety Dashboard",
+        "type": "Executive KPIs",
+        "icon": "📈",
+        "meta": {
+          "business": {
+            "description": "PPM trends, body part analysis, factory comparison"
+          },
+          "technical": {
+            "pages": "8 pages",
+            "refreshSchedule": "Daily at 6:00 AM"
+          }
+        }
+      },
+      "position": { "x": 2640, "y": 700 },
+      "width": 120,
+      "height": 120
+    },
+    {
+      "id": "report_environment",
+      "type": "report",
+      "data": {
+        "name": "Environmental Report",
+        "type": "CO2 & Energy",
+        "icon": "📈",
+        "meta": {
+          "business": {
+            "description": "CO2 emissions and renewable energy tracking"
+          },
+          "technical": {
+            "pages": "5 pages"
+          }
+        }
+      },
+      "position": { "x": 2640, "y": 880 },
+      "width": 120,
+      "height": 120
+    },
+    {
+      "id": "report_capa",
+      "type": "report",
+      "data": {
+        "name": "CAPA Tracking",
+        "type": "Action Management",
+        "icon": "📈",
+        "meta": {
+          "business": {
+            "description": "Corrective and preventive action monitoring"
+          },
+          "technical": {
+            "pages": "4 pages"
+          }
+        }
+      },
+      "position": { "x": 2640, "y": 1060 },
+      "width": 120,
+      "height": 120
+    }
+  ],
+  "connections": [
+    {"id": "conn-1", "type": "item-to-item", "fromId": "ds_qda_hse", "toId": "bronze_qda_incidents"},
+    {"id": "conn-2", "type": "item-to-item", "fromId": "ds_qda_hse", "toId": "bronze_qda_actions"},
+    {"id": "conn-3", "type": "item-to-item", "fromId": "ds_ia_btg", "toId": "bronze_btg"},
+    {"id": "conn-4", "type": "item-to-item", "fromId": "ds_ia_btl", "toId": "bronze_btl"},
+    {"id": "conn-5", "type": "item-to-item", "fromId": "ds_ia_bti", "toId": "bronze_bti"},
+    {"id": "conn-6", "type": "item-to-item", "fromId": "ds_ia_bto", "toId": "bronze_bto"},
+    {"id": "conn-7", "type": "item-to-item", "fromId": "ds_sp_btt", "toId": "bronze_btt_icheck"},
+    {"id": "conn-8", "type": "item-to-item", "fromId": "ds_sp_btx", "toId": "bronze_btx_icheck"},
+    {"id": "conn-9", "type": "item-to-item", "fromId": "ds_sp_btg", "toId": "bronze_btg_incident"},
+    {"id": "conn-10", "type": "item-to-item", "fromId": "ds_sp_btt", "toId": "bronze_btt_formal"},
+    {"id": "conn-11", "type": "item-to-item", "fromId": "ds_dynamics", "toId": "bronze_ia_master"},
+    {"id": "conn-12", "type": "item-to-item", "fromId": "ds_excel_co2", "toId": "bronze_consumption"},
+    {"id": "conn-13", "type": "item-to-item", "fromId": "ds_excel_co2", "toId": "bronze_conversion"},
+    {"id": "conn-14", "type": "item-to-item", "fromId": "ds_excel_hse", "toId": "bronze_worked_hours"},
+    {"id": "conn-15", "type": "item-to-item", "fromId": "ds_excel_hse", "toId": "bronze_ho_nm"},
+    {"id": "conn-16", "type": "item-to-item", "fromId": "bronze_btg", "toId": "silver_ia_all"},
+    {"id": "conn-17", "type": "item-to-item", "fromId": "bronze_btl", "toId": "silver_ia_all"},
+    {"id": "conn-18", "type": "item-to-item", "fromId": "bronze_bti", "toId": "silver_ia_all"},
+    {"id": "conn-19", "type": "item-to-item", "fromId": "bronze_bto", "toId": "silver_ia_all"},
+    {"id": "conn-20", "type": "item-to-item", "fromId": "bronze_btt_icheck", "toId": "silver_ia_all"},
+    {"id": "conn-21", "type": "item-to-item", "fromId": "bronze_btx_icheck", "toId": "silver_ia_all"},
+    {"id": "conn-22", "type": "item-to-item", "fromId": "silver_ia_all", "toId": "silver_ia_tri"},
+    {"id": "conn-23", "type": "item-to-item", "fromId": "bronze_btt_formal", "toId": "silver_ia_tri"},
+    {"id": "conn-24", "type": "item-to-item", "fromId": "bronze_qda_incidents", "toId": "gold_fact_qda_incidents"},
+    {"id": "conn-25", "type": "item-to-item", "fromId": "bronze_qda_actions", "toId": "gold_fact_qda_actions"},
+    {"id": "conn-26", "type": "item-to-item", "fromId": "silver_ia_all", "toId": "gold_fact_ia_all"},
+    {"id": "conn-27", "type": "item-to-item", "fromId": "silver_ia_tri", "toId": "gold_fact_ia_tri"},
+    {"id": "conn-28", "type": "item-to-item", "fromId": "bronze_consumption", "toId": "gold_fact_consumption"},
+    {"id": "conn-29", "type": "item-to-item", "fromId": "bronze_worked_hours", "toId": "gold_fact_worked_hours"},
+    {"id": "conn-30", "type": "item-to-item", "fromId": "bronze_ho_nm", "toId": "gold_fact_ho_nm"},
+    {"id": "conn-31", "type": "item-to-item", "fromId": "gold_calendar", "toId": "gold_fact_qda_incidents"},
+    {"id": "conn-32", "type": "item-to-item", "fromId": "gold_factory", "toId": "gold_fact_qda_incidents"},
+    {"id": "conn-33", "type": "item-to-item", "fromId": "gold_rekart", "toId": "gold_fact_qda_incidents"},
+    {"id": "conn-34", "type": "item-to-item", "fromId": "gold_incident_cat", "toId": "gold_fact_qda_incidents"},
+    {"id": "conn-35", "type": "item-to-item", "fromId": "gold_calendar", "toId": "gold_fact_qda_actions"},
+    {"id": "conn-36", "type": "item-to-item", "fromId": "gold_factory", "toId": "gold_fact_qda_actions"},
+    {"id": "conn-37", "type": "item-to-item", "fromId": "gold_calendar", "toId": "gold_fact_ia_all"},
+    {"id": "conn-38", "type": "item-to-item", "fromId": "gold_factory", "toId": "gold_fact_ia_all"},
+    {"id": "conn-39", "type": "item-to-item", "fromId": "gold_rekart", "toId": "gold_fact_ia_all"},
+    {"id": "conn-40", "type": "item-to-item", "fromId": "gold_calendar", "toId": "gold_fact_ia_tri"},
+    {"id": "conn-41", "type": "item-to-item", "fromId": "gold_factory", "toId": "gold_fact_ia_tri"},
+    {"id": "conn-42", "type": "item-to-item", "fromId": "gold_rekart", "toId": "gold_fact_ia_tri"},
+    {"id": "conn-43", "type": "item-to-item", "fromId": "gold_incident_cat", "toId": "gold_fact_ia_tri"},
+    {"id": "conn-44", "type": "item-to-item", "fromId": "gold_calendar", "toId": "gold_fact_consumption"},
+    {"id": "conn-45", "type": "item-to-item", "fromId": "gold_factory", "toId": "gold_fact_consumption"},
+    {"id": "conn-46", "type": "item-to-item", "fromId": "gold_calendar", "toId": "gold_fact_worked_hours"},
+    {"id": "conn-47", "type": "item-to-item", "fromId": "gold_factory", "toId": "gold_fact_worked_hours"},
+    {"id": "conn-48", "type": "item-to-item", "fromId": "gold_calendar", "toId": "gold_fact_ho_nm"},
+    {"id": "conn-49", "type": "item-to-item", "fromId": "gold_factory", "toId": "gold_fact_ho_nm"},
+    {"id": "conn-50", "type": "item-to-item", "fromId": "gold_fact_qda_incidents", "toId": "semantic-model"},
+    {"id": "conn-51", "type": "item-to-item", "fromId": "gold_fact_qda_actions", "toId": "semantic-model"},
+    {"id": "conn-52", "type": "item-to-item", "fromId": "gold_fact_ia_all", "toId": "semantic-model"},
+    {"id": "conn-53", "type": "item-to-item", "fromId": "gold_fact_ia_tri", "toId": "semantic-model"},
+    {"id": "conn-54", "type": "item-to-item", "fromId": "gold_fact_consumption", "toId": "semantic-model"},
+    {"id": "conn-55", "type": "item-to-item", "fromId": "gold_fact_worked_hours", "toId": "semantic-model"},
+    {"id": "conn-56", "type": "item-to-item", "fromId": "gold_fact_ho_nm", "toId": "semantic-model"},
+    {"id": "conn-57", "type": "item-to-item", "fromId": "gold_calendar", "toId": "semantic-model"},
+    {"id": "conn-58", "type": "item-to-item", "fromId": "gold_factory", "toId": "semantic-model"},
+    {"id": "conn-59", "type": "item-to-item", "fromId": "gold_rekart", "toId": "semantic-model"},
+    {"id": "conn-60", "type": "item-to-item", "fromId": "gold_incident_cat", "toId": "semantic-model"},
+    {"id": "conn-61", "type": "item-to-item", "fromId": "gold_shift", "toId": "semantic-model"},
+    {"id": "conn-62", "type": "item-to-item", "fromId": "gold_kpi_targets", "toId": "semantic-model"},
+    {"id": "conn-63", "type": "item-to-item", "fromId": "measures_safety", "toId": "semantic-model"},
+    {"id": "conn-64", "type": "item-to-item", "fromId": "measures_environment", "toId": "semantic-model"},
+    {"id": "conn-65", "type": "item-to-item", "fromId": "semantic-model", "toId": "report_safety"},
+    {"id": "conn-66", "type": "item-to-item", "fromId": "semantic-model", "toId": "report_environment"},
+    {"id": "conn-67", "type": "item-to-item", "fromId": "semantic-model", "toId": "report_capa"}
+  ],
+  "sources": [
+    {
+      "name": "QDA HSE Database",
+      "type": "SQL Server",
+      "icon": "fas fa-database",
+      "dataType": "sql-server"
+    },
+    {
+      "name": "IA Systemet APIs",
+      "type": "REST API (OAuth 2.0)",
+      "icon": "fas fa-cloud",
+      "dataType": "rest-api"
+    },
+    {
+      "name": "SharePoint Online",
+      "type": "SharePoint Lists",
+      "icon": "fas fa-share-alt",
+      "dataType": "sharepoint"
+    },
+    {
+      "name": "Dynamics 365",
+      "type": "Dataverse",
+      "icon": "fas fa-cloud",
+      "dataType": "dataverse"
+    },
+    {
+      "name": "Excel Files",
+      "type": "SharePoint Excel",
+      "icon": "fas fa-file-excel",
+      "dataType": "excel"
+    }
+  ]
+}
